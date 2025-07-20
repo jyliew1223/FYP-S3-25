@@ -1,2 +1,9 @@
-# Auto detect text files and perform LF normalization
+# Treat all files as text and normalize line endings to LF
 * text=auto
+
+# Force LF endings for specific types
+*.cs text eol=lf
+*.shader text eol=lf
+*.meta text eol=lf
+*.cginc text eol=lf
+.gitattributes text eol=lf
