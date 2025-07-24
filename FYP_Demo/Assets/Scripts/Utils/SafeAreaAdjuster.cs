@@ -10,10 +10,9 @@ public class SafeAreaAdjuster : MonoBehaviour
 
     void Awake()
     {
-        panel = GetComponent<RectTransform>();
+        TryGetComponent(out panel);
         ApplySafeArea();
     }
-
     void ApplySafeArea()
     {
         Rect fullArea = new Rect(0, 0, Screen.width, Screen.height);

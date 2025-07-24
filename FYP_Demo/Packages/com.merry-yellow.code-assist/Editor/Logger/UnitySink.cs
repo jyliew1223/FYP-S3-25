@@ -7,10 +7,9 @@ using System.Linq;
 using Meryel.Serilog;
 using Meryel.Serilog.Core;
 using Meryel.Serilog.Events;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -58,5 +57,4 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
         {
         }
     }
-
 }

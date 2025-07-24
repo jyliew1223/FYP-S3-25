@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using static System.IO.Path;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -71,7 +70,8 @@ namespace Meryel.UnityCodeAssist.Editor
             var osPath = new OSPath(rawPath);
             var unixPath = osPath.Unix;
             var trimmed = unixPath.TrimEnd('\\', '/');
-            var capitalized = FirstCharToUpper(trimmed); // this is required for TypeScript, so doing it here as well just in case
+            var capitalized =
+                FirstCharToUpper(trimmed); // this is required for TypeScript, so doing it here as well just in case
             return capitalized!;
         }
 
@@ -123,7 +123,9 @@ namespace Meryel.UnityCodeAssist.Editor
         protected string Text { get; }
 
         public string Normalized => IsWindows ? Windows : Unix;
+
         public string Windows => Text.Replace('/', '\\');
+
         //public string Unix => Simplified.Text.Replace('\\', '/');
         public string Unix => Text.Replace('\\', '/');
 
@@ -145,7 +147,7 @@ namespace Meryel.UnityCodeAssist.Editor
 
         public static OSPath operator -(OSPath left, OSPath right) =>
             left.Contains(right)
-            ? new OSPath(left.Normalized.Substring(right.Normalized.Length)).Relative
-            : left;
+                ? new OSPath(left.Normalized.Substring(right.Normalized.Length)).Relative
+                : left;
     }
 }

@@ -4,10 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -16,7 +15,6 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor.Input
 {
-
     public class Text2Yaml
     {
         public static string Convert(IEnumerable<string> textLines)
@@ -76,7 +74,6 @@ namespace Meryel.UnityCodeAssist.Editor.Input
                                 Error("stack empty at type undeclaration");
                             indentationPrefix = new string(' ', typeIndentation * 2);
                         }
-
                     }
                     else
                     {
@@ -161,9 +158,7 @@ namespace Meryel.UnityCodeAssist.Editor.Input
 
 
                 Error("line failed to match all cases");
-
             }
-
 
 
             return sb.ToString();
@@ -185,14 +180,12 @@ namespace Meryel.UnityCodeAssist.Editor.Input
 
             void Error(string message)
             {
-                var errorMessage = $"Text2Yaml error '{message}' at lineNo: {curTextLineNo}, line: '{curTextLine}' at {Environment.StackTrace}";
+                var errorMessage =
+                    $"Text2Yaml error '{message}' at lineNo: {curTextLineNo}, line: '{curTextLine}' at {Environment.StackTrace}";
                 //throw new Exception(errorMessage);
                 Serilog.Log.Warning(errorMessage);
             }
-
         }
-
-
     }
 
     public static partial class Extensions
@@ -211,5 +204,4 @@ namespace Meryel.UnityCodeAssist.Editor.Input
             }
         }
     }
-
 }

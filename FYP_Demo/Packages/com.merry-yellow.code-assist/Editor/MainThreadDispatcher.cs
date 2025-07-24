@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using UnityEngine;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -15,7 +14,6 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor
 {
-
     //[InitializeOnLoad]
     public static class MainThreadDispatcher
     {
@@ -30,7 +28,9 @@ namespace Meryel.UnityCodeAssist.Editor
         /// <summary>
         /// Empty method for invoking static class ctor
         /// </summary>
-        public static void Bump() {}
+        public static void Bump()
+        {
+        }
 
         static void Update()
         {

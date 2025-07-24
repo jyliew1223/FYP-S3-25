@@ -5,10 +5,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -35,7 +34,8 @@ namespace Meryel.UnityCodeAssist.Editor
             analyzerGroup.Append(NewLine);
             analyzerGroup.Append("  <ItemGroup>");
 
-            var prefix = $"{NewLine}    <Analyzer Include=\"{CommonTools.GetExternalReferencesPath().Replace('/', '\\')}\\";
+            var prefix =
+                $"{NewLine}    <Analyzer Include=\"{CommonTools.GetExternalReferencesPath().Replace('/', '\\')}\\";
             var suffix = $"\" />";
 
             foreach (var analyzer in Analyzers)

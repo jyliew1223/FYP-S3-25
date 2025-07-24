@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -56,7 +55,8 @@ namespace Meryel.UnityCodeAssist.Editor
 
                 foreach (var client in MQTTnetInitializer.Publisher!.Clients)
                 {
-                    EditorGUILayout.LabelField($"Connected to {client.ContactInfo}", styleLabel, GUILayout.ExpandWidth(true));
+                    EditorGUILayout.LabelField($"Connected to {client.ContactInfo}", styleLabel,
+                        GUILayout.ExpandWidth(true));
                 }
             }
             else
@@ -69,8 +69,10 @@ namespace Meryel.UnityCodeAssist.Editor
 #if MERYEL_UCA_LITE_VERSION
 
             EditorGUILayout.LabelField($"", styleLabel, GUILayout.ExpandWidth(true));
-            EditorGUILayout.LabelField($"This is the lite version of Code Assist with limited features.", styleLabel, GUILayout.ExpandWidth(true));
-            EditorGUILayout.LabelField($"To unlock all of the features, get the full version.", styleLabel, GUILayout.ExpandWidth(true));
+            EditorGUILayout.LabelField($"This is the lite version of Code Assist with limited features.", styleLabel,
+                GUILayout.ExpandWidth(true));
+            EditorGUILayout.LabelField($"To unlock all of the features, get the full version.", styleLabel,
+                GUILayout.ExpandWidth(true));
 
             if (GUILayout.Button("Get full version"))
             {
@@ -78,9 +80,6 @@ namespace Meryel.UnityCodeAssist.Editor
             }
 
 #endif // MERYEL_UCA_LITE_VERSION
-
-
         }
     }
-
 }

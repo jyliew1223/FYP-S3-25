@@ -9,6 +9,8 @@ public class SceneController : MonoBehaviour
 
     [SerializeField] private GameObject errorCanvas;
 
+    private bool hasError;
+
     void Start()
     {
         if (transition != null)
@@ -17,11 +19,13 @@ public class SceneController : MonoBehaviour
         }
         else
         {
+            hasError = true;
             errorCanvas.SetActive(true);
         }
     }
     void ChangeScene()
     {
-        transition.StartTransition();
+        if (hasError) return;
+        transition.ChangeScene();
     }
 }

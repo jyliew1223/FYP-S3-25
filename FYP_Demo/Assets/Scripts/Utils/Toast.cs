@@ -26,7 +26,6 @@ public class Toast : MonoBehaviour
 
         gameObject.SetActive(false);
     }
-
     public void ShowToast(string message, float duration = 2f)
     {
         StopAllCoroutines();
@@ -39,7 +38,6 @@ public class Toast : MonoBehaviour
 
         StartCoroutine(FadeAndHide(duration));
     }
-
     private IEnumerator FadeAndHide(float duration)
     {
         yield return new WaitForSeconds(duration);

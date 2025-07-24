@@ -5,10 +5,9 @@ using UnityEngine;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine.SceneManagement;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -17,7 +16,6 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor
 {
-
     //[InitializeOnLoad]
     public static class Monitor
     {
@@ -41,6 +39,7 @@ namespace Meryel.UnityCodeAssist.Editor
             {
                 Serilog.Log.Debug(ex, "Exception at {Location}", nameof(System.IO.File.GetLastWriteTime));
             }
+
             dirtyDict = new Dictionary<GameObject, int>();
             dirtyCounter = 0;
 
@@ -79,7 +78,9 @@ namespace Meryel.UnityCodeAssist.Editor
         /// <summary>
         /// Empty method for invoking static class ctor
         /// </summary>
-        public static void Bump() { }
+        public static void Bump()
+        {
+        }
 
         private static void EditorSceneManager_activeSceneChangedInEditMode(Scene arg0, Scene arg1)
         {
@@ -89,7 +90,8 @@ namespace Meryel.UnityCodeAssist.Editor
 
         private static void EditorSceneManager_sceneOpened(Scene scene, OpenSceneMode mode)
         {
-            Serilog.Log.Debug("Monitor {Event} scene:{Scene} mode:{Mode}", nameof(EditorSceneManager_sceneOpened), scene.name, mode);
+            Serilog.Log.Debug("Monitor {Event} scene:{Scene} mode:{Mode}", nameof(EditorSceneManager_sceneOpened),
+                scene.name, mode);
             //Debug.Log("EditorSceneManager_sceneOpened");
             OnHierarchyChanged();
         }
@@ -110,6 +112,7 @@ namespace Meryel.UnityCodeAssist.Editor
             {
                 Serilog.Log.Debug(ex, "Exception at {Location}", nameof(System.IO.File.GetLastWriteTime));
             }
+
             if (currentTagManagerLastWrite != previousTagManagerLastWrite)
             {
                 previousTagManagerLastWrite = currentTagManagerLastWrite;
@@ -120,7 +123,7 @@ namespace Meryel.UnityCodeAssist.Editor
                 // since unity does not commit changes to the file immediately, checking if user is displaying and focusing on tag manager (tags & layers) inspector
                 isAppFocusedOnTagManager = true;
             }
-            
+
 
             if (isAppFocused != UnityEditorInternal.InternalEditorUtility.isApplicationActive)
             {
@@ -230,11 +233,10 @@ namespace Meryel.UnityCodeAssist.Editor
 
         static void OnSelectionChanged()
         {
-            
             //**--check order, last selected should be sent last as well
             //**--limit here, what if too many?
             //selectedObjects.UnionWith(Selection.objects);
-            foreach(var so in Selection.objects)
+            foreach (var so in Selection.objects)
             {
                 SetDirty(so);
             }
@@ -247,14 +249,14 @@ namespace Meryel.UnityCodeAssist.Editor
             else if (obj is GameObject go && go)
                 SetDirty(go);
             else if (obj is Component component && component)
-            //SetDirty(component.gameObject);
+                //SetDirty(component.gameObject);
             {
                 var componentGo = component.gameObject;
                 if (componentGo)
                     SetDirty(componentGo);
             }
             //else
-                //;//**--scriptable obj
+            //;//**--scriptable obj
         }
 
         public static void SetDirty(GameObject go)
@@ -301,15 +303,15 @@ namespace Meryel.UnityCodeAssist.Editor
             {
                 Preferences.PreferenceMonitor.InstanceOfPlayerPrefs.Bump();
             }
-            else if(category == "EditorPrefs")
+            else if (category == "EditorPrefs")
             {
                 Preferences.PreferenceMonitor.InstanceOfEditorPrefs.Bump();
             }
-            else if(category == "InputManager")
+            else if (category == "InputManager")
             {
                 Input.InputManagerMonitor.Instance.Bump();
             }
-            else if(category == "AnimationHuman")
+            else if (category == "AnimationHuman")
             {
                 MQTTnetInitializer.Publisher?.SendComponentHumanTrait(HumanTrait.BoneName, HumanTrait.MuscleName);
             }
@@ -323,5 +325,4 @@ namespace Meryel.UnityCodeAssist.Editor
             }
         }
     }
-
 }

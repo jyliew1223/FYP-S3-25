@@ -2,7 +2,6 @@ using System.Collections;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.Networking;
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
 
@@ -14,17 +13,21 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor
 {
-
     public static class Updater
     {
         const string EditorPrefsKey = "my_uca_update_disabled";
         const string SessionStateKey = "my_uca_update_checked_before";
-        const string ItchApiUri = "https://itch.io/api/1/x/wharf/latest?target=meryel/unity-code-assist&channel_name=asset";
+
+        const string ItchApiUri =
+            "https://itch.io/api/1/x/wharf/latest?target=meryel/unity-code-assist&channel_name=asset";
+
         const string ItchStoreUri = "https://meryel.itch.io/unity-code-assist";
         const string AssetStoreUri = "https://assetstore.unity.com/packages/tools/utilities/code-assist-216713";
         const string VSMarketplaceUri = "https://marketplace.visualstudio.com/items?itemName=MerryYellow.UCA-Lite";
-        const string VSCodeMarketplaceUri = "https://marketplace.visualstudio.com/items?itemName=MerryYellow.uca-lite-vscode";
-        
+
+        const string VSCodeMarketplaceUri =
+            "https://marketplace.visualstudio.com/items?itemName=MerryYellow.uca-lite-vscode";
+
 
 #pragma warning disable CS0162
         public static void CheckUpdateSilent()
@@ -41,13 +44,15 @@ namespace Meryel.UnityCodeAssist.Editor
             if (updateCheckedBefore)
                 return;
 
-            EditorCoroutines.EditorCoroutineUtility.StartCoroutine(GetRequest(ItchApiUri, false), MQTTnetInitializer.Publisher);
+            EditorCoroutines.EditorCoroutineUtility.StartCoroutine(GetRequest(ItchApiUri, false),
+                MQTTnetInitializer.Publisher);
         }
 #pragma warning restore CS0162
 
         public static void CheckUpdateForced()
         {
-            EditorCoroutines.EditorCoroutineUtility.StartCoroutine(GetRequest(ItchApiUri, true), MQTTnetInitializer.Publisher);
+            EditorCoroutines.EditorCoroutineUtility.StartCoroutine(GetRequest(ItchApiUri, true),
+                MQTTnetInitializer.Publisher);
         }
 
 
@@ -95,7 +100,6 @@ namespace Meryel.UnityCodeAssist.Editor
                     Serilog.Log.Error("Unrecognized option for {Location}.", nameof(DisplayDialog));
                     break;
             }
-
         }
 
         static void Compare(string response, bool isForced)
@@ -134,13 +138,16 @@ namespace Meryel.UnityCodeAssist.Editor
                 {
                     case UnityWebRequest.Result.ConnectionError:
                     case UnityWebRequest.Result.DataProcessingError:
-                        Serilog.Log.Error("Error while checking new version of UnityCodeAssist " + pages[page] + ": Error: " + webRequest.error);
+                        Serilog.Log.Error("Error while checking new version of UnityCodeAssist " + pages[page] +
+                                          ": Error: " + webRequest.error);
                         break;
                     case UnityWebRequest.Result.ProtocolError:
-                        Serilog.Log.Error("Error while checking new version of UnityCodeAssist " + pages[page] + ": HTTP Error: " + webRequest.error);
+                        Serilog.Log.Error("Error while checking new version of UnityCodeAssist " + pages[page] +
+                                          ": HTTP Error: " + webRequest.error);
                         break;
                     case UnityWebRequest.Result.Success:
-                        Serilog.Log.Debug("Checking new version of UnityCodeAssist " + pages[page] + ": Received: " + webRequest.downloadHandler.text);
+                        Serilog.Log.Debug("Checking new version of UnityCodeAssist " + pages[page] + ": Received: " +
+                                          webRequest.downloadHandler.text);
                         Compare(webRequest.downloadHandler.text, isForced);
                         break;
                 }

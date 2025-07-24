@@ -19,12 +19,10 @@ public class GlobalEventSystem : MonoBehaviour
 
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
-
     void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
-
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         EventSystem[] systems = GameObject.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);

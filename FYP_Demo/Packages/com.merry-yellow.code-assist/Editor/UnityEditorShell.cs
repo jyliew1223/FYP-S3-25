@@ -5,10 +5,9 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -80,7 +79,7 @@ namespace Meryel.UnityCodeAssist.Editor.Shell
         public static ShellCommandEditorToken Execute(string cmd)
         {
             var shellCommandEditorToken = new ShellCommandEditorToken();
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate (object state)
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate(object state)
             {
                 Process? process = null;
 
@@ -135,19 +134,20 @@ namespace Meryel.UnityCodeAssist.Editor.Shell
             return processStartInfo;
         }
 
-        private static void SetupProcessCallbacks(Process process, ProcessStartInfo processStartInfo, ShellCommandEditorToken shellCommandEditorToken)
+        private static void SetupProcessCallbacks(Process process, ProcessStartInfo processStartInfo,
+            ShellCommandEditorToken shellCommandEditorToken)
         {
             shellCommandEditorToken.BindProcess(process);
 
-            process.ErrorDataReceived += delegate (object sender, DataReceivedEventArgs e)
+            process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e)
             {
                 Serilog.Log.Error("error on shell.ErrorDataReceived: {data}", e.Data);
             };
-            process.OutputDataReceived += delegate (object sender, DataReceivedEventArgs e)
+            process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
             {
                 Serilog.Log.Debug("shell.OutputDataReceived: {data}", e.Data);
             };
-            process.Exited += delegate (object sender, System.EventArgs e)
+            process.Exited += delegate(object sender, System.EventArgs e)
             {
                 Serilog.Log.Debug("shell.Exited: {data}", e.ToString());
             };
@@ -164,7 +164,7 @@ namespace Meryel.UnityCodeAssist.Editor.Shell
                 }
 
                 line = line.Replace("\\", "/");
-                Enqueue(delegate () { shellCommandEditorToken.FeedLog(UnityShellLogType.Log, line); });
+                Enqueue(delegate() { shellCommandEditorToken.FeedLog(UnityShellLogType.Log, line); });
             } while (true);
 
             while (true)
@@ -175,7 +175,7 @@ namespace Meryel.UnityCodeAssist.Editor.Shell
                     break;
                 }
 
-                Enqueue(delegate () { shellCommandEditorToken.FeedLog(UnityShellLogType.Error, error); });
+                Enqueue(delegate() { shellCommandEditorToken.FeedLog(UnityShellLogType.Error, error); });
             }
 
             process.WaitForExit();
@@ -183,7 +183,6 @@ namespace Meryel.UnityCodeAssist.Editor.Shell
             process.Close();
             Enqueue(() => { shellCommandEditorToken.MarkAsDone(exitCode); });
         }
-
     }
 
     public class ShellCommandEditorToken

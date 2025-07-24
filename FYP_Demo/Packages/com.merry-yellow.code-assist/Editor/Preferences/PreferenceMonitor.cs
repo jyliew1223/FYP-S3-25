@@ -7,10 +7,9 @@ using System.Globalization;
 using UnityEditor;
 using UnityEngine;
 using UnityEditorInternal;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -19,10 +18,14 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor.Preferences
 {
-    public class PreferenceMonitor 
+    public class PreferenceMonitor
     {
-        private static readonly Lazy<PreferenceMonitor> _instanceOfPlayerPrefs = new Lazy<PreferenceMonitor>(() => new PreferenceMonitor(true));
-        private static readonly Lazy<PreferenceMonitor> _instanceOfEditorPrefs = new Lazy<PreferenceMonitor>(() => new PreferenceMonitor(false));
+        private static readonly Lazy<PreferenceMonitor> _instanceOfPlayerPrefs =
+            new Lazy<PreferenceMonitor>(() => new PreferenceMonitor(true));
+
+        private static readonly Lazy<PreferenceMonitor> _instanceOfEditorPrefs =
+            new Lazy<PreferenceMonitor>(() => new PreferenceMonitor(false));
+
         public static PreferenceMonitor InstanceOfPlayerPrefs => _instanceOfPlayerPrefs.Value;
         public static PreferenceMonitor InstanceOfEditorPrefs => _instanceOfEditorPrefs.Value;
 
@@ -34,10 +37,12 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
         /// </summary>
         readonly bool isPlayerPrefs;
 
-#region ErrorValues
+        #region ErrorValues
+
         private readonly int ERROR_VALUE_INT = int.MinValue;
         private readonly string ERROR_VALUE_STR = "<UCA_ERR_2407201713>";
-#endregion //ErrorValues
+
+        #endregion //ErrorValues
 
 #pragma warning disable CS0414
         private static string pathToPrefs = String.Empty;
@@ -69,7 +74,6 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
 #endif
 
 
-
         PreferenceMonitor(bool isPlayerPrefs)
         {
             this.isPlayerPrefs = isPlayerPrefs;
@@ -85,7 +89,7 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
         public void Bump()
         {
             Serilog.Log.Debug("Bumping preference {IsPlayerPrefs}", isPlayerPrefs);
-            
+
             RetrieveAndSendKeysAndValues(false);
         }
 
@@ -94,27 +98,31 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
             string[]? keys = GetKeys(reloadKeys);
             if (keys == null)
                 return;
-            string[] values = GetKeyValues(reloadKeys, keys, out var stringKeys, out var integerKeys, out var floatKeys, out var booleanKeys);
+            string[] values = GetKeyValues(reloadKeys, keys, out var stringKeys, out var integerKeys, out var floatKeys,
+                out var booleanKeys);
 
             if (isPlayerPrefs)
                 MQTTnetInitializer.Publisher?.SendPlayerPrefs(keys, values, stringKeys, integerKeys, floatKeys);
             else
-                MQTTnetInitializer.Publisher?.SendEditorPrefs(keys, values, stringKeys, integerKeys, floatKeys, booleanKeys);
+                MQTTnetInitializer.Publisher?.SendEditorPrefs(keys, values, stringKeys, integerKeys, floatKeys,
+                    booleanKeys);
         }
 
         private void OnEnable()
         {
 #if UNITY_EDITOR_WIN
             if (isPlayerPrefs)
-                pathToPrefs = @"SOFTWARE\Unity\UnityEditor\" + PlayerSettings.companyName + @"\" + PlayerSettings.productName;
+                pathToPrefs = @"SOFTWARE\Unity\UnityEditor\" + PlayerSettings.companyName + @"\" +
+                              PlayerSettings.productName;
             else
                 pathToPrefs = @"Software\Unity Technologies\Unity Editor 5.x";
-            
+
             platformPathPrefix = @"<CurrentUser>";
             entryAccessor = new WindowsPrefStorage(pathToPrefs);
 #elif UNITY_EDITOR_OSX
             if (isPlayerPrefs)
-                pathToPrefs = @"Library/Preferences/com." + MakeValidFileName(PlayerSettings.companyName) + "." + MakeValidFileName(PlayerSettings.productName) + ".plist";
+                pathToPrefs =
+ @"Library/Preferences/com." + MakeValidFileName(PlayerSettings.companyName) + "." + MakeValidFileName(PlayerSettings.productName) + ".plist";
             else
                 pathToPrefs = @"Library/Preferences/com.unity3d.UnityEditor5.x.plist";
                 
@@ -124,7 +132,8 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
             //entryAccessor.StopLoadingDelegate = () => { showLoadingIndicatorOverlay = false; };
 #elif UNITY_EDITOR_LINUX
             if (isPlayerPrefs)
-                pathToPrefs = @".config/unity3d/" + MakeValidFileName(PlayerSettings.companyName) + "/" + MakeValidFileName(PlayerSettings.productName) + "/prefs";
+                pathToPrefs =
+ @".config/unity3d/" + MakeValidFileName(PlayerSettings.companyName) + "/" + MakeValidFileName(PlayerSettings.productName) + "/prefs";
             else
                 pathToPrefs = @".local/share/unity3d/prefs";
 
@@ -183,13 +192,12 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
 
             serializedObject ??= new SerializedObject(prefEntryHolder);
 
-            userDefList = new ReorderableList(serializedObject, serializedObject.FindProperty("userDefList"), false, true, true, true);
-            unityDefList = new ReorderableList(serializedObject, serializedObject.FindProperty("unityDefList"), false, true, false, false);
-
+            userDefList = new ReorderableList(serializedObject, serializedObject.FindProperty("userDefList"), false,
+                true, true, true);
+            unityDefList = new ReorderableList(serializedObject, serializedObject.FindProperty("unityDefList"), false,
+                true, false, false);
         }
 
-
-        
 
         private string[]? GetKeys(bool reloadKeys)
         {
@@ -202,7 +210,8 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
             string[] keys = entryAccessor.GetKeys(reloadKeys);
 
             if (keys.Length > Limit)
-                keys = keys.Where(k => !k.StartsWith("unity.") && !k.StartsWith("UnityGraphicsQuality")).Take(Limit).ToArray();
+                keys = keys.Where(k => !k.StartsWith("unity.") && !k.StartsWith("UnityGraphicsQuality")).Take(Limit)
+                    .ToArray();
 
             return keys;
         }
@@ -295,13 +304,15 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
                 {
                     // Keys with ? causing problems, just ignore them
                     if (key.Contains("?"))
-                        Serilog.Log.Debug("Invalid {PreferenceType} KEY WITH '?', '{Key}' at {Location}, str:{StringValue}, int:{IntegerValue}, float:{FloatValue}, bool:{BooleanValue}",
+                        Serilog.Log.Debug(
+                            "Invalid {PreferenceType} KEY WITH '?', '{Key}' at {Location}, str:{StringValue}, int:{IntegerValue}, float:{FloatValue}, bool:{BooleanValue}",
                             (isPlayerPrefs ? "PlayerPrefs" : "EditorPrefs"), key, nameof(GetKeyValues),
                             stringValue, intValue, floatValue, boolValue);
 
                     else
                         // EditorPrefs gives error for some keys
-                        Serilog.Log.Error("Invalid {PreferenceType} '{Key}' at {Location}, str:{StringValue}, int:{IntegerValue}, float:{FloatValue}, bool:{BooleanValue}",
+                        Serilog.Log.Error(
+                            "Invalid {PreferenceType} '{Key}' at {Location}, str:{StringValue}, int:{IntegerValue}, float:{FloatValue}, bool:{BooleanValue}",
                             (isPlayerPrefs ? "PlayerPrefs" : "EditorPrefs"), key, nameof(GetKeyValues),
                             stringValue, intValue, floatValue, boolValue);
                 }
@@ -324,7 +335,7 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
 
         private void LoadKeys(out string[]? userDef, out string[]? unityDef, bool reloadKeys)
         {
-            if(entryAccessor == null)
+            if (entryAccessor == null)
             {
                 userDef = null;
                 unityDef = null;
@@ -368,8 +379,5 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
             return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
         }
 #endif
-
     }
-
-
 }

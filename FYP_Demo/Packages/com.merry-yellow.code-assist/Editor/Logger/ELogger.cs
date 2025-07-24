@@ -1,11 +1,11 @@
 //using Meryel.UnityCodeAssist.Serilog;
 //using Meryel.UnityCodeAssist.Serilog.Core;
+
 using UnityEngine;
 using UnityEditor;
 using System.Linq;
 
 #if ELOGGER
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
 #pragma warning restore IDE0005
@@ -102,7 +102,8 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
         {
             var solutionHash = CommonTools.GetHashForLogFile(solutionDir);
             var tempDir = System.IO.Path.GetTempPath();
-            var fileName = $"UnityCodeAssist_U_Log_{solutionHash}_.TXT"; // hour code will be appended to the end of file, so add a trailing '_'
+            var fileName =
+ $"UnityCodeAssist_U_Log_{solutionHash}_.TXT"; // hour code will be appended to the end of file, so add a trailing '_'
             var filePath = System.IO.Path.Combine(tempDir, fileName);
             return filePath;
         }
@@ -112,9 +113,11 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
             var solutionHash = CommonTools.GetHashForLogFile(solutionDir);
             var tempDir = System.IO.Path.GetTempPath();
 #if MERYEL_UCA_LITE_VERSION
-            var fileName = $"UnityCodeAssistLite_VS_Log_{solutionHash}_.TXT"; // hour code will be appended to the end of file, so add a trailing '_'
+            var fileName =
+ $"UnityCodeAssistLite_VS_Log_{solutionHash}_.TXT"; // hour code will be appended to the end of file, so add a trailing '_'
 #else
-            var fileName = $"UnityCodeAssist_VS_Log_{solutionHash}_.TXT"; // hour code will be appended to the end of file, so add a trailing '_'
+            var fileName =
+ $"UnityCodeAssist_VS_Log_{solutionHash}_.TXT"; // hour code will be appended to the end of file, so add a trailing '_'
 #endif
             var filePath = System.IO.Path.Combine(tempDir, fileName);
             return filePath;
@@ -134,7 +137,8 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
                 .MinimumLevel.Debug()
                 .Enrich.With(new DomainHashEnricher());
 
-            const string outputTemplate = "{Timestamp:HH:mm:ss.fff} [U] [{Level:u3}] [{DomainHash}] {Message:lj}{NewLine}{Exception}";
+            const string outputTemplate =
+ "{Timestamp:HH:mm:ss.fff} [U] [{Level:u3}] [{DomainHash}] {Message:lj}{NewLine}{Exception}";
 
             config = config.WriteTo.PersistentFile(FilePath
                 , outputTemplate: outputTemplate
@@ -172,7 +176,8 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
                 fileLevelSwitch.MinimumLevel = targetFileLevel;
 
             var isLoggingToOutputWindow = OptionsIsLoggingToOutputWindow;
-            var targetOutputWindowLevel = isLoggingToOutputWindow ? outputWindowMinLevel : Serilog.Events.LogEventLevel.Fatal;
+            var targetOutputWindowLevel =
+ isLoggingToOutputWindow ? outputWindowMinLevel : Serilog.Events.LogEventLevel.Fatal;
             if (outputWindowLevelSwitch != null)
                 outputWindowLevelSwitch.MinimumLevel = targetOutputWindowLevel;
         }

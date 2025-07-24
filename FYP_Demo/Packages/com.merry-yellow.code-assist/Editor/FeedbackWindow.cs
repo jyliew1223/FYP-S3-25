@@ -2,10 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -16,7 +15,6 @@ namespace Meryel.UnityCodeAssist.Editor
 {
     public class FeedbackWindow : EditorWindow
     {
-
         GUIStyle? styleLabel;
 
         public static void Display()
@@ -54,13 +52,19 @@ namespace Meryel.UnityCodeAssist.Editor
                 wordWrap = true,
                 alignment = TextAnchor.MiddleCenter,
             };
-            
+
             if (errorCount > 0)
-                EditorGUILayout.LabelField($"{errorCount} error(s) found in logs. Please submit a feedback (via e-mail, Discord or GitHub) with the logs if possible.", styleLabel, GUILayout.ExpandWidth(true));
+                EditorGUILayout.LabelField(
+                    $"{errorCount} error(s) found in logs. Please submit a feedback (via e-mail, Discord or GitHub) with the logs if possible.",
+                    styleLabel, GUILayout.ExpandWidth(true));
             else if (warningCount > 0)
-                EditorGUILayout.LabelField($"{warningCount} warnings(s) found in logs. Please submit a feedback (via e-mail, Discord or GitHub) with the logs if possible.", styleLabel, GUILayout.ExpandWidth(true));
+                EditorGUILayout.LabelField(
+                    $"{warningCount} warnings(s) found in logs. Please submit a feedback (via e-mail, Discord or GitHub) with the logs if possible.",
+                    styleLabel, GUILayout.ExpandWidth(true));
             else
-                EditorGUILayout.LabelField("No errors found in logs. Please submit a feedback (via e-mail, Discord or GitHub) describing what went wrong or unexpected.", styleLabel, GUILayout.ExpandWidth(true));
+                EditorGUILayout.LabelField(
+                    "No errors found in logs. Please submit a feedback (via e-mail, Discord or GitHub) describing what went wrong or unexpected.",
+                    styleLabel, GUILayout.ExpandWidth(true));
 
             if (GUILayout.Button("Send e-mail"))
             {
@@ -103,8 +107,5 @@ namespace Meryel.UnityCodeAssist.Editor
             EditorGUILayout.LabelField("Recent logs:", styleLabel, GUILayout.ExpandWidth(true));
             EditorGUILayout.SelectableLabel(logContent, EditorStyles.textArea, GUILayout.ExpandHeight(true));
         }
-
-
-
     }
 }

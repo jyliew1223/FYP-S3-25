@@ -4,10 +4,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -16,10 +15,11 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor.Input
 {
-
     public class InputManagerMonitor
     {
-        private static readonly Lazy<InputManagerMonitor> _instance = new Lazy<InputManagerMonitor>(() => new InputManagerMonitor());
+        private static readonly Lazy<InputManagerMonitor> _instance =
+            new Lazy<InputManagerMonitor>(() => new InputManagerMonitor());
+
         public static InputManagerMonitor Instance => _instance.Value;
 
         //UnityInputManager inputManager;
@@ -66,6 +66,7 @@ namespace Meryel.UnityCodeAssist.Editor.Input
             {
                 Serilog.Log.Debug(ex, "Exception at {Location}", nameof(System.IO.File.GetLastWriteTime));
             }
+
             if (currentInputManagerLastWrite != previousTagManagerLastWrite)
             {
                 previousTagManagerLastWrite = currentInputManagerLastWrite;
@@ -100,7 +101,6 @@ namespace Meryel.UnityCodeAssist.Editor.Input
 #pragma warning restore CS0162
 #pragma warning restore IDE0035
         }
-
     }
 
 
@@ -160,5 +160,4 @@ namespace Meryel.UnityCodeAssist.Editor.Input
             return sb.ToString();
         }
     }
-
 }

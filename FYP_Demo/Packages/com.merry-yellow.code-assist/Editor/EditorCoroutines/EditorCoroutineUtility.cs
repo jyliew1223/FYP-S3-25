@@ -122,6 +122,7 @@ namespace Meryel.UnityCodeAssist.Editor.EditorCoroutines
                 Serilog.Log.Warning("EditorCoroutine handle is null.");
                 return;
             }
+
             coroutine.Stop();
         }
     }

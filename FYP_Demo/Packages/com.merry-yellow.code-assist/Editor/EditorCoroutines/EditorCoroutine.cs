@@ -26,6 +26,7 @@ namespace Meryel.UnityCodeAssist.Editor.EditorCoroutines
                 EditorCoroutine = 2,
                 AsyncOP = 3,
             }
+
             struct ProcessorData
             {
                 public DataType type;
@@ -44,16 +45,16 @@ namespace Meryel.UnityCodeAssist.Editor.EditorCoroutines
                 var dataType = DataType.None;
                 double targetTime = -1;
 
-                if(type == typeof(EditorWaitForSeconds))
+                if (type == typeof(EditorWaitForSeconds))
                 {
                     targetTime = EditorApplication.timeSinceStartup + (yield as EditorWaitForSeconds).WaitTime;
                     dataType = DataType.WaitForSeconds;
                 }
-                else if(type == typeof(EditorCoroutine))
+                else if (type == typeof(EditorCoroutine))
                 {
                     dataType = DataType.EditorCoroutine;
                 }
-                else if(type == typeof(AsyncOperation) || type.IsSubclassOf(typeof(AsyncOperation)))
+                else if (type == typeof(AsyncOperation) || type.IsSubclassOf(typeof(AsyncOperation)))
                 {
                     dataType = DataType.AsyncOP;
                 }
@@ -68,13 +69,15 @@ namespace Meryel.UnityCodeAssist.Editor.EditorCoroutines
                     DataType.WaitForSeconds => data.targetTime <= EditorApplication.timeSinceStartup,
                     DataType.EditorCoroutine => (data.current as EditorCoroutine).m_IsDone,
                     DataType.AsyncOP => (data.current as AsyncOperation).isDone,
-                    _ => data.current == enumerator.Current,//a IEnumerator or a plain object was passed to the implementation
+                    _ => data.current ==
+                         enumerator.Current, //a IEnumerator or a plain object was passed to the implementation
                 };
                 if (advance)
                 {
-                    data = default;// (ProcessorData);
+                    data = default; // (ProcessorData);
                     return enumerator.MoveNext();
                 }
+
                 return true;
             }
         }
@@ -116,10 +119,11 @@ namespace Meryel.UnityCodeAssist.Editor.EditorCoroutines
         }
 
         static readonly Stack<IEnumerator> kIEnumeratorProcessingStack = new Stack<IEnumerator>(32);
+
         private bool ProcessIEnumeratorRecursive(IEnumerator enumerator)
         {
             var root = enumerator;
-            while(enumerator.Current as IEnumerator != null)
+            while (enumerator.Current as IEnumerator != null)
             {
                 kIEnumeratorProcessingStack.Push(enumerator);
                 enumerator = enumerator.Current as IEnumerator;

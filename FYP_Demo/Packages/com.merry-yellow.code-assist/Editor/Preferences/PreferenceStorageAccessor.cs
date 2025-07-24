@@ -17,6 +17,7 @@ using System.Xml.Linq;
 
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -145,7 +146,6 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
     }
 
 #elif UNITY_EDITOR_LINUX
-
     public class LinuxPrefStorage : PreferanceStorageAccessor
     {
         readonly FileSystemWatcher fileWatcher;
@@ -199,7 +199,6 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
     }
 
 #elif UNITY_EDITOR_OSX
-
     public class MacPrefStorage : PreferanceStorageAccessor
     {
         private readonly FileSystemWatcher fileWatcher;
@@ -252,8 +251,10 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
                 process.StartInfo.Arguments = cmdStr;
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
-                process.OutputDataReceived += new DataReceivedEventHandler((sender, evt) => { stdOut += evt.Data + "\n"; });
-                process.ErrorDataReceived += new DataReceivedEventHandler((sender, evt) => { errOut += evt.Data + "\n"; });
+                process.OutputDataReceived += new DataReceivedEventHandler((sender, evt) => { stdOut +=
+ evt.Data + "\n"; });
+                process.ErrorDataReceived += new DataReceivedEventHandler((sender, evt) => { errOut +=
+ evt.Data + "\n"; });
 
                 process.Start();
 

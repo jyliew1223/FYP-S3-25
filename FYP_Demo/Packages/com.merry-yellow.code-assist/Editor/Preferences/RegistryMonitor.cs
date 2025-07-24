@@ -1,9 +1,8 @@
-﻿
-/*
+﻿/*
  * Thanks to gr0ss for the inspiration.
- * 
+ *
  * https://github.com/gr0ss/RegistryMonitor
- * 
+ *
  * 11/08/2019
  */
 
@@ -22,10 +21,12 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
         #region P/Invoke
 
         [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern int RegOpenKeyEx(IntPtr hKey, string subKey, uint options, int samDesired, out IntPtr phkResult);
+        private static extern int RegOpenKeyEx(IntPtr hKey, string subKey, uint options, int samDesired,
+            out IntPtr phkResult);
 
         [DllImport("advapi32.dll", SetLastError = true)]
-        private static extern int RegNotifyChangeKeyValue(IntPtr hKey, bool bWatchSubtree, RegChangeNotifyFilter dwNotifyFilter, IntPtr hEvent, bool fAsynchronous);
+        private static extern int RegNotifyChangeKeyValue(IntPtr hKey, bool bWatchSubtree,
+            RegChangeNotifyFilter dwNotifyFilter, IntPtr hEvent, bool fAsynchronous);
 
         [DllImport("advapi32.dll", SetLastError = true)]
         private static extern int RegCloseKey(IntPtr hKey);
@@ -102,7 +103,8 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
         private bool _disposed = false;
         private readonly ManualResetEvent _eventTerminate = new ManualResetEvent(false);
 
-        private RegChangeNotifyFilter _regFilter = RegChangeNotifyFilter.Key | RegChangeNotifyFilter.Attribute | RegChangeNotifyFilter.Value | RegChangeNotifyFilter.Security;
+        private RegChangeNotifyFilter _regFilter = RegChangeNotifyFilter.Key | RegChangeNotifyFilter.Attribute |
+                                                   RegChangeNotifyFilter.Value | RegChangeNotifyFilter.Security;
 
         #endregion
 
@@ -279,12 +281,14 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
             {
                 OnError(e);
             }
+
             _thread = null;
         }
 
         private void ThreadLoop()
         {
-            int result = RegOpenKeyEx(_registryHive, _registrySubName, 0, STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_NOTIFY, out IntPtr registryKey);
+            int result = RegOpenKeyEx(_registryHive, _registrySubName, 0,
+                STANDARD_RIGHTS_READ | KEY_QUERY_VALUE | KEY_NOTIFY, out IntPtr registryKey);
             if (result != 0)
             {
                 throw new Win32Exception(result);
@@ -296,7 +300,8 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
                 WaitHandle[] waitHandles = new WaitHandle[] { _eventNotify, _eventTerminate };
                 while (!_eventTerminate.WaitOne(0, true))
                 {
-                    result = RegNotifyChangeKeyValue(registryKey, true, _regFilter, _eventNotify.SafeWaitHandle.DangerousGetHandle(), true);
+                    result = RegNotifyChangeKeyValue(registryKey, true, _regFilter,
+                        _eventNotify.SafeWaitHandle.DangerousGetHandle(), true);
                     if (result != 0)
                     {
                         throw new Win32Exception(result);
@@ -326,12 +331,15 @@ namespace Meryel.UnityCodeAssist.Editor.Preferences
     {
         /// <summary>Notify the caller if a subkey is added or deleted.</summary>
         Key = 1,
+
         /// <summary>Notify the caller of changes to the attributes of the key,
         /// such as the security descriptor information.</summary>
         Attribute = 2,
+
         /// <summary>Notify the caller of changes to a value of the key. This can
         /// include adding or deleting a value, or changing an existing value.</summary>
         Value = 4,
+
         /// <summary>Notify the caller of changes to the security descriptor
         /// of the key.</summary>
         Security = 8,

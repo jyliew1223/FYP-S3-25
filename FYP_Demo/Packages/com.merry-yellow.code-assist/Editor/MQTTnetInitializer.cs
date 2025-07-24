@@ -1,10 +1,9 @@
 ﻿using System;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
 using MQTTnet = Meryel.UnityCodeAssist.MQTTnet;
+
 #pragma warning restore IDE0005
 
 
@@ -30,7 +29,9 @@ namespace Meryel.UnityCodeAssist.Editor
         /// <summary>
         /// Empty method for invoking static class ctor
         /// </summary>
-        public static void Bump() { }
+        public static void Bump()
+        {
+        }
 
         /// <summary>
         /// false for profiler standalone process
@@ -73,7 +74,7 @@ namespace Meryel.UnityCodeAssist.Editor
 
             //Serilog.Log.Debug("MQTTnet constructing");
             Publisher = new MQTTnetPublisher();
-            
+
             RunOnShutdown(OnShutDown);
             Serilog.Log.Debug("MQTTnet initialized");
         }
@@ -128,7 +129,6 @@ namespace Meryel.UnityCodeAssist.Editor
 #else
             AppDomain.CurrentDomain.DomainUnload += (_, __) => action();
 #endif
-
         }
     }
 }

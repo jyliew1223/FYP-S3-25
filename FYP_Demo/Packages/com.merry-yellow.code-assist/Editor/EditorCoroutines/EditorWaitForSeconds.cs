@@ -4,6 +4,7 @@
  */
 
 //namespace Unity.EditorCoroutines.Editor
+
 namespace Meryel.UnityCodeAssist.Editor.EditorCoroutines
 {
     /// <summary>

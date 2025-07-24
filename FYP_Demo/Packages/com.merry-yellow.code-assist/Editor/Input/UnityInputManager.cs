@@ -4,11 +4,10 @@ using System.Text;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
 using YamlDotNet = Meryel.UnityCodeAssist.YamlDotNet;
+
 #pragma warning restore IDE0005
 
 
@@ -17,8 +16,6 @@ using YamlDotNet = Meryel.UnityCodeAssist.YamlDotNet;
 
 namespace Meryel.UnityCodeAssist.Editor.Input
 {
-    
-
     internal class UnityInputManager
     {
         //string yamlPath;
@@ -33,55 +30,59 @@ namespace Meryel.UnityCodeAssist.Editor.Input
 
         public void ReadFromPath(string yamlPath)
         {
-
             switch (UnityEditor.EditorSettings.serializationMode)
             {
                 case UnityEditor.SerializationMode.ForceText:
-                    {
-                        reader = new StreamReader(yamlPath);
-                        ReadAux(false, out _);
-                    }
+                {
+                    reader = new StreamReader(yamlPath);
+                    ReadAux(false, out _);
+                }
                     break;
 
                 case UnityEditor.SerializationMode.ForceBinary:
+                {
+                    // this approach will work for InputManager since its file size is small and limited
+                    // but in the future, we may need to switch to reading binary files for big files
+                    // like this https://github.com/Unity-Technologies/UnityDataTools
+                    // or this https://github.com/SeriousCache/UABE
+                    var converted = GetOrCreateConvertedFile(yamlPath);
+                    if (!File.Exists(converted))
                     {
-                        // this approach will work for InputManager since its file size is small and limited
-                        // but in the future, we may need to switch to reading binary files for big files
-                        // like this https://github.com/Unity-Technologies/UnityDataTools
-                        // or this https://github.com/SeriousCache/UABE
+                        Serilog.Log.Warning(
+                            "Temp file {TempFile} couldn't found for converted yaml input file. Auto Input Manager will not work!",
+                            converted);
+                        return;
+                    }
+
+                    var rawLines = File.ReadLines(converted);
+                    var yamlText = Text2Yaml.Convert(rawLines);
+                    reader = new StringReader(yamlText);
+                    ReadAux(false, out _);
+                }
+                    break;
+
+                case UnityEditor.SerializationMode.Mixed:
+                {
+                    reader = new StreamReader(yamlPath);
+                    ReadAux(true, out var hasSemanticError);
+                    if (hasSemanticError)
+                    {
                         var converted = GetOrCreateConvertedFile(yamlPath);
                         if (!File.Exists(converted))
                         {
-                            Serilog.Log.Warning("Temp file {TempFile} couldn't found for converted yaml input file. Auto Input Manager will not work!", converted);
+                            Serilog.Log.Warning(
+                                "Temp file {TempFile} couldn't found for converted yaml input file. Auto Input Manager will not work!",
+                                converted);
                             return;
                         }
+
                         var rawLines = File.ReadLines(converted);
                         var yamlText = Text2Yaml.Convert(rawLines);
                         reader = new StringReader(yamlText);
                         ReadAux(false, out _);
                     }
+                }
                     break;
-
-                case UnityEditor.SerializationMode.Mixed:
-                    {
-                        reader = new StreamReader(yamlPath);
-                        ReadAux(true, out var hasSemanticError);
-                        if (hasSemanticError)
-                        {
-                            var converted = GetOrCreateConvertedFile(yamlPath);
-                            if (!File.Exists(converted))
-                            {
-                                Serilog.Log.Warning("Temp file {TempFile} couldn't found for converted yaml input file. Auto Input Manager will not work!", converted);
-                                return;
-                            }
-                            var rawLines = File.ReadLines(converted);
-                            var yamlText = Text2Yaml.Convert(rawLines);
-                            reader = new StringReader(yamlText);
-                            ReadAux(false, out _);
-                        }
-                    }
-                    break;
-                
             }
         }
 
@@ -112,7 +113,8 @@ namespace Meryel.UnityCodeAssist.Editor.Input
             {
                 Serilog.Log.Debug(semanticErrorException, "Couldn't parse InputManager.asset yaml file");
                 if (!canHaveSemanticError)
-                    Serilog.Log.Error(semanticErrorException, "Couldn't parse InputManager.asset yaml file unexpectedly");
+                    Serilog.Log.Error(semanticErrorException,
+                        "Couldn't parse InputManager.asset yaml file unexpectedly");
 
                 hasSemanticError = true;
                 return;
@@ -138,7 +140,8 @@ namespace Meryel.UnityCodeAssist.Editor.Input
             if (inputManager == null)
                 return;
 
-            var axisNames = inputManager.Axes.Select(a => a.Name!).Where(n => !string.IsNullOrEmpty(n)).Distinct().ToArray();
+            var axisNames = inputManager.Axes.Select(a => a.Name!).Where(n => !string.IsNullOrEmpty(n)).Distinct()
+                .ToArray();
             var axisInfos = axisNames.Select(a => inputManager.Axes.GetInfo(a)).ToArray();
             if (!CreateBindingsMap(out var buttonKeys, out var buttonAxis))
                 return;
@@ -166,11 +169,11 @@ namespace Meryel.UnityCodeAssist.Editor.Input
                 UnityEngine.Input.GetJoystickNames()
                 );
             */
-
         }
 
 
-        bool CreateBindingsMap([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string[]? inputKeys, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)]  out string[]? inputAxis)
+        bool CreateBindingsMap([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string[]? inputKeys,
+            [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string[]? inputAxis)
         {
             if (inputManager == null)
             {
@@ -186,16 +189,19 @@ namespace Meryel.UnityCodeAssist.Editor.Input
                 if (axis.altNegativeButton != null && !string.IsNullOrEmpty(axis.altNegativeButton))
                     dict[axis.altNegativeButton] = axis.Name;
             }
+
             foreach (var axis in inputManager.Axes)
             {
                 if (axis.negativeButton != null && !string.IsNullOrEmpty(axis.negativeButton))
                     dict[axis.negativeButton] = axis.Name;
             }
+
             foreach (var axis in inputManager.Axes)
             {
                 if (axis.altPositiveButton != null && !string.IsNullOrEmpty(axis.altPositiveButton))
                     dict[axis.altPositiveButton] = axis.Name;
             }
+
             foreach (var axis in inputManager.Axes)
             {
                 if (axis.positiveButton != null && !string.IsNullOrEmpty(axis.positiveButton))
@@ -213,7 +219,6 @@ namespace Meryel.UnityCodeAssist.Editor.Input
         }
 
 
-
         static string GetOrCreateConvertedFile(string filePath)
         {
             var hash = GetMD5Hash(filePath);
@@ -228,7 +233,7 @@ namespace Meryel.UnityCodeAssist.Editor.Input
             else
             {
                 Serilog.Log.Debug("Converted file already exists at {Target}", convertedPath);
-            }    
+            }
 
             return convertedPath;
         }
@@ -269,7 +274,6 @@ namespace Meryel.UnityCodeAssist.Editor.Input
             var hashStrAlphaNumeric = System.Text.RegularExpressions.Regex.Replace(hashStr, "[^A-Za-z0-9]", "");
             return hashStrAlphaNumeric;
         }
-
     }
 
     public enum AxisType
@@ -302,6 +306,7 @@ namespace Meryel.UnityCodeAssist.Editor.Input
 
         //public bool snap { get; set; }
         public int snap { get; set; }
+
         //public bool invert { get; set; }
         public int invert { get; set; }
 
@@ -335,9 +340,9 @@ namespace Meryel.UnityCodeAssist.Editor.Input
         public string? altNegativeButton => map.altNegativeButton;
         public string? altPositiveButton => map.altPositiveButton;
 
-        public float gravity => float.Parse(map.gravity);//**--format
-        public float dead => float.Parse(map.dead);//**--format
-        public float sensitivity => float.Parse(map.sensitivity);//**--format
+        public float gravity => float.Parse(map.gravity); //**--format
+        public float dead => float.Parse(map.dead); //**--format
+        public float sensitivity => float.Parse(map.sensitivity); //**--format
 
         public bool snap => map.snap != 0;
         public bool invert => map.invert != 0;

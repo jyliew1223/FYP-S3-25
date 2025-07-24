@@ -5,10 +5,9 @@ using System.Reflection;
 using System.Linq;
 using UnityEngine;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -17,10 +16,8 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor
 {
-
     public class ScriptFinder //: MonoBehaviour
     {
-
         internal static Type? GetType123(string typeName)
         {
             //**--
@@ -82,7 +79,8 @@ namespace Meryel.UnityCodeAssist.Editor
             return null;
         }
 
-        public static bool FindInstanceOfType(string typeName, string docPath, out GameObject? gameObjectInstanceOfType, out ScriptableObject? scriptableObjectInstanceOfType)
+        public static bool FindInstanceOfType(string typeName, string docPath, out GameObject? gameObjectInstanceOfType,
+            out ScriptableObject? scriptableObjectInstanceOfType)
         {
             gameObjectInstanceOfType = null;
             scriptableObjectInstanceOfType = null;
@@ -147,7 +145,7 @@ namespace Meryel.UnityCodeAssist.Editor
             obj = getObjectToSend(Selection.activeObject, type);
             if (obj != null)
                 return obj;
-            
+
 
             //**--check source code of this, for sorting
             var filteredArray = Selection.GetFiltered(type, SelectionMode.Unfiltered);
@@ -161,7 +159,6 @@ namespace Meryel.UnityCodeAssist.Editor
                         return obj;
                 }
             }
-
 
 
             //**--rest can be slow, try avoiding them, make own db etc
@@ -181,7 +178,8 @@ namespace Meryel.UnityCodeAssist.Editor
             }
             catch (Exception ex)
             {
-                Serilog.Log.Warning(ex, "FindObjectOfType/FindAnyObjectByType failed for {Type}, mb:{isMB}, so:{isSO}", type.ToString(), isMonoBehaviour, isScriptableObject);
+                Serilog.Log.Warning(ex, "FindObjectOfType/FindAnyObjectByType failed for {Type}, mb:{isMB}, so:{isSO}",
+                    type.ToString(), isMonoBehaviour, isScriptableObject);
             }
 
             obj = getObjectToSend(obj, type);
@@ -199,7 +197,8 @@ namespace Meryel.UnityCodeAssist.Editor
             {
                 //var isMonoBehaviour = type.IsSubclassOf(typeof(MonoBehaviour));
                 //var isScriptableObject = type.IsSubclassOf(typeof(ScriptableObject));
-                Serilog.Log.Warning(ex, "FindObjectsOfTypeAll failed for {Type}, mb:{isMB}, so:{isSO}", type.ToString(), isMonoBehaviour, isScriptableObject);
+                Serilog.Log.Warning(ex, "FindObjectsOfTypeAll failed for {Type}, mb:{isMB}, so:{isSO}", type.ToString(),
+                    isMonoBehaviour, isScriptableObject);
             }
 
             if (arr != null)
@@ -258,7 +257,7 @@ namespace Meryel.UnityCodeAssist.Editor
 
             static bool isTypeComponent(Type type)
             {
-                var componentType = typeof(Component);//**--cache these types
+                var componentType = typeof(Component); //**--cache these types
                 if (type == componentType || type.IsSubclassOf(componentType))
                     return true;
 
@@ -266,7 +265,7 @@ namespace Meryel.UnityCodeAssist.Editor
                 //var monoBehaviourType = typeof(MonoBehaviour);
                 //if (type == monoBehaviourType || type.IsSubclassOf(monoBehaviourType))
                 //    return true;
-                
+
                 //else if(type is interface)//**--
 
                 return false;
@@ -302,8 +301,5 @@ namespace Meryel.UnityCodeAssist.Editor
             activeGameObject = Selection.activeGameObject;
             return activeGameObject ? true : false;
         }
-
     }
-
-
 }

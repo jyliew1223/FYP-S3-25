@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using UnityEngine;
 using UnityEditor;
-
-
 #pragma warning disable IDE0005
 //using Serilog = Meryel.UnityCodeAssist.Serilog;
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -16,7 +15,6 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor.Setup
 {
-
 #if !MERYEL_UCA_LITE_VERSION
     [InitializeOnLoad]
     public static class SetupManager

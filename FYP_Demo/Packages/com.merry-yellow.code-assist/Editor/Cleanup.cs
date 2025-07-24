@@ -5,9 +5,9 @@ using System;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Linq;
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -16,7 +16,6 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor
 {
-
     // copied from Exporter.cs in VSIX
     public static class Cleanup
     {
@@ -56,6 +55,7 @@ namespace Meryel.UnityCodeAssist.Editor
                 DeleteFileAux(filePath);
                 Serilog.Log.Debug("Deleted file {File} {Exists}", filePath, File.Exists(filePath));
             }
+
             var metaFilePath = filePath + ".meta";
             if (File.Exists(metaFilePath))
             {
@@ -77,7 +77,8 @@ namespace Meryel.UnityCodeAssist.Editor
             {
                 Serilog.Log.Debug("Deleting directory {Dir}", directoryPath);
                 Directory.Delete(directoryPath);
-                Serilog.Log.Debug("Deleted directory {Dir} {Exists}", directoryPath, IsDirectoryExistsAndEmpty(directoryPath));
+                Serilog.Log.Debug("Deleted directory {Dir} {Exists}", directoryPath,
+                    IsDirectoryExistsAndEmpty(directoryPath));
 
                 var metaFilePath = directoryPath + ".meta";
                 if (File.Exists(metaFilePath))
@@ -85,7 +86,8 @@ namespace Meryel.UnityCodeAssist.Editor
                     Serilog.Log.Debug("Deleting directory meta file {File}", metaFilePath);
                     //File.Delete(metaFilePath);
                     DeleteFileAux(metaFilePath);
-                    Serilog.Log.Debug("Deleted directory meta file {File} {Exists}", metaFilePath, File.Exists(metaFilePath));
+                    Serilog.Log.Debug("Deleted directory meta file {File} {Exists}", metaFilePath,
+                        File.Exists(metaFilePath));
                 }
             }
         }
@@ -113,19 +115,22 @@ namespace Meryel.UnityCodeAssist.Editor
         /// <returns></returns>
         static bool SetEveryoneAccessToDirectory(string dirName, out string _lastError)
         {
-
             try
             {
                 // Make sure directory exists
                 if (Directory.Exists(dirName) == false)
-                    throw new Exception(string.Format("Directory {0} does not exist, so permissions cannot be set.", dirName));
+                    throw new Exception(string.Format("Directory {0} does not exist, so permissions cannot be set.",
+                        dirName));
 
                 // Get directory access info
                 DirectoryInfo dinfo = new DirectoryInfo(dirName);
                 DirectorySecurity dSecurity = dinfo.GetAccessControl();
 
                 // Add the FileSystemAccessRule to the security settings. 
-                dSecurity.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl, InheritanceFlags.ObjectInherit | InheritanceFlags.ContainerInherit, PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
+                dSecurity.AddAccessRule(new FileSystemAccessRule(
+                    new SecurityIdentifier(WellKnownSidType.WorldSid, null), FileSystemRights.FullControl,
+                    InheritanceFlags.ObjectInherit | InheritanceFlags.ContainerInherit,
+                    PropagationFlags.NoPropagateInherit, AccessControlType.Allow));
 
                 // Set the access control
                 dinfo.SetAccessControl(dSecurity);
@@ -133,15 +138,12 @@ namespace Meryel.UnityCodeAssist.Editor
                 _lastError = String.Format("Everyone FullControl Permissions were set for directory {0}", dirName);
 
                 return true;
-
             }
             catch (Exception ex)
             {
                 _lastError = ex.Message;
                 return false;
             }
-
-
         }
 
         /// <summary>
@@ -162,7 +164,8 @@ namespace Meryel.UnityCodeAssist.Editor
             if (string.IsNullOrEmpty(solutionDirectory))
                 return -1;
 
-            var projectVersionFilePath = System.IO.Path.Combine(solutionDirectory, "ProjectSettings/ProjectVersion.txt");
+            var projectVersionFilePath =
+                System.IO.Path.Combine(solutionDirectory, "ProjectSettings/ProjectVersion.txt");
             if (!System.IO.File.Exists(projectVersionFilePath))
                 return -1;
 
@@ -215,7 +218,8 @@ namespace Meryel.UnityCodeAssist.Editor
 
             SecurityIdentifier sid = WindowsIdentity.GetCurrent().User;
             security.SetOwner(sid);
-            security.SetAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl, AccessControlType.Allow));
+            security.SetAccessRule(new FileSystemAccessRule(sid, FileSystemRights.FullControl,
+                AccessControlType.Allow));
 
             File.SetAccessControl(filename, security);
         }
@@ -225,7 +229,8 @@ namespace Meryel.UnityCodeAssist.Editor
             // prior to version UCA.v.1.1.9, syncronizerModel and yamlDotNet dll files were located at ProjectPath/Assets/Plugins/CodeAssist/Editor/ExternalReferences/Release/netstandard2.0
             // with version UCA.v.1.1.9 and newer versions, they are located at ProjectPath/Assets/Plugins/CodeAssist/Editor/ExternalReferences
             // delete ProjectPath/Assets/Plugins/CodeAssist/Editor/ExternalReferences/Release
-            var oldBinariesDirectory = Path.Combine(destination, "Plugins/CodeAssist/Editor/ExternalReferences/Release/netstandard2.0");
+            var oldBinariesDirectory = Path.Combine(destination,
+                "Plugins/CodeAssist/Editor/ExternalReferences/Release/netstandard2.0");
             if (Directory.Exists(oldBinariesDirectory))
             {
                 // dont just delete the directory for security reasons, instead delete binary files one by one
@@ -252,7 +257,8 @@ namespace Meryel.UnityCodeAssist.Editor
                 DeleteDirectoryAndItsMeta(oldBinariesDirectory);
             }
 
-            var oldBinariesDirectory2 = Path.Combine(destination, "Plugins/CodeAssist/Editor/ExternalReferences/Release");
+            var oldBinariesDirectory2 =
+                Path.Combine(destination, "Plugins/CodeAssist/Editor/ExternalReferences/Release");
             DeleteDirectoryAndItsMeta(oldBinariesDirectory2);
 
 
@@ -307,7 +313,6 @@ namespace Meryel.UnityCodeAssist.Editor
                 var filePath = Path.Combine(binariesDirectory, file);
                 DeleteFileAndItsMeta(filePath);
             }
-
         }
 
         private static void Cleanup4(string destination)
@@ -319,60 +324,60 @@ namespace Meryel.UnityCodeAssist.Editor
 
             var content = new string[]
             {
-@"TinyJson\JsonWriter.cs",
-@"TinyJson\JsonParser.cs",
-@"Preferences\RegistryMonitor.cs",
-@"Preferences\PreferenceStorageAccessor.cs",
-@"Preferences\PreferenceMonitor.cs",
-@"Preferences\PreferenceEntryHolder.cs",
-@"Logger\UnitySink.cs",
-@"Logger\MemorySink.cs",
-@"Logger\ELogger.cs",
-@"Logger\DomainHashEnricher.cs",
-@"Logger\CommonTools.cs",
-@"Logger\Attributes.cs",
-@"Input\UnityInputManager.cs",
-@"Input\Text2Yaml.cs",
-@"Input\InputManagerMonitor.cs",
-@"Input\Binary2TextExec.cs",
-@"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.xml",
-@"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.pdb",
-@"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.dll",
-@"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.deps.json",
-@"ExternalReferences\Meryel.UnityCodeAssist.SynchronizerModel.pdb",
-@"ExternalReferences\Meryel.UnityCodeAssist.SynchronizerModel.dll",
-@"ExternalReferences\Meryel.UnityCodeAssist.SynchronizerModel.deps.json",
-@"ExternalReferences\Meryel.UnityCodeAssist.Serilog.xml",
-@"ExternalReferences\Meryel.UnityCodeAssist.Serilog.Sinks.PersistentFile.pdb",
-@"ExternalReferences\Meryel.UnityCodeAssist.Serilog.Sinks.PersistentFile.dll",
-@"ExternalReferences\Meryel.UnityCodeAssist.Serilog.Sinks.PersistentFile.deps.json",
-@"ExternalReferences\Meryel.UnityCodeAssist.Serilog.pdb",
-@"ExternalReferences\Meryel.UnityCodeAssist.Serilog.dll",
-@"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.xml",
-@"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.pdb",
-@"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.dll",
-@"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.deps.json",
-@"ExternalReferences\Meryel.UnityCodeAssist.NaCl.xml",
-@"ExternalReferences\Meryel.UnityCodeAssist.NaCl.pdb",
-@"ExternalReferences\Meryel.UnityCodeAssist.NaCl.dll",
-@"ExternalReferences\Meryel.UnityCodeAssist.AsyncIO.pdb",
-@"ExternalReferences\Meryel.UnityCodeAssist.AsyncIO.dll",
-@"EditorCoroutines\EditorWindowCoroutineExtension.cs",
-@"EditorCoroutines\EditorWaitForSeconds.cs",
-@"EditorCoroutines\EditorCoroutineUtility.cs",
-@"EditorCoroutines\EditorCoroutine.cs",
-@"UnityClassExtensions.cs",
-@"StatusWindow.cs",
-@"ScriptFinder.cs",
-@"NetMQPublisher.cs",
-@"NetMQInitializer.cs",
-@"Monitor.cs",
-@"MerryYellow.CodeAssist.Editor.asmdef",
-@"MainThreadDispatcher.cs",
-@"LazyInitializer.cs",
-@"FeedbackWindow.cs",
-@"Assister.cs",
-@"AboutWindow.cs",
+                @"TinyJson\JsonWriter.cs",
+                @"TinyJson\JsonParser.cs",
+                @"Preferences\RegistryMonitor.cs",
+                @"Preferences\PreferenceStorageAccessor.cs",
+                @"Preferences\PreferenceMonitor.cs",
+                @"Preferences\PreferenceEntryHolder.cs",
+                @"Logger\UnitySink.cs",
+                @"Logger\MemorySink.cs",
+                @"Logger\ELogger.cs",
+                @"Logger\DomainHashEnricher.cs",
+                @"Logger\CommonTools.cs",
+                @"Logger\Attributes.cs",
+                @"Input\UnityInputManager.cs",
+                @"Input\Text2Yaml.cs",
+                @"Input\InputManagerMonitor.cs",
+                @"Input\Binary2TextExec.cs",
+                @"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.xml",
+                @"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.pdb",
+                @"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.dll",
+                @"ExternalReferences\Meryel.UnityCodeAssist.YamlDotNet.deps.json",
+                @"ExternalReferences\Meryel.UnityCodeAssist.SynchronizerModel.pdb",
+                @"ExternalReferences\Meryel.UnityCodeAssist.SynchronizerModel.dll",
+                @"ExternalReferences\Meryel.UnityCodeAssist.SynchronizerModel.deps.json",
+                @"ExternalReferences\Meryel.UnityCodeAssist.Serilog.xml",
+                @"ExternalReferences\Meryel.UnityCodeAssist.Serilog.Sinks.PersistentFile.pdb",
+                @"ExternalReferences\Meryel.UnityCodeAssist.Serilog.Sinks.PersistentFile.dll",
+                @"ExternalReferences\Meryel.UnityCodeAssist.Serilog.Sinks.PersistentFile.deps.json",
+                @"ExternalReferences\Meryel.UnityCodeAssist.Serilog.pdb",
+                @"ExternalReferences\Meryel.UnityCodeAssist.Serilog.dll",
+                @"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.xml",
+                @"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.pdb",
+                @"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.dll",
+                @"ExternalReferences\Meryel.UnityCodeAssist.NetMQ.deps.json",
+                @"ExternalReferences\Meryel.UnityCodeAssist.NaCl.xml",
+                @"ExternalReferences\Meryel.UnityCodeAssist.NaCl.pdb",
+                @"ExternalReferences\Meryel.UnityCodeAssist.NaCl.dll",
+                @"ExternalReferences\Meryel.UnityCodeAssist.AsyncIO.pdb",
+                @"ExternalReferences\Meryel.UnityCodeAssist.AsyncIO.dll",
+                @"EditorCoroutines\EditorWindowCoroutineExtension.cs",
+                @"EditorCoroutines\EditorWaitForSeconds.cs",
+                @"EditorCoroutines\EditorCoroutineUtility.cs",
+                @"EditorCoroutines\EditorCoroutine.cs",
+                @"UnityClassExtensions.cs",
+                @"StatusWindow.cs",
+                @"ScriptFinder.cs",
+                @"NetMQPublisher.cs",
+                @"NetMQInitializer.cs",
+                @"Monitor.cs",
+                @"MerryYellow.CodeAssist.Editor.asmdef",
+                @"MainThreadDispatcher.cs",
+                @"LazyInitializer.cs",
+                @"FeedbackWindow.cs",
+                @"Assister.cs",
+                @"AboutWindow.cs",
 //@"TinyJson",
 //@"Preferences",
 //@"Logger",
@@ -387,6 +392,5 @@ namespace Meryel.UnityCodeAssist.Editor
                 DeleteFileAndItsMeta(path);
             }
         }
-
     }
 }

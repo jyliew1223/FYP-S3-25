@@ -67,6 +67,23 @@ Packages/*
 # === Crashlytics (if used) ===
 crashlytics-build.properties
 
-# Ignore all packages that Unity can re-download
-Packages/Vuforia/
-Packages/com.ptc.vuforia.engine/"Packages/com.ptc.vuforia.engine-11.3.4.tgz" 
+# Explicit Unity Bee Build Artifacts
+Library/Bee/
+
+# Vuforia Cache
+Packages/com.ptc.vuforia.engine/
+Packages/com.ptc.vuforia.engine-11.3.4.tgz
+**Packages/com.ptc.vuforia.**
+**/Library/PackageCache/com.ptc.vuforia.*
+
+# Unity Script Assemblies
+Library/ScriptAssemblies/
+
+# Additional Unity Packages (optional)
+**/com.unity.testtools.*
+**/com.unity.collab-proxy*
+**/com.unity.nuget.*
+
+# Unity logs and Logs folder
+Logs/
+*.log

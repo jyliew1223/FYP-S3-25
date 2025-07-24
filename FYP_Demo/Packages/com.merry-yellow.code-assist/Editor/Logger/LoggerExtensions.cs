@@ -1,15 +1,14 @@
 //using Meryel.UnityCodeAssist.Serilog;
 //using Meryel.UnityCodeAssist.Serilog.Core;
+
 using UnityEngine;
 using UnityEditor;
 using System.Linq;
-
 using Meryel.Serilog;
 using Meryel.Serilog.Core;
-
-
 #pragma warning disable IDE0005
 using Serilog = Meryel.Serilog;
+
 #pragma warning restore IDE0005
 
 
@@ -18,7 +17,6 @@ using Serilog = Meryel.Serilog;
 
 namespace Meryel.UnityCodeAssist.Editor.Logger
 {
-
     //[InitializeOnLoad]
     public static class ELogger
     {
@@ -36,15 +34,24 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
         static ILogEventSink? _memorySink;
 
 
-        public static string GetInternalLogContent() => _memorySink == null ? string.Empty : ((Meryel.UnityCodeAssist.Logger.MemorySink)_memorySink).Export();
-        public static int GetErrorCountInInternalLog() => _memorySink == null ? 0 : ((Meryel.UnityCodeAssist.Logger.MemorySink)_memorySink).ErrorCount;
-        public static int GetWarningCountInInternalLog() => _memorySink == null ? 0 : ((Meryel.UnityCodeAssist.Logger.MemorySink)_memorySink).WarningCount;
+        public static string GetInternalLogContent() => _memorySink == null
+            ? string.Empty
+            : ((Meryel.UnityCodeAssist.Logger.MemorySink)_memorySink).Export();
+
+        public static int GetErrorCountInInternalLog() => _memorySink == null
+            ? 0
+            : ((Meryel.UnityCodeAssist.Logger.MemorySink)_memorySink).ErrorCount;
+
+        public static int GetWarningCountInInternalLog() => _memorySink == null
+            ? 0
+            : ((Meryel.UnityCodeAssist.Logger.MemorySink)_memorySink).WarningCount;
 
         public static string? FilePath => Meryel.UnityCodeAssist.Logger.ELogger.UnityFilePath;
         public static string? VSFilePath => Meryel.UnityCodeAssist.Logger.ELogger.VisualStudioFilePath;
 
         //**-- make it work with multiple clients
         static string? _vsInternalLog;
+
         public static string? VsInternalLog
         {
             get => _vsInternalLog;
@@ -54,7 +61,6 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
                 OnVsInternalLogChanged?.Invoke();
             }
         }
-
 
 
         static ELogger()
@@ -83,7 +89,9 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
         /// <summary>
         /// Empty method for invoking static class ctor
         /// </summary>
-        public static void Bump() { }
+        public static void Bump()
+        {
+        }
 
 
         static void LogHeader(string unityVersion, string solutionDir)
@@ -123,7 +131,8 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
                 fileLevelSwitch.MinimumLevel = targetFileLevel;
 
             var isLoggingToOutputWindow = OptionsIsLoggingToOutputWindow;
-            var targetOutputWindowLevel = isLoggingToOutputWindow ? outputWindowMinLevel : Serilog.Events.LogEventLevel.Fatal;
+            var targetOutputWindowLevel =
+                isLoggingToOutputWindow ? outputWindowMinLevel : Serilog.Events.LogEventLevel.Fatal;
             if (outputWindowLevelSwitch != null)
                 outputWindowLevelSwitch.MinimumLevel = targetOutputWindowLevel;
         }
@@ -132,6 +141,4 @@ namespace Meryel.UnityCodeAssist.Editor.Logger
         static bool OptionsIsLoggingToFile => true;
         static bool OptionsIsLoggingToOutputWindow => true;
     }
-
 }
-
