@@ -1,0 +1,81 @@
+# Ignore Assets
+FYP_Demo/Assets/TextMesh Pro/Examples & Extras/
+
+# Ignore UnityProject build, cache, and temp folders
+FYP_Demo/[Ll]ibrary/
+FYP_Demo/[Tt]emp/
+FYP_Demo/[Oo]bj/
+FYP_Demo/[Bb]uild/
+FYP_Demo/[Bb]uilds/
+FYP_Demo/[Ll]ogs/
+FYP_Demo/MemoryCaptures/
+FYP_Demo/UserSettings/
+FYP_Demo/ExportedObj/
+
+# Ignore PackageCache anywhere inside UnityProject
+FYP_Demo/**/PackageCache/
+
+# Ignore Vuforia large package files
+FYP_Demo/Packages/com.ptc.vuforia.engine-11.3.4.tgz
+FYP_Demo/Packages/com.ptc.vuforia.engine/
+FYP_Demo/**/PackageCache/com.ptc.vuforia.*
+
+# Only keep manifest files in Packages
+FYP_Demo/Packages/*
+!FYP_Demo/Packages/manifest.json
+!FYP_Demo/Packages/packages-lock.json
+
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.tmp
+*.bak
+*.log
+*.vs/
+*.VC.db
+*.csproj
+*.sln
+
+# JetBrains Rider
+FYP_Demo/Assets/Plugins/Editor/JetBrains*
+
+# Gradle cache
+.gradle/
+
+# Asset Store Tools (optional)
+/Assets/AssetStoreTools*
+
+# Addressables
+FYP_Demo/Assets/AddressableAssetsData/*/*.bin*
+FYP_Demo/Assets/StreamingAssets/aa.meta
+FYP_Demo/Assets/StreamingAssets/aa/*
+
+# Unity crash reports
+sysinfo.txt
+
+# Crashlytics if used
+crashlytics-build.properties
+
+# Unity Script Assemblies
+FYP_Demo/Library/ScriptAssemblies/
+
+# Additional Unity packages
+FYP_Demo/**/com.unity.testtools.*
+FYP_Demo/**/com.unity.collab-proxy*
+FYP_Demo/**/com.unity.nuget.*
+
+# Logs
+Logs/
+*.log
+
+# QCAR
+FYP_Demo/QCAR
