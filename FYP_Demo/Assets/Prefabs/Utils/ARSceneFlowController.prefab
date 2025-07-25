@@ -51,7 +51,7 @@ MonoBehaviour:
   currentSceneTransition: 2
   newSceneTransition: 2
   slideDuration: 0.5
-  unloadScene: 0
+  unloadScene: 1
 --- !u!1 &6046912431703769879
 GameObject:
   m_ObjectHideFlags: 0

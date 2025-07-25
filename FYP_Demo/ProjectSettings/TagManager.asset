@@ -8,6 +8,7 @@ TagManager:
   - MainCanvas
   - HelperCanvas
   - ARSceneReturnButton
+  - PopUpCanvas
   layers:
   - Default
   - TransparentFX

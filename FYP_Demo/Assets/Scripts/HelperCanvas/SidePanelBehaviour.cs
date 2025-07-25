@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 [RequireComponent(typeof(RectTransform))]
 [RequireComponent(typeof(CanvasGroup))]
@@ -12,7 +13,6 @@ public class SidePanelBehaviour : MonoBehaviour
 {
     [SerializeField] private float popUpTime = 2f;
     [SerializeField] private float offset = 100f;
-    [SerializeField] private InputAction inputAction;
 
     private Canvas canvas;
     private RectTransform panel;
@@ -59,14 +59,13 @@ public class SidePanelBehaviour : MonoBehaviour
     private void OnEnable()
     {
         SceneTransition.OnTransitionStart += HandleOnTransitionStart;
-        inputAction.Enable();
-        inputAction.performed += OnClickPerformed;
+        GlobalInputManager.Initialize();
+        GlobalInputManager.InputSystem.UI.Click.performed += OnClickPerformed;
     }
     private void OnDisable()
     {
         SceneTransition.OnTransitionStart -= HandleOnTransitionStart;
-        inputAction.performed -= OnClickPerformed;
-        inputAction.Disable();
+        GlobalInputManager.InputSystem.UI.Click.performed -= OnClickPerformed;
     }
     //Public Methods
     public void ShowPanel(bool isShowing)

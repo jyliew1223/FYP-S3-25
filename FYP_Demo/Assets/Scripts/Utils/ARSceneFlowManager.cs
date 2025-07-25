@@ -17,7 +17,7 @@ public class ARSceneFlowManager : MonoBehaviour
     private string loadingSceneName;
     private string _ARSceneName;
 
-    private List<GameObject> disabledObjectRecorder = new();
+    private Queue<GameObject> objectRecorder = new();
     private Scene _ARScene;
 
     private string message { get; set; }
@@ -95,8 +95,6 @@ public class ARSceneFlowManager : MonoBehaviour
 
         yield return StartCoroutine(loadingSceneTransition.StartTransition());
 
-        Scene loadingScene = SceneManager.GetSceneByName(loadingSceneName);
-        SceneManager.SetActiveScene(loadingScene);
         DisableAllOtherScene(loadingSceneName);
 
         yield return StartCoroutine(LoadScene(_ARSceneName, progress =>
@@ -131,9 +129,6 @@ public class ARSceneFlowManager : MonoBehaviour
 
         returnButton.onClick.RemoveAllListeners();
         returnButton.onClick.AddListener(Return);
-
-        SceneManager.SetActiveScene(_ARScene);
-        SceneManager.UnloadSceneAsync(loadingScene);
     }
     private IEnumerator LoadScene(string sceneName, System.Action<float> progressCallback)
     {
@@ -160,7 +155,7 @@ public class ARSceneFlowManager : MonoBehaviour
             GameObject[] roots = scene.GetRootGameObjects();
             foreach (GameObject root in roots)
             {
-                disabledObjectRecorder.Add(root);
+                objectRecorder.Enqueue(root);
                 root.SetActive(false);
             }
         }
@@ -168,13 +163,14 @@ public class ARSceneFlowManager : MonoBehaviour
     private void DisableHelperCanvas()
     {
         GameObject helperCanvas = GameObject.FindGameObjectWithTag("HelperCanvas");
-        disabledObjectRecorder.Add(helperCanvas);
+        objectRecorder.Enqueue(helperCanvas);
         helperCanvas.SetActive(false);
     }
     private void EnableDisabledObjects()
     {
-        foreach (GameObject obj in disabledObjectRecorder)
+        while (objectRecorder.Count > 0)
         {
+            GameObject obj = objectRecorder.Dequeue();
             obj.SetActive(true);
         }
     }

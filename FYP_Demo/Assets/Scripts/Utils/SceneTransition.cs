@@ -38,6 +38,8 @@ public class SceneTransition : MonoBehaviour
     public static event System.Action OnTransitionStart;
     public static event System.Action<Scene> OnTransitionEnd;
 
+    private bool isTransiting = false;
+
     // runtime logic
     private void Start()
     {
@@ -57,6 +59,11 @@ public class SceneTransition : MonoBehaviour
         if (hasError)
         {
             LogError();
+            return;
+        }
+
+        if (isTransiting)
+        {
             return;
         }
 
@@ -85,6 +92,8 @@ public class SceneTransition : MonoBehaviour
     }
     public IEnumerator StartTransition()
     {
+        isTransiting = true;
+
         string currentSceneName = SceneManager.GetActiveScene().name;
 
         if (currentSceneName == sceneToLoad)
@@ -138,6 +147,7 @@ public class SceneTransition : MonoBehaviour
         Scene newScene = SceneManager.GetSceneByName(sceneToLoad);
         SceneManager.SetActiveScene(newScene);
         OnTransitionEnd?.Invoke(newScene);
+        isTransiting = false;
     }
     private void GetMainContainer(string sceneName, string rectTransformTag, out RectTransform rt)
     {
@@ -197,9 +207,9 @@ public class SceneTransition : MonoBehaviour
             case TransitionType.Fade:
                 if (cg == null)
                 {
+                    Debug.LogWarning($"{GetType().Name}: Canvas Group in {root.scene.name} is destroyed!");
                     break;
                 }
-
                 while (passedTime < slideDuration)
                 {
                     passedTime += Time.deltaTime;
@@ -207,12 +217,22 @@ public class SceneTransition : MonoBehaviour
                     float radian = progress * Mathf.PI / 2;
                     float value = Mathf.Sin(radian);
                     float delta = isOut ? 1 - value : value;
+
+                    if (cg == null)
+                    {
+                        Debug.LogWarning($"{GetType().Name}: Canvas Group in {root.scene.name} is destroyed!");
+                        break;
+                    }
+
                     cg.alpha = delta;
 
                     yield return null;
                 }
 
-                cg.alpha = isOut ? 0 : 1;
+                if (cg != null)
+                {
+                    cg.alpha = isOut ? 0 : 1;
+                }
 
                 break;
 
