@@ -4,8 +4,6 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 using System.Collections.Generic;
-using UnityEditor.Build;
-using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Button))]
 public class ProfileButtonBahaviour : MonoBehaviour
