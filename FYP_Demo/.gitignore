@@ -1,0 +1,81 @@
+# Ignore Assets
+Assets/TextMesh Pro/Examples & Extras/
+
+# Ignore UnityProject build, cache, and temp folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+MemoryCaptures/
+UserSettings/
+ExportedObj/
+
+# Ignore PackageCache anywhere inside UnityProject
+**/PackageCache/
+
+# Ignore Vuforia large package files
+Packages/com.ptc.vuforia.engine-11.3.4.tgz
+Packages/com.ptc.vuforia.engine/
+**/PackageCache/com.ptc.vuforia.*
+
+# Only keep manifest files in Packages
+Packages/*
+!Packages/manifest.json
+!Packages/packages-lock.json
+
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.tmp
+*.bak
+*.log
+*.vs/
+*.VC.db
+*.csproj
+*.sln
+
+# JetBrains Rider
+Assets/Plugins/Editor/JetBrains*
+
+# Gradle cache
+.gradle/
+
+# Asset Store Tools (optional)
+/Assets/AssetStoreTools*
+
+# Addressables
+Assets/AddressableAssetsData/*/*.bin*
+Assets/StreamingAssets/aa.meta
+Assets/StreamingAssets/aa/*
+
+# Unity crash reports
+sysinfo.txt
+
+# Crashlytics if used
+crashlytics-build.properties
+
+# Unity Script Assemblies
+Library/ScriptAssemblies/
+
+# Additional Unity packages
+**/com.unity.testtools.*
+**/com.unity.collab-proxy*
+**/com.unity.nuget.*
+
+# Logs
+Logs/
+*.log
+
+# QCAR
+QCAR
