@@ -7,17 +7,10 @@ using UnityEngine.SceneManagement;
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 
 public class SceneTransition : MonoBehaviour
 {
-    public enum TransitionType
-    {
-        SlideToLeft,
-        SlideToRight,
-        Fade,
-        None
-    }
-
 #if UNITY_EDITOR
     [SerializeField] private SceneAsset nextScene;
     private void OnValidate()
@@ -25,6 +18,13 @@ public class SceneTransition : MonoBehaviour
         sceneToLoad = nextScene.name;
     }
 #endif
+    public enum TransitionType
+    {
+        SlideToLeft,
+        SlideToRight,
+        Fade,
+        None
+    }
 
     [SerializeField][ReadOnly] private string sceneToLoad;
     [SerializeField][Tag] private string currentSceneMainContainerTag = "MainContainer";
@@ -53,6 +53,7 @@ public class SceneTransition : MonoBehaviour
             LogError();
         }
     }
+
     // public method
     public void ChangeScene()
     {
@@ -64,32 +65,18 @@ public class SceneTransition : MonoBehaviour
 
         if (isTransiting)
         {
+            Debug.LogWarning($"{GetType().Name}: Scene transition is already in progress.");
             return;
         }
 
         StartCoroutine(StartTransition());
     }
+
     public string GetSceneToLoad()
     {
         return sceneToLoad;
     }
-    //private methods
-    private IEnumerator LoadScene(string sceneName, System.Action<bool> callback)
-    {
-        AsyncOperation loadOp = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
 
-        if (loadOp == null)
-        {
-            callback?.Invoke(false);
-            yield break;
-        }
-
-        loadOp.allowSceneActivation = true;
-
-        while (!loadOp.isDone) yield return null;
-
-        callback?.Invoke(true);
-    }
     public IEnumerator StartTransition()
     {
         isTransiting = true;
@@ -98,6 +85,7 @@ public class SceneTransition : MonoBehaviour
 
         if (currentSceneName == sceneToLoad)
         {
+            isTransiting = false;
             Debug.LogWarning($"{GetType().Name}: Transiting to same scene transition canceled");
             yield break;
         }
@@ -116,7 +104,7 @@ public class SceneTransition : MonoBehaviour
 
         if (!isTargetSceneLoaded)
         {
-            yield return StartCoroutine(LoadScene(sceneToLoad, (result) => isTargetSceneLoaded = result));
+            yield return LoadScene(sceneToLoad, (result) => isTargetSceneLoaded = result);
         }
 
         GetMainContainer(
@@ -149,6 +137,25 @@ public class SceneTransition : MonoBehaviour
         OnTransitionEnd?.Invoke(newScene);
         isTransiting = false;
     }
+
+    //private methods
+    private IEnumerator LoadScene(string sceneName, System.Action<bool> callback)
+    {
+        AsyncOperation loadOp = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+
+        if (loadOp == null)
+        {
+            callback?.Invoke(false);
+            yield break;
+        }
+
+        loadOp.allowSceneActivation = true;
+
+        while (!loadOp.isDone) yield return null;
+
+        callback?.Invoke(true);
+    }
+
     private void GetMainContainer(string sceneName, string rectTransformTag, out RectTransform rt)
     {
         rt = null;
@@ -165,6 +172,7 @@ public class SceneTransition : MonoBehaviour
         }
         Debug.LogWarning($"{GetType().Name}: RectTransform with tag '{rectTransformTag}' not found in {sceneName}");
     }
+
     private GameObject FindTaggedChildRecursive(Transform parent, string tagName)
     {
         if (parent.CompareTag(tagName))
@@ -179,6 +187,7 @@ public class SceneTransition : MonoBehaviour
         }
         return null;
     }
+
     private IEnumerator StartAnimation(bool isOut, TransitionType transition, RectTransform rt, System.Action callback)
     {
         if (rt is null)
@@ -268,28 +277,23 @@ public class SceneTransition : MonoBehaviour
 
         callback?.Invoke();
     }
+
     // Error Helper
     private bool hasError;
-    private List<string> errorMessage = new();
+    private readonly StringBuilder errorMessage = new();
 
     private void AppendError(string message)
     {
         hasError = true;
-        errorMessage.Add(message);
+        errorMessage.AppendLine(message);
         Debug.LogError(message);
     }
+
     private void LogError()
     {
-        if (hasError && errorMessage.Count > 0)
-        {
-            string message = "";
-            foreach (var error in errorMessage)
-            {
-                message += error + "\n";
-            }
+        if (!hasError || errorMessage.Length == 0) return;
 
-            Debug.LogError($"{this.GetType().Name}: Error(s): caught...\n"
-                           + message);
-        }
+        Debug.LogError($"{GetType().Name}: Error(s) caught...\n{errorMessage}");
+        errorMessage.Clear();
     }
 }

@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 
 using System.Collections.Generic;
+using System.Text;
 
 [RequireComponent(typeof(Button))]
 public class ProfileButtonBahaviour : MonoBehaviour
@@ -78,25 +79,19 @@ public class ProfileButtonBahaviour : MonoBehaviour
     }
     // Error Helper
     private bool hasError;
-    private List<string> errorMessage = new();
+    private readonly StringBuilder errorMessage = new();
+
     private void AppendError(string message)
     {
         hasError = true;
-        errorMessage.Add(message);
+        errorMessage.AppendLine(message);
         Debug.LogError(message);
     }
     private void LogError()
     {
-        if (hasError && errorMessage.Count > 0)
-        {
-            string message = "";
-            foreach (var error in errorMessage)
-            {
-                message += error + "\n";
-            }
+        if (!hasError || errorMessage.Length == 0) return;
 
-            Debug.LogError($"{GetType().Name}: Error(s): caught...\n"
-                           + message);
-        }
+        Debug.LogError($"{GetType().Name}: Error(s) caught...\n{errorMessage}");
+        errorMessage.Clear();
     }
 }

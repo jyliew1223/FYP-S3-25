@@ -1,4 +1,4 @@
-using System;
+
 using UnityEngine;
 
 public class GlobalInputManager : MonoBehaviour
@@ -21,6 +21,7 @@ public class GlobalInputManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        if (Instance == this) Instance = null;
         InputSystem.Disable();
     }
 }
