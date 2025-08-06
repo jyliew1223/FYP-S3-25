@@ -25,8 +25,7 @@ SECRET_KEY = "django-insecure-#s-_2q5u#-2=-oc(7t07h6!ebk1p$#u(sli)qy-079f1$ijdvs
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['your-render-service-url.onrender.com', 'localhost', '127.0.0.1']
-
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 
@@ -132,4 +131,3 @@ from decouple import config
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = [config('ALLOWED_HOSTS')]

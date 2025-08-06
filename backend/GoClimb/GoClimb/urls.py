@@ -20,5 +20,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include('climbing.urls')),  # 👈 route root URL to your app
+    path('hello/', include('GoClimbTest.urls')),  # 👈 route root URL to your app
 ]
