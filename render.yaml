@@ -6,7 +6,10 @@ services:
       pip install -r requirements.txt
       python manage.py collectstatic --noinput
       python manage.py migrate --noinput
-    startCommand: gunicorn GoClimb.wsgi:application --log-file -
+    startCommand: | 
+      cd backend
+      cd GoClimb
+      gunicorn GoClimb.wsgi:application --log-file -
     autoDeploy: true
     envVars:
       - key: SECRET_KEY
