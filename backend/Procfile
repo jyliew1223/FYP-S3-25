@@ -1,0 +1,1 @@
+web: gunicorn GoClimb.wsgi --log-file -
