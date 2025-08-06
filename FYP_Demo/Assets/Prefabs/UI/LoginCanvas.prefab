@@ -696,7 +696,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1253942640414911795}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 8808046837009229367}
+        m_TargetAssemblyTypeName: LoginCanvasBehaviour, Assembly-CSharp
+        m_MethodName: OnSignUpBtnClicked
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!1 &3035202606871484469
 GameObject:
   m_ObjectHideFlags: 0
@@ -1627,7 +1639,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   loginPanel: {fileID: 639934501695772249}
-  inputActionAsset: {fileID: -944628639613478452, guid: 289c1b55c9541489481df5cc06664110, type: 3}
+  signUpPanelPrefab: {fileID: 5044418797495870740, guid: 7ed8b3803ab2b4144bb6f29d4a4a8073, type: 3}
 --- !u!1 &7935561522290533170
 GameObject:
   m_ObjectHideFlags: 0

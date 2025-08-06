@@ -8,6 +8,8 @@ public class LoginCanvasBehaviour : MonoBehaviour
 {
     [SerializeField] private RectTransform loginPanel;
 
+    [SerializeField] private GameObject signUpPanelPrefab;
+
     private Queue<CanvasGroup> canvasGroupRecorder = new();
     private Canvas canvas;
 
@@ -87,6 +89,11 @@ public class LoginCanvasBehaviour : MonoBehaviour
                 cg.blocksRaycasts = true;
             }
         }
+    }
+
+    public void OnSignUpBtnClicked()
+    {
+        Instantiate(signUpPanelPrefab);
     }
 
     //Error Helper
