@@ -1,2 +1,46 @@
+# Temp ignore
 /Unity
+
+# Secret data
 /etc
+
+# Python cache and compiled files
+**/__pycache__/
+*.pyc
+
+# Python virtual environment folders
+env/
+venv/
+ENV/
+.venv/
+
+# Django migration files (optional - sometimes you want to commit these)
+# If you prefer to ignore them:
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Editor folders/files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Python coverage reports
+htmlcov/
+.coverage
+
+# Python egg files
+*.egg-info/
+.eggs/
+
+# Pipenv files (optional, if you use pipenv)
+/Pipfile.lock
+
+# PyCharm project files (optional)
+*.iml
