@@ -132,7 +132,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 import firebase_admin
 from firebase_admin import credentials
 
-cred = credentials.Certificate("./etc/secrets/goclimb-39075-firebase-adminsdk-fbsvc-c421a83f25.json")
+cred = credentials.Certificate("/etc/secrets/goclimb-39075-firebase-adminsdk-fbsvc-c421a83f25.json")
 firebase_admin.initialize_app(cred)
 
 # from decouple import config
