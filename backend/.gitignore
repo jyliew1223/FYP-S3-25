@@ -50,3 +50,6 @@ coverage.xml
 
 # Node stuff (if using JS/React in same repo)
 node_modules/
+
+# Firebase setup
+Firebase/

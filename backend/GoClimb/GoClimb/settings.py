@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-#s-_2q5u#-2=-oc(7t07h6!ebk1p$#u(sli)qy-079f1$ijdvs"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -123,11 +123,16 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-DEBUG = False
-
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-from decouple import config
+# Firebase Setup
+import firebase_admin
+from firebase_admin import credentials
 
-SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG', default=False, cast=bool)
+cred = credentials.Certificate("backend/GoClimb/Firebase/goclimb-39075-firebase-adminsdk-fbsvc-c421a83f25.json")
+firebase_admin.initialize_app(cred)
+
+# from decouple import config
+
+# SECRET_KEY = config('SECRET_KEY')
+# DEBUG = config('DEBUG', default=False, cast=bool)
