@@ -118,7 +118,6 @@ class UserControllerY:
 # Boundary Example with Django ORM
 user_controller = UserControllerY()
 
-
 def update_email_ORMview(request, user_id):
     if request.method == "POST":
         new_email = request.POST.get("email")

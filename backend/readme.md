@@ -24,7 +24,7 @@ python -c "from django.core.management.utils import get_random_secret_key; print
 Add the key to `.env` file:
 
 ```ini
-SECRET_KEY = {generated SECRET_KEY}
+SECRET_KEY={generated SECRET_KEY}
 ```
 
 ### 2. Debug Mode
@@ -71,7 +71,7 @@ To obtain the JSON file:
 After that, add this to .env file:
 
 ```ini
-FIREBASE_CREDENTIALS_PATH = /path/to/the/file.json
+FIREBASE_CREDENTIALS_PATH=/path/to/the/file.json
 ```
 
 ### 5. Render Database
@@ -88,7 +88,7 @@ To get the URL:
 After that, add this to .env file:
 
 ```ini
-DATABASE_URL = {paste the url here}
+DATABASE_URL={paste the url here}
 ```
 
 ### 6. Time zone
@@ -98,7 +98,7 @@ Set the project time zone:
 Add the this to `.env` file:
 
 ```ini
-TIME_ZONE = Asia/Singapore
+TIME_ZONE=Asia/Singapore
 ```
 
 > **Important: Never commit `.env` or Firebase JSON files to github repository.**
