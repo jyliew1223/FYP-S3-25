@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "rest_framework",
     # Your App
     "GoClimbTest",
+    "MyApp",
 ]
 
 MIDDLEWARE = [
@@ -97,7 +98,10 @@ WSGI_APPLICATION = "GoClimb.wsgi.application"
 
 import dj_database_url
 
-DATABASES = {"default": dj_database_url.config(default=os.getenv("DATABASE_URL"))}
+DATABASES = {
+    "default": dj_database_url.config(default=os.getenv("DATABASE_URL")),
+    "OPTIONS": {"options": "-c search_path=go_climb,public"},
+}
 
 
 # Password validation
@@ -137,9 +141,9 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
+# STATICFILES_DIRS = [
+#     BASE_DIR / "static",
+# ]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
