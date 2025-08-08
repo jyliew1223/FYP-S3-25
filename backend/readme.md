@@ -37,7 +37,9 @@ Add the this to `.env` file:
 DEBUG=True
 ```
 
-### 3. Allowed host, can modify as u need, \* will allow request from every host
+### 3. Allowed host
+
+can modify as u need, \* will allow request from every host
 
 Hosts allowed to access the server.
 
