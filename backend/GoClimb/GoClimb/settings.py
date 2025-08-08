@@ -11,10 +11,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
-from dotenv import load_dotenv
 
-if os.getenv("RENDER") != "true":  # Or check any env var that identifies prod
-    load_dotenv()
+if os.getenv("RENDER") != "true":  # or any env var that identifies prod
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        pass  # dotenv not installed, just skip loading .env
+    else:
+        load_dotenv()
 
 from pathlib import Path
 
