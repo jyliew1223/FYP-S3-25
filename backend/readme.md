@@ -34,7 +34,7 @@ Set debug mode (for development)
 Add the this to `.env` file:
 
 ```ini
-DEBUG=True
+DEBUG = True
 ```
 
 ### 3. Allowed host
@@ -71,7 +71,7 @@ To obtain the JSON file:
 After that, add this to .env file:
 
 ```ini
-FIREBASE_CREDENTIALS_PATH=/path/to/the/file.json
+FIREBASE_CREDENTIALS_PATH = /path/to/the/file.json
 ```
 
 ### 5. Render Database
@@ -88,7 +88,7 @@ To get the URL:
 After that, add this to .env file:
 
 ```ini
-DATABASE_URL= {paste the url here}
+DATABASE_URL = {paste the url here}
 ```
 
 ### 6. Time zone
@@ -98,7 +98,7 @@ Set the project time zone:
 Add the this to `.env` file:
 
 ```ini
-TIME_ZONE=Asia/Singapore
+TIME_ZONE = Asia/Singapore
 ```
 
 > **Important: Never commit `.env` or Firebase JSON files to github repository.**

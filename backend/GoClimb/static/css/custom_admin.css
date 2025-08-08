@@ -1,0 +1,14 @@
+/* Change background color of the header */
+#header {
+  background-color: #1e3a8a; /* Deep blue */
+}
+
+/* Change title color */
+#site-name a {
+  color: #ffffff;
+}
+
+/* Change sidebar background */
+#nav-sidebar {
+  background-color: #f3f4f6;
+}
