@@ -63,7 +63,7 @@ To obtain the JSON file:
 
 1. go to https://console.firebase.google.com/u/3/
 2. Login using shared goclimb gmail account
-3. Select "GoClimb" project which will appear "Your Project" section
+3. Select "GoClimb" project which will appear in "Your Project" section
 4. At the left panel, clicks the icon beside "Project Overview" > "Project Settings"
 5. Go to "Service accounts" tab
 6. Generate a new Private key and download JSON
@@ -88,7 +88,7 @@ To get the URL:
 After that, add this to .env file:
 
 ```ini
-FIREBASE_CREDENTIALS_PATH=/path/to/the/file.json <-- paste the url here
+DATABASE_URL= {paste the url here}
 ```
 
 ### 6. Time zone
