@@ -30,7 +30,7 @@ from rest_framework.request import Request
 from rest_framework.decorators import api_view
 from rest_framework import status
 from MyApp.Serializer.serializers import UserSerializer
-from MyApp.Controller.user_control import signup_user, verify_user
+from MyApp.Controller.user_control import signup_user
 from MyApp.Utils.helper import authenticate
 
 
@@ -56,7 +56,7 @@ def signup_view(request: Request) -> Response:
 
     if serializer.is_valid():
         data: dict[str, Any] = cast(dict[str, Any], serializer.validated_data)
-
+        
         response: dict[str, Any] = signup_user(
             id_token=data["id_token"],
             full_name=data["full_name"],
@@ -72,7 +72,7 @@ def signup_view(request: Request) -> Response:
 
 
 @api_view(["POST"])
-def signin_view(request: Request) -> Response:
+def verify_id_token_view(request: Request) -> Response:
     """
     INPUT:{}
     OUTPUT:{

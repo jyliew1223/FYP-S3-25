@@ -14,6 +14,9 @@ def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
             return {"success": False, "message": result.get("message")}
 
         user_id: str = str(result.get("uid"))
+        
+        if not user_id:
+            return {"success": False, "message": "User ID is null or empty."}
 
         # Check if user with same email but different UID exists
         existing_user = (
@@ -36,17 +39,5 @@ def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
         user.save()
 
         return {"success": True, "message": "User created successfully."}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
-
-
-def verify_user(id_token: str) -> dict[str, Any]:
-    try:
-        result: dict[str, Any] = verify_firebase_user(id_token)
-
-        if not result.get("success"):
-            return {"success": False, "message": result.get("message")}
-
-        return {"success": True, "message": "User verified successfully."}
     except Exception as e:
         return {"success": False, "message": str(e)}
