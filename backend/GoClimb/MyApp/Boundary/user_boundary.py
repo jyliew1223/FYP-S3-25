@@ -45,30 +45,41 @@ def signup_view(request: Request) -> Response:
     OUTPUT:{
         "success": bool,
         "message": str
+        "errors": dict[str, Any]  # Only if success is False
     }
     """
-    result:dict = authenticate(request)
-    
+    result: dict = authenticate(request)
+
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+
+    data: dict[str, Any] = request.data if isinstance(request.data, dict) else {}
     
-    serializer = UserSerializer(data=request.data)
+    allowed_fields = ["full_name", "email"]
+    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
+    
+    serializer = UserSerializer(data=filtered_data)
 
     if serializer.is_valid():
-        data: dict[str, Any] = cast(dict[str, Any], serializer.validated_data)
+        validated_data = cast(dict[str, Any], serializer.validated_data)
+
+        id_token: str = str(data.get("id_token", ""))
+        full_name = str(validated_data.get("full_name", ""))
+        email = str(validated_data.get("email", ""))
         
-        response: dict[str, Any] = signup_user(
-            id_token=data["id_token"],
-            full_name=data["full_name"],
-            email=data["email"]
-        )
+        response: dict[str, Any] = signup_user(id_token, full_name, email)
 
         if response.get("success"):
             return Response(response, status=status.HTTP_201_CREATED)
         else:
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
     else:
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        error_response: dict[str, Any] = {
+            "success": False,
+            "message": "Invalid data provided.",
+            "errors": serializer.errors,
+        }
+        return Response(error_response, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(["POST"])
@@ -80,11 +91,9 @@ def verify_id_token_view(request: Request) -> Response:
         "message": str
     }
     """
-    result:dict = authenticate(request)
-    
+    result: dict = authenticate(request)
+
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
-    
+
     return Response(result, status=status.HTTP_200_OK)
-    
-    

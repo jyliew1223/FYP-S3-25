@@ -5,28 +5,52 @@ using UnityEngine;
 using Firebase.Auth;
 using Firebase;
 using UnityEngine.Networking;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using TMPro;
+using UnityEngine.UI;
 
 public class StartUpPageBehaviour : MonoBehaviour
 {
+    [SerializeField] private TextMeshProUGUI initMsgInputField;
+    [SerializeField] private ProgressBar progressBar;
+
     private FirebaseAuth auth;
+    private bool msgOutput = true;
+
+    private void Awake()
+    {
+        if (initMsgInputField == null)
+        {
+            msgOutput = false;
+            Debug.LogWarning($"{GetType().Name}: initMsgInputField not set!");
+        }
+        if (progressBar == null)
+        {
+            Debug.LogWarning($"{GetType().Name}: progressBar not set!");
+        }
+        else
+        {
+            progressBar.SetProgress(.0f);
+        }
+    }
 
     void Start()
     {
-        StartCoroutine(Initialization());
-    }
-    void OnDestroy()
-    {
-        if (auth != null)
+        StartCoroutine(Initialization(() =>
         {
-            auth.Dispose();
-            auth = null;
-            Debug.Log($"{GetType().Name}: FirebaseAuth disposed.");
-        }
+            ToastController.Instance.ShowToast("Failed to connect to Firebase. Please try again later.");
+        }));
     }
-    IEnumerator Initialization()
-    {
 
+    IEnumerator Initialization(Action failure)
+    {
         Debug.Log($"{GetType().Name}: Initializing...");
+        progressBar.SetProgress(.1f);
+        yield return StartCoroutine(DisplayMessage("Initializing..."));
+
+        // Initialize Firebase
+        yield return StartCoroutine(DisplayMessage("Initializing FireBase..."));
 
         Task initFirebaseTask = InitFirebase();
         while (!initFirebaseTask.IsCompleted) yield return null;
@@ -34,21 +58,67 @@ public class StartUpPageBehaviour : MonoBehaviour
         if (auth == null)
         {
             Debug.LogError($"{GetType().Name}: Firebase Auth is not initialized.");
+            yield return StartCoroutine(DisplayMessage("Failed to initialize FireBase..."));
+            failure.Invoke();
             yield break;
         }
+
+        progressBar.SetProgress(.3f);
+        yield return StartCoroutine(DisplayMessage("Firebase initialized successfully."));
+
+        // Sign in to Firebase
+        progressBar.SetProgress(.4f);
+        yield return StartCoroutine((DisplayMessage("Signing in...")));
 
         Task signInFirebaseTask = SignInFirebase();
         while (!signInFirebaseTask.IsCompleted) yield return null;
 
-        if (String.IsNullOrEmpty(GlobalData.IDToken))
+        if (auth.CurrentUser == null)
         {
-            Debug.LogError($"{GetType().Name}: ID Token is null or empty after Sign-in.");
+            Debug.LogError($"{GetType().Name}: No user is signed in.");
+            yield return StartCoroutine(DisplayMessage("Previous Session not found continue as Guest..."));
             yield break;
         }
 
-        Debug.Log($"{GetType().Name}: ID Token: {GlobalData.IDToken}");
+        progressBar.SetProgress(.6f);
+        yield return StartCoroutine(DisplayMessage("User signed in successfully."));
 
-        yield return new WaitForSeconds(10);
+
+        // Generate ID_Token for the current user
+        progressBar.SetProgress(.7f);
+        yield return StartCoroutine(DisplayMessage("Generating ID Token..."));
+
+        var tokenTask = auth.CurrentUser.TokenAsync(true);
+        while (!tokenTask.IsCompleted) yield return null;
+
+        if (tokenTask.IsFaulted || tokenTask.IsCanceled || string.IsNullOrEmpty(tokenTask.Result))
+        {
+            if (tokenTask.IsFaulted || tokenTask.IsCanceled)
+            {
+                Debug.LogError("Failed to get token: " + tokenTask.Exception);
+            }
+            else
+            {
+                Debug.LogError($"{GetType().Name}: ID Token is null or empty after Sign-in.");
+            }
+
+            yield return StartCoroutine(DisplayMessage("Failed to generate ID Token, continue as Guest..."));
+            yield break;
+        }
+
+        GlobalData.IDToken = tokenTask.Result;
+
+        Debug.Log($"{GetType().Name}: ID Token: {GlobalData.IDToken}");
+        progressBar.SetProgress(.9f);
+        yield return StartCoroutine(DisplayMessage("ID Token Generated..."));
+
+        // small delay before verifying the ID Token to prevent Firebase timing errors
+        yield return new WaitForSeconds(GlobalSetting.AuthenticationCooldown);
+
+
+        // Verify the ID Token
+        progressBar.SetProgress(.95f);
+        yield return StartCoroutine(DisplayMessage("Verifying ID Token..."));
 
         Task<bool> verifyIdTokenTask = VerifyIdToken(GlobalData.IDToken);
         while (!verifyIdTokenTask.IsCompleted) yield return null;
@@ -56,13 +126,20 @@ public class StartUpPageBehaviour : MonoBehaviour
         if (!verifyIdTokenTask.Result)
         {
             Debug.LogWarning($"{GetType().Name}: Failed to verify Token, Signing user out...");
+            GlobalData.IDToken = null;
             auth.SignOut();
+            yield return StartCoroutine(DisplayMessage("Failed to generate ID Token, continue as Guest..."));
+            yield break;
         }
+
+        progressBar.SetProgress(1f);
+        yield return StartCoroutine(DisplayMessage("ID Token Verified..."));
+
+        ToastController.Instance.ShowToast($"Welcome Back {auth.CurrentUser.DisplayName}");
     }
 
     async Task InitFirebase()
     {
-
         Debug.Log($"{GetType().Name}: Initializing Firebase...");
 
         var dependencyStatus = await Firebase.FirebaseApp.CheckAndFixDependenciesAsync();
@@ -86,14 +163,12 @@ public class StartUpPageBehaviour : MonoBehaviour
         if (auth.CurrentUser == null)
         {
             Debug.Log($"{GetType().Name}: Previous session not found");
-            await SignInFirebaseWithEmailAndPassword("testuser002@gmail.com", "testuser002");
+            await SignInFirebaseWithEmailAndPassword("testuser001@gmail.com", "testuser001");
         }
         else
         {
             Debug.Log($"{GetType().Name}: Previous session found");
         }
-
-        GlobalData.IDToken = auth.CurrentUser != null ? await auth.CurrentUser.TokenAsync(true) : string.Empty;
     }
 
     async Task SignInFirebaseWithEmailAndPassword(string email, string password)
@@ -141,10 +216,11 @@ public class StartUpPageBehaviour : MonoBehaviour
         }
     }
 
-    internal class VerifyIdTokenResponse
+    private record VerifyIdTokenResponse
     {
         public bool success;
         public string message;
+        public string errors;
     }
     async Task<bool> VerifyIdToken(string idToken, int retryCount = 0)
     {
@@ -171,15 +247,27 @@ public class StartUpPageBehaviour : MonoBehaviour
             var operation = request.SendWebRequest();
             while (!operation.isDone) await Task.Yield();
 
-            string jsonResponse = request.downloadHandler.text;
-            VerifyIdTokenResponse response = JsonUtility.FromJson<VerifyIdTokenResponse>(jsonResponse);
+            VerifyIdTokenResponse response = JsonUtility.FromJson<VerifyIdTokenResponse>(request.downloadHandler.text);
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"{GetType().Name}: HTTP Error: " + request.error);
-
-                if (!string.IsNullOrEmpty(response.message))
-                    Debug.LogError($"{GetType().Name}: HTTP Error message: {response.message}");
+                if (!string.IsNullOrEmpty(response.errors))
+                {
+                    try
+                    {
+                        JObject parsedErrors = JObject.Parse(response.errors);
+                        string formattedErrors = parsedErrors.ToString(Formatting.Indented);
+                        Debug.LogError($"{GetType().Name}: Verify request failed: {request.error}:\n{formattedErrors}");
+                    }
+                    catch (JsonReaderException e)
+                    {
+                        Debug.LogError($"{GetType().Name}: Failed to parse error JSON: {e.Message}\nRaw error string: {response.errors}");
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"{GetType().Name}: Verify request failed: {request.error}: {response.message ?? "No message..."}");
+                }
 
                 return false;
             }
@@ -208,130 +296,13 @@ public class StartUpPageBehaviour : MonoBehaviour
             Debug.LogError($"{GetType().Name}: Exception during HTTP request: {e}");
             return false;
         }
-
-        return false;
     }
-
-    async Task<bool> SignupFirebaseWithEmailAndPassword(string email, string password)
+    IEnumerator DisplayMessage(string msg)
     {
-        if (auth == null) return false;
+        if (!msgOutput) yield break;
 
-        try
-        {
-            AuthResult result = await auth.CreateUserWithEmailAndPasswordAsync(email, password);
-            FirebaseUser newUser = result.User;
-            if (newUser == null)
-            {
-                Debug.LogError(
-                    $"{GetType().Name}: CreateUserWithEmailAndPasswordAsync completed but returned null user.");
-                return false;
-            }
+        initMsgInputField.text = msg;
+        yield return new WaitForSeconds(GlobalSetting.msgCountdown);
 
-            Debug.Log($"{GetType().Name}: User signed up successfully: {newUser.DisplayName ?? newUser.Email}");
-            return true;
-        }
-        catch (FirebaseException e)
-        {
-            var errorCode = (AuthError)e.ErrorCode;
-            switch (errorCode)
-            {
-                case AuthError.EmailAlreadyInUse:
-                    Debug.LogError($"{GetType().Name}: Email already in use. Please try a different email.");
-                    return false;
-                case AuthError.InvalidEmail:
-                    Debug.LogError($"{GetType().Name}: Invalid email format.");
-                    return false;
-                case AuthError.WeakPassword:
-                    Debug.LogError($"{GetType().Name}: Password is too weak. Please choose a stronger password.");
-                    return false;
-                case AuthError.NetworkRequestFailed:
-                    Debug.LogError($"{GetType().Name}: Network error. Please check your connection.");
-                    return false;
-                default:
-                    Debug.LogError($"{GetType().Name}: Firebase sign-up error: {e.Message}");
-                    return false;
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"{GetType().Name}: Error during sign-up: {e}");
-            return false;
-        }
-
-        return false;
-    }
-
-    internal class SignUpResponse
-    {
-        public bool success;
-        public string message;
-    }
-    internal class SignUpRequest
-    {
-        public string id_token;
-        public string full_name;
-        public string email;
-    }
-    async Task<bool> SignUpUser(string idToken, string fullName, string email)
-    {
-        //INPUT:{
-        //    "id_token": str,
-        //    "full_name": str,
-        //    "email": str
-        //}
-        //OUTPUT:{
-        //    "success": bool,
-        //    "message": str
-        //}"
-        
-        using UnityWebRequest request = new(GlobalSetting.BaseUrl + "signup/", "POST");
-        request.timeout = 10;
-        request.SetRequestHeader("Authorization", "Bearer " + idToken);
-        request.SetRequestHeader("Content-Type", "application/json");
-
-        SignUpRequest reqData = new SignUpRequest
-        {
-            id_token = idToken,
-            full_name = fullName,
-            email = email
-        };
-
-        string jsonData = JsonUtility.ToJson(reqData);
-        byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(jsonData);
-        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
-
-        request.downloadHandler = new DownloadHandlerBuffer();
-
-        try
-        {
-            var operation = request.SendWebRequest();
-            while (!operation.isDone)
-                await Task.Yield();
-
-            if (request.result != UnityWebRequest.Result.Success)
-            {
-                Debug.LogError($"{GetType().Name}: Signup request failed: {request.error}");
-                return false;
-            }
-
-            SignUpResponse response = JsonUtility.FromJson<SignUpResponse>(request.downloadHandler.text);
-            if (response.success)
-            {
-                Debug.Log($"{GetType().Name}: User signed up successfully: {response.message}");
-                return true;
-            }
-            else
-            {
-                Debug.LogError($"{GetType().Name}: Sign-up failed: {response.message}");
-                return false;
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"{GetType().Name}: Exception during HTTP request: {e}");
-            return false;
-        }
-
-        return false;
     }
 }

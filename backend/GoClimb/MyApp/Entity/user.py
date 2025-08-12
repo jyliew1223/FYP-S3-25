@@ -6,7 +6,7 @@ from django.db import models
 class User(models.Model):
     class Meta:
         db_table = "user"
-        managed = False
+        managed = True
         
     user_id = models.CharField(max_length=128, primary_key=True, editable=False)
     full_name = models.CharField(max_length=100)
