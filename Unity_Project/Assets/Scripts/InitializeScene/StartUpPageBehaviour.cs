@@ -37,16 +37,16 @@ public class StartUpPageBehaviour : MonoBehaviour
 
     void Start()
     {
-        StartCoroutine(Initialization(() =>
-        {
-            ToastController.Instance.ShowToast("Failed to connect to Firebase. Please try again later.");
-        }));
+        StartCoroutine(Initialization(
+            failure:() => ToastController.Instance.ShowToast("Failed to connect to Firebase. Please try again later."),
+            progress: (progress) => progressBar.SetProgress(progress)
+            ));
     }
 
-    IEnumerator Initialization(Action failure)
+    IEnumerator Initialization(Action failure, Action<float> progress)
     {
         Debug.Log($"{GetType().Name}: Initializing...");
-        progressBar.SetProgress(.1f);
+        progress?.Invoke(.1f);
         yield return StartCoroutine(DisplayMessage("Initializing..."));
 
         // Initialize Firebase
@@ -63,11 +63,11 @@ public class StartUpPageBehaviour : MonoBehaviour
             yield break;
         }
 
-        progressBar.SetProgress(.3f);
+        progress?.Invoke(.3f);
         yield return StartCoroutine(DisplayMessage("Firebase initialized successfully."));
 
         // Sign in to Firebase
-        progressBar.SetProgress(.4f);
+        progress?.Invoke(.4f);
         yield return StartCoroutine((DisplayMessage("Signing in...")));
 
         Task signInFirebaseTask = SignInFirebase();
@@ -80,12 +80,12 @@ public class StartUpPageBehaviour : MonoBehaviour
             yield break;
         }
 
-        progressBar.SetProgress(.6f);
+        progress?.Invoke(.6f);
         yield return StartCoroutine(DisplayMessage("User signed in successfully."));
 
 
         // Generate ID_Token for the current user
-        progressBar.SetProgress(.7f);
+        progress?.Invoke(.7f);
         yield return StartCoroutine(DisplayMessage("Generating ID Token..."));
 
         var tokenTask = auth.CurrentUser.TokenAsync(true);
@@ -109,7 +109,7 @@ public class StartUpPageBehaviour : MonoBehaviour
         GlobalData.IDToken = tokenTask.Result;
 
         Debug.Log($"{GetType().Name}: ID Token: {GlobalData.IDToken}");
-        progressBar.SetProgress(.9f);
+        progress?.Invoke(.9f);
         yield return StartCoroutine(DisplayMessage("ID Token Generated..."));
 
         // small delay before verifying the ID Token to prevent Firebase timing errors
@@ -117,7 +117,7 @@ public class StartUpPageBehaviour : MonoBehaviour
 
 
         // Verify the ID Token
-        progressBar.SetProgress(.95f);
+        progress?.Invoke(.95f);
         yield return StartCoroutine(DisplayMessage("Verifying ID Token..."));
 
         Task<bool> verifyIdTokenTask = VerifyIdToken(GlobalData.IDToken);
@@ -132,7 +132,7 @@ public class StartUpPageBehaviour : MonoBehaviour
             yield break;
         }
 
-        progressBar.SetProgress(1f);
+        progress?.Invoke(1f);
         yield return StartCoroutine(DisplayMessage("ID Token Verified..."));
 
         ToastController.Instance.ShowToast($"Welcome Back {auth.CurrentUser.DisplayName}");
