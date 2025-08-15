@@ -1,14 +1,18 @@
+
 using System;
 using System.Collections;
 using System.Threading.Tasks;
+
 using UnityEngine;
+using UnityEngine.Networking;
+
 using Firebase.Auth;
 using Firebase;
-using UnityEngine.Networking;
+
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+
 using TMPro;
-using UnityEngine.UI;
 
 public class StartUpPageBehaviour : MonoBehaviour
 {
