@@ -10,7 +10,7 @@ class AuthBoundaryAPITest(APITestCase):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
 
         url = reverse("Verify App Check Token") 
-        response = self.client.post(url, data={}, format="json")
+        response = self.client.get(url, data={}, format="json")
         response_json = response.json()
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -22,7 +22,7 @@ class AuthBoundaryAPITest(APITestCase):
         mock_auth.return_value = {"success": False, "message": "Missing App Check token"}
 
         url = reverse("Verify App Check Token")
-        response = self.client.post(url, data={}, format="json")
+        response = self.client.get(url, data={}, format="json")
         response_json = response.json()
 
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -35,8 +35,8 @@ class AuthBoundaryAPITest(APITestCase):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
         mock_verify_id.return_value = {"success": True, "message": "ID token verified"}
 
-        url = reverse("Verify ID Token")
-        response = self.client.post(url, data={"id_token": "fake-token"}, format="json")
+        url = reverse("Verify ID Token") + "?id_token=fake-token"
+        response = self.client.get(url)
         response_json = response.json()
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -49,8 +49,8 @@ class AuthBoundaryAPITest(APITestCase):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
         mock_verify_id.return_value = {"success": False, "message": "Invalid ID token"}
 
-        url = reverse("Verify ID Token")
-        response = self.client.post(url, data={"id_token": "bad-token"}, format="json")
+        url = reverse("Verify ID Token")+ "?id_token=bad-token"
+        response = self.client.get(url)
         response_json = response.json()
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

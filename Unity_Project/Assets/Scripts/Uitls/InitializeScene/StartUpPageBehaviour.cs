@@ -249,10 +249,8 @@ public class StartUpPageBehaviour : MonoBehaviour
         AppCheckToken token = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(false);
 
         string path = "verify_app_check_token/";
-        using UnityWebRequest request = new(GlobalSetting.BaseUrl + path, "POST");
+        using UnityWebRequest request = new(GlobalSetting.BaseUrl + path, "GET");
 
-        byte[] bodyRaw = Encoding.UTF8.GetBytes("{}");
-        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
 
         request.SetRequestHeader("Content-Type", "application/json");
@@ -386,17 +384,12 @@ public class StartUpPageBehaviour : MonoBehaviour
             Debug.Log($"{GetType().Name}: Verifying Token...");
         }
 
-        string path = "verify_id_token/";
+        string path = $"verify_id_token/?id_token={UnityWebRequest.EscapeURL(idToken)}";
 
-        using UnityWebRequest request = new(GlobalSetting.BaseUrl + path, "POST");
-
-        string body = JsonConvert.SerializeObject(new { id_token = idToken });
-
-        byte[] bodyRaw = Encoding.UTF8.GetBytes(body);
-        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        using UnityWebRequest request = new(GlobalSetting.BaseUrl + path, "GET");
+        
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
-
 
         AppCheckToken appCheckToken = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(false);
         request.SetRequestHeader("X-Firebase-AppCheck", appCheckToken.Token);
