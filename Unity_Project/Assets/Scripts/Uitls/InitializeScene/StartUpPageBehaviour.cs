@@ -1,12 +1,14 @@
 
 using System;
-using System.Collections;
+using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 
 using UnityEngine;
 using UnityEngine.Networking;
 
 using Firebase.Auth;
+using Firebase.AppCheck;
 using Firebase;
 
 using Newtonsoft.Json.Linq;
@@ -41,108 +43,147 @@ public class StartUpPageBehaviour : MonoBehaviour
 
     void Start()
     {
-        StartCoroutine(Initialization(
-            failure:() => ToastController.Instance.ShowToast("Failed to connect to Firebase. Please try again later."),
+        Initialization(
+            failure: () => ToastController.Instance.ShowToast("Failed to connect to Firebase. Please try again later."),
             progress: (progress) => progressBar.SetProgress(progress)
-            ));
+            );
     }
 
-    IEnumerator Initialization(Action failure, Action<float> progress)
+    async void Initialization(Action failure, Action<float> progress)
     {
         Debug.Log($"{GetType().Name}: Initializing...");
         progress?.Invoke(.1f);
-        yield return StartCoroutine(DisplayMessage("Initializing..."));
+        await DisplayMessage("Initializing...");
 
-        // Initialize Firebase
-        yield return StartCoroutine(DisplayMessage("Initializing FireBase..."));
+        // ==============================================================
+        // Initialize Firebase Auth
+        // ==============================================================
+        await DisplayMessage("Initializing FireBase Auth...");
 
-        Task initFirebaseTask = InitFirebase();
-        while (!initFirebaseTask.IsCompleted) yield return null;
+        await InitFirebaseAuth();
 
         if (auth == null)
         {
             Debug.LogError($"{GetType().Name}: Firebase Auth is not initialized.");
-            yield return StartCoroutine(DisplayMessage("Failed to initialize FireBase..."));
+            await DisplayMessage("Failed to initialize FireBase Auth...");
             failure.Invoke();
-            yield break;
+            return;
+        }
+
+        progress?.Invoke(.2f);
+        await DisplayMessage("Firebase Auth initialized successfully.");
+        // ==============================================================
+
+        // ==============================================================
+        // Initialize Firebase App Check
+        // ==============================================================
+        await DisplayMessage("Initializing FireBase App Check...");
+
+        InitFirebaseAppCheck();
+
+        if (FirebaseAppCheck.DefaultInstance == null)
+        {
+            Debug.LogError($"{GetType().Name}: Firebase App Check is not initialized.");
+            await DisplayMessage("Failed to initialize FireBase App Check...");
+            failure.Invoke();
+            return;
         }
 
         progress?.Invoke(.3f);
-        yield return StartCoroutine(DisplayMessage("Firebase initialized successfully."));
+        await DisplayMessage("Firebase App Check initialized successfully.");
+        // ==============================================================
 
+        // ==============================================================
+        // Obtain App Check Token for testing
+        // ==============================================================
+        await DisplayMessage("Obtaining App Check Token...");
+
+        bool verifyAppCheckTaskResult = await VerifyAppCheckToken();
+
+        if (!verifyAppCheckTaskResult)
+        {
+            Debug.LogError($"{GetType().Name}: Failed to verify App Check Token.");
+            await DisplayMessage("Failed to verify App Check Token...");
+            failure.Invoke();
+            return;
+        }
+        // ==============================================================
         // Sign in to Firebase
+        // ==============================================================
         progress?.Invoke(.4f);
-        yield return StartCoroutine((DisplayMessage("Signing in...")));
+        await (DisplayMessage("Signing in..."));
 
-        Task signInFirebaseTask = SignInFirebase();
-        while (!signInFirebaseTask.IsCompleted) yield return null;
+        await SignInFirebase();
 
         if (auth.CurrentUser == null)
         {
+            // ==============================================================
+            // End user session if no user is signed in
+            // ==============================================================
             Debug.LogError($"{GetType().Name}: No user is signed in.");
-            yield return StartCoroutine(DisplayMessage("Previous Session not found continue as Guest..."));
-            yield break;
+            await DisplayMessage("Previous Session not found continue as Guest...");
+
+            progress?.Invoke(1f);
         }
-
-        progress?.Invoke(.6f);
-        yield return StartCoroutine(DisplayMessage("User signed in successfully."));
-
-
-        // Generate ID_Token for the current user
-        progress?.Invoke(.7f);
-        yield return StartCoroutine(DisplayMessage("Generating ID Token..."));
-
-        var tokenTask = auth.CurrentUser.TokenAsync(true);
-        while (!tokenTask.IsCompleted) yield return null;
-
-        if (tokenTask.IsFaulted || tokenTask.IsCanceled || string.IsNullOrEmpty(tokenTask.Result))
+        else
         {
-            if (tokenTask.IsFaulted || tokenTask.IsCanceled)
+            progress?.Invoke(.6f);
+            await DisplayMessage("User signed in successfully.");
+            // ==============================================================
+
+
+            // ==============================================================
+            // Generate ID_Token for the current user if user found
+            // ==============================================================
+            progress?.Invoke(.7f);
+            await DisplayMessage("Generating ID Token...");
+
+            try
             {
-                Debug.LogError("Failed to get token: " + tokenTask.Exception);
+                string token = await auth.CurrentUser.TokenAsync(true);
+                GlobalData.IDToken = token;
             }
-            else
+            catch (Exception e)
             {
-                Debug.LogError($"{GetType().Name}: ID Token is null or empty after Sign-in.");
+                Debug.LogError("Failed to get ID Token: " + e);
+                return;
             }
 
-            yield return StartCoroutine(DisplayMessage("Failed to generate ID Token, continue as Guest..."));
-            yield break;
+
+            Debug.Log($"{GetType().Name}: ID Token: {GlobalData.IDToken}");
+            progress?.Invoke(.9f);
+            await DisplayMessage("ID Token Generated...");
+            // ==============================================================
+
+            // small delay before verifying the ID Token to prevent Firebase timing errors
+            await Task.Delay((int)(GlobalSetting.AuthenticationCooldown * 1000));
+
+            // ==============================================================
+            // Verify the ID Token
+            // ==============================================================
+            progress?.Invoke(.95f);
+            await DisplayMessage("Verifying ID Token...");
+
+            bool verifyIdTokenTaskResult = await VerifyIdToken(GlobalData.IDToken);
+
+            if (!verifyIdTokenTaskResult)
+            {
+                Debug.LogWarning($"{GetType().Name}: Failed to verify Token, Signing user out...");
+                GlobalData.IDToken = null;
+                auth.SignOut();
+                await DisplayMessage("Failed to generate ID Token, continue as Guest...");
+                return;
+            }
+
+            progress?.Invoke(1f);
+            await DisplayMessage("ID Token Verified...");
+            // ==============================================================
+
+            ToastController.Instance.ShowToast($"Welcome Back {auth.CurrentUser.DisplayName}");
         }
-
-        GlobalData.IDToken = tokenTask.Result;
-
-        Debug.Log($"{GetType().Name}: ID Token: {GlobalData.IDToken}");
-        progress?.Invoke(.9f);
-        yield return StartCoroutine(DisplayMessage("ID Token Generated..."));
-
-        // small delay before verifying the ID Token to prevent Firebase timing errors
-        yield return new WaitForSeconds(GlobalSetting.AuthenticationCooldown);
-
-
-        // Verify the ID Token
-        progress?.Invoke(.95f);
-        yield return StartCoroutine(DisplayMessage("Verifying ID Token..."));
-
-        Task<bool> verifyIdTokenTask = VerifyIdToken(GlobalData.IDToken);
-        while (!verifyIdTokenTask.IsCompleted) yield return null;
-
-        if (!verifyIdTokenTask.Result)
-        {
-            Debug.LogWarning($"{GetType().Name}: Failed to verify Token, Signing user out...");
-            GlobalData.IDToken = null;
-            auth.SignOut();
-            yield return StartCoroutine(DisplayMessage("Failed to generate ID Token, continue as Guest..."));
-            yield break;
-        }
-
-        progress?.Invoke(1f);
-        yield return StartCoroutine(DisplayMessage("ID Token Verified..."));
-
-        ToastController.Instance.ShowToast($"Welcome Back {auth.CurrentUser.DisplayName}");
     }
 
-    async Task InitFirebase()
+    async Task InitFirebaseAuth()
     {
         Debug.Log($"{GetType().Name}: Initializing Firebase...");
 
@@ -155,6 +196,112 @@ public class StartUpPageBehaviour : MonoBehaviour
         else
         {
             Debug.LogError($"{GetType().Name}: Could not resolve all Firebase dependencies: {dependencyStatus}");
+        }
+    }
+
+    void InitFirebaseAppCheck()
+    {
+        Debug.Log($"{GetType().Name}: Initializing Firebase App Check...");
+        try
+        {
+#if UNITY_EDITOR
+            string path = Path.Combine(Application.streamingAssetsPath, "secrets.json");
+            string json = File.ReadAllText(path);
+
+            JObject secrets = JObject.Parse(json);
+            string debugToken = secrets["debug_token"]?.ToString();
+            if (string.IsNullOrEmpty(debugToken))
+            {
+                Debug.LogError($"{GetType().Name}: Debug token not found in secrets.json");
+                return;
+            }
+
+            DebugAppCheckProviderFactory.Instance.SetDebugToken(debugToken);
+            FirebaseAppCheck.SetAppCheckProviderFactory(DebugAppCheckProviderFactory.Instance);
+#elif UNITY_ANDROID && !UNITY_EDITOR
+            FirebaseAppCheck.SetAppCheckProviderFactory(
+                PlayIntegrityProviderFactory.Instance);
+#elif UNITY_IOS && !UNITY_EDITOR
+            FirebaseAppCheck.SetAppCheckProviderFactory(
+                AppAttestProviderFactory.Instance);
+#else
+             Debug.Log("App Check not initialized in editor or unsupported platform");
+#endif
+            Debug.Log($"{GetType().Name}: Firebase App Check initialized successfully.");
+
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"{GetType().Name}: Failed to initialize Firebase App Check: {e.Message}");
+        }
+    }
+
+    private record VerifyAppCheckTokenResponse
+    {
+        public bool success;
+        public string message;
+        public string errors;
+    }
+    async Task<bool> VerifyAppCheckToken()
+    {
+        Debug.Log($"{GetType().Name}: Obtaining App Check token...");
+
+        AppCheckToken token = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(false);
+
+        string path = "verify_app_check_token/";
+        using UnityWebRequest request = new(GlobalSetting.BaseUrl + path, "POST");
+
+        byte[] bodyRaw = Encoding.UTF8.GetBytes("{}");
+        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+        request.downloadHandler = new DownloadHandlerBuffer();
+
+        request.SetRequestHeader("Content-Type", "application/json");
+        request.SetRequestHeader("X-Firebase-AppCheck", token.Token);
+
+        try
+        {
+            var operation = request.SendWebRequest();
+            while (!operation.isDone) await Task.Yield();
+
+            VerifyAppCheckTokenResponse response = JsonUtility.FromJson<VerifyAppCheckTokenResponse>(request.downloadHandler.text);
+
+            if (request.result != UnityWebRequest.Result.Success)
+            {
+                if (!string.IsNullOrEmpty(response.errors))
+                {
+                    try
+                    {
+                        JObject parsedErrors = JObject.Parse(response.errors);
+                        string formattedErrors = parsedErrors.ToString(Formatting.Indented);
+                        Debug.LogError($"{GetType().Name}: Verify request failed: {request.error}:\n{formattedErrors}");
+                    }
+                    catch (JsonReaderException e)
+                    {
+                        Debug.LogError($"{GetType().Name}: Failed to parse error JSON: {e.Message}\nRaw error string: {response.errors}");
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"{GetType().Name}: Verify request failed: {request.error}: {response.message ?? "No message..."}");
+                }
+                return false;
+            }
+
+            if (response.success)
+            {
+                Debug.Log($"{GetType().Name}: App Check Token Verified");
+                return true;
+            }
+            else
+            {
+                Debug.LogError($"{GetType().Name}: Failed to verify App Check Token: {response.message}");
+                return false;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"{GetType().Name}: Exception during HTTP request: {e}");
+            return false;
         }
     }
 
@@ -242,9 +389,17 @@ public class StartUpPageBehaviour : MonoBehaviour
         string path = "verify_id_token/";
 
         using UnityWebRequest request = new(GlobalSetting.BaseUrl + path, "POST");
-        request.timeout = 10;
-        request.SetRequestHeader("Authorization", "Bearer " + idToken);
+
+        string body = JsonConvert.SerializeObject(new { id_token = idToken });
+
+        byte[] bodyRaw = Encoding.UTF8.GetBytes(body);
+        request.uploadHandler = new UploadHandlerRaw(bodyRaw);
         request.downloadHandler = new DownloadHandlerBuffer();
+        request.SetRequestHeader("Content-Type", "application/json");
+
+
+        AppCheckToken appCheckToken = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(false);
+        request.SetRequestHeader("X-Firebase-AppCheck", appCheckToken.Token);
 
         try
         {
@@ -287,6 +442,8 @@ public class StartUpPageBehaviour : MonoBehaviour
 
                 GlobalData.IDToken = await auth.CurrentUser.TokenAsync(true);
 
+                _ = Task.Delay(500);
+
                 return await VerifyIdToken(GlobalData.IDToken, retryCount + 1);
             }
             else
@@ -301,12 +458,12 @@ public class StartUpPageBehaviour : MonoBehaviour
             return false;
         }
     }
-    IEnumerator DisplayMessage(string msg)
+
+    async Task DisplayMessage(string msg)
     {
-        if (!msgOutput) yield break;
+        if (!msgOutput) return;
 
         initMsgInputField.text = msg;
-        yield return new WaitForSeconds(GlobalSetting.msgCountdown);
-
+        await Task.Delay((int)GlobalSetting.msgCountdown * 1000);
     }
 }

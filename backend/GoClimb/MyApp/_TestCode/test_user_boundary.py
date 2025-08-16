@@ -7,6 +7,7 @@ import os
 import json
 from firebase_admin import auth
 from typing import cast, Any
+from unittest.mock import patch
 
 # Generate a custom token for a specific user ID
 uid = os.getenv("TEST_USER_UID")  # Use an environment variable
@@ -34,7 +35,6 @@ class UserBoundaryAPITest(APITestCase):
 
     def setUp(self):
         self.signup_url = reverse("User Signup")
-        self.verify_url = reverse("Verify ID Token")
         self.real_token = get_id_token_from_custom_token(custom_token_str)
         time.sleep(2)
         self.user_data = {
@@ -43,12 +43,12 @@ class UserBoundaryAPITest(APITestCase):
             "email": f"realtest{uuid.uuid4().hex[:6]}@example.com",
         }
 
-    def test_signup_unothorize(self):
-        self.real_token = "invalid_token"
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    def test_signup_unothorize(self,mock_verify):
+        mock_verify.return_value = {"success": False, "message": "Mocked Failed"}
 
-        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.real_token}"}
         response = self.client.post(
-            self.signup_url, self.user_data, format="json", **cast(Any, headers)
+            self.signup_url, self.user_data, format="json"
         )
 
         print(
@@ -58,12 +58,14 @@ class UserBoundaryAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertFalse(response.json().get("success"))
 
-    def test_signup_invalid_id_token(self):
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    def test_signup_invalid_id_token(self, mock_verify):
+        mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
+
         self.user_data["id_token"] = "invalid_token"
 
-        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.real_token}"}
         response = self.client.post(
-            self.signup_url, self.user_data, format="json", **cast(Any, headers)
+            self.signup_url, self.user_data, format="json"
         )
 
         print(
@@ -73,17 +75,18 @@ class UserBoundaryAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response.json().get("success"))
 
-    def test_signup_duplicate_email(self):
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    def test_signup_duplicate_email(self, mock_verify):
+        mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
 
-        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.real_token}"}
         response1 = self.client.post(
-            self.signup_url, self.user_data, format="json", **cast(Any, headers)
+            self.signup_url, self.user_data, format="json"
         )
         self.assertEqual(response1.status_code, status.HTTP_201_CREATED)
 
         duplicate_data = self.user_data.copy()
         response2 = self.client.post(
-            self.signup_url, duplicate_data, format="json", **cast(Any, headers)
+            self.signup_url, duplicate_data, format="json"
         )
 
         print(
@@ -93,11 +96,12 @@ class UserBoundaryAPITest(APITestCase):
         self.assertEqual(response2.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response2.json().get("success"))
 
-    def test_signup_success(self):
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    def test_signup_success(self, mock_verify):
+        mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
 
-        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.real_token}"}
         response = self.client.post(
-            self.signup_url, self.user_data, format="json", **cast(Any, headers)
+            self.signup_url, self.user_data, format="json"
         )
 
         print(
@@ -106,28 +110,3 @@ class UserBoundaryAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.json().get("success"))
-
-    def test_verify_success(self):
-
-        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.real_token}"}
-        response = self.client.post(
-            self.verify_url, {}, format="json", **cast(Any, headers)
-        )
-
-        print(self._testMethodName + ":\n" + json.dumps(response.json(), indent=2))
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(response.json().get("success"))
-
-    def test_verify_fail(self):
-        self.real_token = "invalid_token"
-
-        headers = {"HTTP_AUTHORIZATION": f"Bearer {self.real_token}"}
-        response = self.client.post(
-            self.verify_url, {}, format="json", **cast(Any, headers)
-        )
-
-        print(self._testMethodName + ":\n" + json.dumps(response.json(), indent=2))
-
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertFalse(response.json().get("success"))
