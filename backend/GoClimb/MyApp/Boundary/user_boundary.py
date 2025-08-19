@@ -1,29 +1,5 @@
 # MyApp/Boundary/user_boundary.py
 
-from django.http import JsonResponse, HttpRequest
-import json
-
-#####################################
-# Normal HttpRequest based signup view
-#####################################
-# def signup_view(request:HttpRequest) -> JsonResponse:
-#     if request.method != "POST":
-#         return JsonResponse({"success": False, "message": "Method not allowed"}, status=405)
-
-#     try:
-#         data:dict = json.loads(request.body)
-#         response:dict = signup_user(data.get("email"), data.get("password"), data.get("full_name"))
-
-#         if response.get("success"):
-#             return JsonResponse(response, status=201)
-#         else:
-#             return JsonResponse(response, status=400)
-#     except Exception as e:
-#         return JsonResponse({"success": False, "message": str(e)}, status=500)
-
-#####################################
-# Django with RESTapi framework signup view
-#####################################
 from typing import cast, Any
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -31,7 +7,7 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 from MyApp.Serializer.serializers import UserSerializer
 from MyApp.Controller.user_control import signup_user
-from MyApp.Utils.helper import authenticate
+from MyApp.Utils.helper import authenticate_app_check_token
 
 
 @api_view(["POST"])
@@ -48,16 +24,16 @@ def signup_view(request: Request) -> Response:
         "errors": dict[str, Any]  # Only if success is False
     }
     """
-    result: dict = authenticate(request)
+    result: dict = authenticate_app_check_token(request)
 
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
 
     data: dict[str, Any] = request.data if isinstance(request.data, dict) else {}
-    
+
     allowed_fields = ["full_name", "email"]
     filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
-    
+
     serializer = UserSerializer(data=filtered_data)
 
     if serializer.is_valid():
@@ -66,7 +42,7 @@ def signup_view(request: Request) -> Response:
         id_token: str = str(data.get("id_token", ""))
         full_name = str(validated_data.get("full_name", ""))
         email = str(validated_data.get("email", ""))
-        
+
         response: dict[str, Any] = signup_user(id_token, full_name, email)
 
         if response.get("success"):
@@ -80,20 +56,3 @@ def signup_view(request: Request) -> Response:
             "errors": serializer.errors,
         }
         return Response(error_response, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(["POST"])
-def verify_id_token_view(request: Request) -> Response:
-    """
-    INPUT:{}
-    OUTPUT:{
-        "success": bool,
-        "message": str
-    }
-    """
-    result: dict = authenticate(request)
-
-    if not result.get("success"):
-        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
-
-    return Response(result, status=status.HTTP_200_OK)

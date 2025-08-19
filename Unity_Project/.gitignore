@@ -92,6 +92,8 @@ Assets/Plugins/Editor/JetBrains*
 Assets/AddressableAssetsData/*/*.bin*
 Assets/StreamingAssets/aa.meta
 Assets/StreamingAssets/aa/*
+Assets/StreamingAssets/secrets.json
+Assets/StreamingAssets/secrets.json.meta
 
 # Unity crash reports
 sysinfo.txt
