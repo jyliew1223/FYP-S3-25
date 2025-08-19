@@ -2,13 +2,13 @@
 
 from typing import Any
 from MyApp.Entity.user import User
-from MyApp.Firebase.helpers import verify_firebase_user
+from MyApp.Firebase.helpers import verify_id_token
 
 
 def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
     try:
         # Create Firebase user
-        result: dict[str, Any] = verify_firebase_user(id_token)
+        result: dict[str, Any] = verify_id_token(id_token)
 
         if not result.get("success"):
             return {"success": False, "message": result.get("message")}
