@@ -110,3 +110,33 @@ class UserBoundaryAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertTrue(response.json().get("success"))
+        
+        
+        
+     ### Wei Rong test code "User_02" ###
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    def test_signup_success(self, mock_verify):
+        mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
+
+    response = self.client.post(
+        self.signup_url, self.user_data, format="json"
+    )
+
+    print(
+        self._testMethodName + ":\n" + json.dumps(response.json(), indent=2)
+    )  
+
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    self.assertTrue(response.json().get("success"))
+
+    # Check that 'data' exists and contains user info
+    user_data = response.json().get("data")
+    self.assertIsInstance(user_data, dict)
+    self.assertEqual(user_data.get("full_name"), self.user_data["full_name"])
+    self.assertEqual(user_data.get("email"), self.user_data["email"])
+
+   
+    self.assertNotIn("user_id", user_data)
+
+
+### wei rong END edit ####

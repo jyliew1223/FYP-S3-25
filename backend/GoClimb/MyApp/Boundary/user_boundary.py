@@ -25,7 +25,8 @@ def signup_view(request: Request) -> Response:
     }
     """
     result: dict = authenticate_app_check_token(request)
-
+    
+    #   Check if the authentication of full name and email was successful
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
 
@@ -36,6 +37,7 @@ def signup_view(request: Request) -> Response:
 
     serializer = UserSerializer(data=filtered_data)
 
+
     if serializer.is_valid():
         validated_data = cast(dict[str, Any], serializer.validated_data)
 
@@ -45,9 +47,25 @@ def signup_view(request: Request) -> Response:
 
         response: dict[str, Any] = signup_user(id_token, full_name, email)
 
+
+
+### wei rong START edit ###
         if response.get("success"):
-            return Response(response, status=status.HTTP_201_CREATED)
+            # Fetch created user data (without user_id)
+            user = User.objects.get(email=email)
+            user_data = UserSerializer(user).data
+            user_data.pop("user_id", None)  # Remove user_id if present
+
+            return Response(
+                {
+                    "success": True,
+                    "message": response.get("message"),
+                    "data": user_data,
+                },
+                status=status.HTTP_201_CREATED,
+            )
         else:
+### wei rong END edit ####
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
     else:
         error_response: dict[str, Any] = {
