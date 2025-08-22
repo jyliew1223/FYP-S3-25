@@ -128,4 +128,112 @@ def crag_monthly_ranking_view(request: Request) -> Response:
     }, status=status.HTTP_200_OK)
 
 
+    
+
+    # --- New API View for Trending Crags ---
+    @api_view(["GET"])
+    def crag_trending_view(request: Request) -> Response:
+        """
+        GET /crag_trending?count=int
+
+        Returns:
+        {
+            "success": True,
+            "message": "Trending crags fetched successfully.",
+            "data": [
+                {
+                    "ranking": int,
+                    # crag details in JSON plus trending metrics:
+                    "current_count": int,
+                    "previous_count": int,
+                    "growth": int,
+                    "growth_rate": float,
+                },
+                ...
+            ],
+            "errors": {},
+        }
+        """
+        # Authenticate request
+        result: dict = authenticate_app_check_token(request)
+        if not result.get("success"):
+            return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+
+        # Get count param, default 10
+        count = request.query_params.get("count")
+        try:
+            count = int(count) if count is not None else 10
+            if count < 1:
+                raise ValueError
+        except (ValueError, TypeError):
+            return Response({
+                "success": False,
+                "message": "Invalid count value.",
+                "errors": {"count": "Must be a positive integer."}
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Define periods: last 7 days vs previous 7 days
+        days = 7
+        today = now().date()
+        period_start = today - timedelta(days=days)
+        lastperiod_start = today - timedelta(days=days*2)
+
+        # Current period climbs count per crag
+        current_counts = (
+            Climb.objects.filter(date_climbed__gte=period_start)
+            .values('crag__id')
+            .annotate(current_count=Count('id'))
+        )
+
+        # Previous period climbs count per crag
+        previous_counts = (
+            Climb.objects.filter(date_climbed__gte=lastperiod_start, date_climbed__lt=period_start)
+            .values('crag__id')
+            .annotate(previous_count=Count('id'))
+        )
+
+        # Build lookup dict for previous counts
+        previous_lookup = {item['crag__id']: item['previous_count'] for item in previous_counts}
+
+        trending_list = []
+        for current in current_counts:
+            crag_id = current['crag__id']
+            current_count = current['current_count']
+            previous_count = previous_lookup.get(crag_id, 0)
+
+            growth = current_count - previous_count
+            growth_rate = (growth / previous_count) if previous_count > 0 else (float('inf') if growth > 0 else 0)
+
+            if growth > 0:
+                # Fetch Crag model for serialization
+                crag_obj = get_crag_info(crag_id).get("crag")
+                if crag_obj:
+                    crag_data = CragSerializer(crag_obj).data
+                    crag_data.update({
+                        "ranking": 0,  # placeholder, set below
+                        "current_count": current_count,
+                        "previous_count": previous_count,
+                        "growth": growth,
+                        "growth_rate": growth_rate,
+                    })
+                    trending_list.append(crag_data)
+
+        # Sort and truncate list by growth_rate desc
+        trending_list.sort(key=lambda x: x['growth_rate'], reverse=True)
+        trending_list = trending_list[:count]
+
+        # Assign ranking numbers
+        for idx, item in enumerate(trending_list, 1):
+            item['ranking'] = idx
+
+        return Response({
+            "success": True,
+            "message": "Trending crags fetched successfully.",
+            "data": trending_list,
+            "errors": {},
+        }, status=status.HTTP_200_OK)
+
+
+
+
 ### wei rong END edit ####
