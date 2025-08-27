@@ -4,6 +4,9 @@ from typing import Any
 from MyApp.Entity.user import User
 from MyApp.Firebase.helpers import verify_id_token
 
+''' Yehuda
+from django.contrib.auth import get_user_model
+'''
 
 def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
     try:
@@ -41,3 +44,46 @@ def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
         return {"success": True, "message": "User created successfully."}
     except Exception as e:
         return {"success": False, "message": str(e)}
+    
+
+''' Yehuda
+User = get_user_model()
+
+def update_user_info(user_id: str, field: str, value) -> dict:
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return {
+            "success": False,
+            "message": "User not found.",
+            "errors": {"user_id": ["No user with this ID."]},
+        }
+
+    # Only allow safe fields
+    allowed_fields = {"full_name", "email", "profile_picture", "role", "status"}
+    if field not in allowed_fields:
+        return {
+            "success": False,
+            "message": f"Field '{field}' cannot be updated.",
+            "errors": {"field": ["Invalid field."]},
+        }
+
+    # Convert boolean properly for status field
+    if field == "status":
+        value = str(value).lower() in {"true", "1", "yes"}
+
+    setattr(user, field, value)
+    try:
+        user.save()
+        return {
+            "success": True,
+            "message": f"{field} updated successfully.",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": "Failed to update user info.",
+            "errors": {"exception": [str(e)]},
+        }
+'''
+
