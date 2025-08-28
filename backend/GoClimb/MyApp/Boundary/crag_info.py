@@ -130,7 +130,11 @@ def crag_monthly_ranking_view(request: Request) -> Response:
 
     
 
+<<<<<<< Updated upstream
     # --- New API View for Trending Crags ---
+=======
+    ### Trending Crags ###
+>>>>>>> Stashed changes
     @api_view(["GET"])
     def crag_trending_view(request: Request) -> Response:
         """
