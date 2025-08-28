@@ -15,9 +15,13 @@ urlpatterns = [
     path('verify_app_check_token/', verify_app_check_token_view, name='Verify App Check Token'),
     
     
-    # Crag trending info
+    ### 
+    #wei rong START edit
+    ###
     path('crag_info/', crag_info_view, name='Crag Info'),
     path('crag_monthly_ranking/', crag_monthly_ranking_view, name='Crag Monthly Ranking'),
     path('crag_trending/', crag_trending_view, name='Crag Trending'),  
-
+    ### 
+    #wei rong END edit
+    ###
 ]

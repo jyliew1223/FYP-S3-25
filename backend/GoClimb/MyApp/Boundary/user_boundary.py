@@ -49,7 +49,9 @@ def signup_view(request: Request) -> Response:
 
 
 
-### wei rong START edit ###
+### 
+#wei rong START edit
+###
         if response.get("success"):
             # Fetch created user data (without user_id)
             user = User.objects.get(email=email)
@@ -65,7 +67,9 @@ def signup_view(request: Request) -> Response:
                 status=status.HTTP_201_CREATED,
             )
         else:
-### wei rong END edit ####
+### 
+#wei rong END edit
+###
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
     else:
         error_response: dict[str, Any] = {
