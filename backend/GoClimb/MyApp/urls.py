@@ -12,7 +12,13 @@ urlpatterns = [
     path('signup/', signup_view, name='User Signup'),
     path('verify_id_token/', verify_id_token_view, name='Verify ID Token'),
     path('verify_app_check_token/', verify_app_check_token_view, name='Verify App Check Token'),
-    # Yehuda
-    # path("users/update-info/", update_user_info_view, name="user_update_info"),
+    ###############
+    # Yehuda Start
+    ###############
+      path("users/update-info/", update_user_info_view, name="user_update_info"),
+    ###############
+    # Yehuda End
+    ###############
 ]
+
 

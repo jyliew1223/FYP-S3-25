@@ -46,7 +46,9 @@ def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
         return {"success": False, "message": str(e)}
     
 
-''' Yehuda
+###############
+# Yehuda Start
+###############
 User = get_user_model()
 
 def update_user_info(user_id: str, field: str, value) -> dict:
@@ -85,5 +87,7 @@ def update_user_info(user_id: str, field: str, value) -> dict:
             "message": "Failed to update user info.",
             "errors": {"exception": [str(e)]},
         }
-'''
+###############
+# Yehuda End
+###############
 

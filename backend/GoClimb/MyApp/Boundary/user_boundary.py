@@ -63,7 +63,11 @@ def signup_view(request: Request) -> Response:
         return Response(error_response, status=status.HTTP_400_BAD_REQUEST)
 
 
-''' Yehuda
+
+###############
+# Yehuda Start
+###############
+
 @api_view(["POST"])
 def update_user_info_view(request: Request) -> Response:
     """
@@ -138,4 +142,6 @@ def update_user_info_view(request: Request) -> Response:
         return Response(result, status=status.HTTP_200_OK)
 
     return Response(result, status=status.HTTP_400_BAD_REQUEST)
-'''
+###############
+# Yehuda End
+###############
