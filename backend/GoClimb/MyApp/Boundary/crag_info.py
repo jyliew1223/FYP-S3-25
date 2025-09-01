@@ -10,7 +10,7 @@ from rest_framework import status
  # Change to your Crag serializer
 from MyApp.Serializer.serializers import CragSerializer 
  # Controller to fetch crag info
-from MyApp.Controller.crag_control import get_crag_info 
+# from MyApp.Controller.crag_control import get_crag_info 
 
 
 from MyApp.Utils.helper import authenticate_app_check_token
