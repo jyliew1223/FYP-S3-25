@@ -60,6 +60,18 @@ class CragSerializer(serializers.ModelSerializer):
             'ranking',
         ]       
         
-        
+class ClimbLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Climb
+        fields = [
+            'id',               # will be mapped to log_id in response
+            'crag_id',
+            'user_id',
+            'route_name',
+            'climb_date',       # ISO 8601 from DRF serializer
+            'difficulty_grade',
+            'note',
+        ]
+        read_only_fields = fields       
         
 ### wei rong END edit ####

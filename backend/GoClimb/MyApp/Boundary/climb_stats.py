@@ -1,0 +1,115 @@
+# MyApp/Boundary/user_stats.py
+from typing import Any, Dict
+from rest_framework.decorators import api_view
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Avg, Count, Q
+
+from MyApp.models import Climb  # adjust to your app
+from MyApp.Utils.helper import authenticate_app_check_token, verify_id_token  # adjust to your utils
+
+@api_view(["POST"])
+def get_user_climb_stats_view(request: Request) -> Response:
+    """
+    POST /climb_stats
+    Body: {"id_token": str}
+
+    Returns:
+    {
+        "success": bool,
+        "message": str,
+        "data": {
+            "on_sight": int,
+            "red_point": int,
+            "avg_grade": float | null,
+            "avg_attempts": float | null
+        },
+        "errors": dict[str, Any]   # present only when success is False
+    }
+
+    Notes:
+    - 200 OK with empty stats if user has no logs (all zeros/nulls).
+    - 400 for invalid input; 401 for failed auth/app check.
+    """
+
+    # 1) App Check
+    auth_app: Dict[str, Any] = authenticate_app_check_token(request)
+    if not auth_app.get("success"):
+        return Response({
+            "success": False,
+            "message": auth_app.get("message", "Unauthorized."),
+            "data": {},
+            "errors": auth_app.get("errors", {}),
+        }, status=status.HTTP_401_UNAUTHORIZED)  # Unauthorized[4]
+
+    # 2) Validate request body
+    id_token = request.data.get("id_token")
+    if not isinstance(id_token, str) or not id_token.strip():
+        return Response({
+            "success": False,
+            "message": "Invalid or missing id_token.",
+            "data": {},
+            "errors": {"id_token": "This field is required and must be a non-empty string."}
+        }, status=status.HTTP_400_BAD_REQUEST)  # Bad Request[2]
+
+    # 3) Verify id_token -> uid
+    verify = verify_id_token(id_token)
+    if not verify or not verify.get("success"):
+        return Response({
+            "success": False,
+            "message": verify.get("message", "Failed to verify id_token."),
+            "data": {},
+            "errors": verify.get("errors", {}),
+        }, status=status.HTTP_401_UNAUTHORIZED)  # Unauthorized[4]
+
+    uid = verify.get("uid")
+    if not uid:
+        return Response({
+            "success": False,
+            "message": "Verified token missing uid.",
+            "data": {},
+            "errors": {"uid": "Not found in decoded token."}
+        }, status=status.HTTP_401_UNAUTHORIZED)  # Unauthorized[4]
+
+    # 4) Aggregate statistics
+    # Assumptions about Climb model fields:
+    # - user_id: str (owner)
+    # - style: str choices {"on_sight","red_point",...}
+    # - grade_numeric: float or int (normalized grade for averaging)
+    # - attempts: int (number of attempts for the ascent)
+    qs = Climb.objects.filter(user_id=uid)
+
+    if not qs.exists():
+        # 200 with empty stats object per diagram’s note to use 200 for empty result[1][3]
+        return Response({
+            "success": True,
+            "message": "No climbs found for user.",
+            "data": {
+                "on_sight": 0,
+                "red_point": 0,
+                "avg_grade": None,
+                "avg_attempts": None,
+            }
+        }, status=status.HTTP_200_OK)
+
+    stats = qs.aggregate(
+        on_sight=Count("id", filter=Q(style="on_sight")),
+        red_point=Count("id", filter=Q(style="red_point")),
+        avg_grade=Avg("grade_numeric"),
+        avg_attempts=Avg("attempts"),
+    )
+
+    # Normalize None values to JSON-friendly types
+    payload = {
+        "on_sight": int(stats.get("on_sight") or 0),
+        "red_point": int(stats.get("red_point") or 0),
+        "avg_grade": float(stats["avg_grade"]) if stats.get("avg_grade") is not None else None,
+        "avg_attempts": float(stats["avg_attempts"]) if stats.get("avg_attempts") is not None else None,
+    }
+
+    return Response({
+        "success": True,
+        "message": "User statistics fetched successfully.",
+        "data": payload
+    }, status=status.HTTP_200_OK)  # 200 OK on success[3]
