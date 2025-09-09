@@ -9,10 +9,21 @@ from MyApp.Serializer.serializers import UserSerializer
 from MyApp.Controller.user_control import signup_user
 from MyApp.Utils.helper import authenticate_app_check_token
 
-''' Yehuda
+################
+# Yehuda 1 Start
+################
 from MyApp.Utils.helper import verify_id_token, get_user_model
 from MyApp.Controller.user_control import update_user_info
-'''
+##############
+# Yehuda 1 End
+##############
+##############
+# Yehuda 2 Start
+##############
+from MyApp.Controller.user_control import delete_user_account
+##############
+# Yehuda 1 Start
+##############
 
 
 @api_view(["POST"])
@@ -64,9 +75,9 @@ def signup_view(request: Request) -> Response:
 
 
 
-###############
-# Yehuda Start
-###############
+#################
+# Yehuda 1 Start
+#################
 
 @api_view(["POST"])
 def update_user_info_view(request: Request) -> Response:
@@ -143,5 +154,73 @@ def update_user_info_view(request: Request) -> Response:
 
     return Response(result, status=status.HTTP_400_BAD_REQUEST)
 ###############
-# Yehuda End
+# Yehuda 1 End
+###############
+
+#################
+# Yehuda 2 Start
+#################
+@api_view(["DELETE"])
+def delete_user_account_view(request: Request) -> Response:
+    """
+    #User04 Delete Account
+    """
+    # Step 1 – App Check
+    app_check = authenticate_app_check_token(request)
+    if not app_check.get("success"):
+        return Response(
+            {
+                "success": False,
+                "message": app_check.get("message", "App Check token verification failed."),
+                "errors": app_check.get("errors", {}),
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # Step 2 – Extract request data
+    data = request.data if isinstance(request.data, dict) else {}
+    raw_id_token = data.get("id_token", "")
+
+    if not raw_id_token:
+        return Response(
+            {
+                "success": False,
+                "message": "Missing 'id_token'.",
+                "errors": {"id_token": ["A valid Firebase ID token is required."]},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Step 3 – Verify ID Token → get UID
+    token_result = verify_id_token(raw_id_token)
+    if not token_result.get("success"):
+        return Response(
+            {
+                "success": False,
+                "message": token_result.get("message", "ID token verification failed."),
+                "errors": token_result.get("errors", {}),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user_id: str = token_result.get("uid", "")
+    if not user_id:
+        return Response(
+            {
+                "success": False,
+                "message": "UID missing in token.",
+                "errors": {"id_token": ["Unable to extract UID from token."]},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Step 4 – Call controller
+    result = delete_user_account(user_id)
+
+    if result.get("success"):
+        return Response(result, status=status.HTTP_200_OK)
+
+    return Response(result, status=status.HTTP_400_BAD_REQUEST)
+###############
+# Yehuda 2 End
 ###############

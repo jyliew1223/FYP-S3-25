@@ -4,9 +4,20 @@ from typing import Any
 from MyApp.Entity.user import User
 from MyApp.Firebase.helpers import verify_id_token
 
-''' Yehuda
+################
+# Yehuda 1 Start
+################
 from django.contrib.auth import get_user_model
-'''
+###############
+# Yehuda 1 End
+###############
+################
+# Yehuda 2 Start
+################
+from MyApp.Entity.user import User
+###############
+# Yehuda 2 End
+###############
 
 def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
     try:
@@ -32,7 +43,7 @@ def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
             }
 
         # Save user to the database
-        user: User = User(
+        user = User(
             user_id=user_id,
             full_name=full_name,
             email=email,
@@ -46,9 +57,9 @@ def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
         return {"success": False, "message": str(e)}
     
 
-###############
-# Yehuda Start
-###############
+################
+# Yehuda 1 Start
+################
 User = get_user_model()
 
 def update_user_info(user_id: str, field: str, value) -> dict:
@@ -88,6 +99,38 @@ def update_user_info(user_id: str, field: str, value) -> dict:
             "errors": {"exception": [str(e)]},
         }
 ###############
-# Yehuda End
+# Yehuda 1 End
 ###############
+
+#################
+# Yehuda 2 Start
+#################
+def delete_user_account(user_id: str) -> dict:
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return {
+            "success": False,
+            "message": "User not found.",
+            "errors": {"user_id": ["No user with this ID."]},
+        }
+
+    try:
+        user.delete()
+        return {
+            "success": True,
+            "message": "User account deleted successfully."
+        }
+    
+    except Exception as e:
+        return {
+            "success": False,
+            "message": "Failed to delete user account.",
+            "errors": {"exception": [str(e)]},
+        }
+#################
+# Yehuda 2 End
+#################
+
+
 
