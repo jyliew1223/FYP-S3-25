@@ -7,7 +7,7 @@ from rest_framework import status
 from django.db.models import Avg, Count, Q
 
 from MyApp.models import Climb  # adjust to your app
-from MyApp.Utils.helper import authenticate_app_check_token, verify_id_token  # adjust to your utils
+from MyApp.Utils.helper import authenticate_app_check_token, verify_id_token  # ensure verify_id_token exists in helper.py
 
 @api_view(["POST"])
 def get_user_climb_stats_view(request: Request) -> Response:
@@ -40,8 +40,8 @@ def get_user_climb_stats_view(request: Request) -> Response:
             "success": False,
             "message": auth_app.get("message", "Unauthorized."),
             "data": {},
-            "errors": auth_app.get("errors", {}),
-        }, status=status.HTTP_401_UNAUTHORIZED)  # Unauthorized[4]
+            "errors": auth_app.get("errors", {}),  # make sure helper always returns 'errors' key or this defaults to empty dict
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
     # 2) Validate request body
     id_token = request.data.get("id_token")
@@ -51,17 +51,17 @@ def get_user_climb_stats_view(request: Request) -> Response:
             "message": "Invalid or missing id_token.",
             "data": {},
             "errors": {"id_token": "This field is required and must be a non-empty string."}
-        }, status=status.HTTP_400_BAD_REQUEST)  # Bad Request[2]
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     # 3) Verify id_token -> uid
-    verify = verify_id_token(id_token)
+    verify = verify_id_token(id_token)  # ensure helper.py has this function
     if not verify or not verify.get("success"):
         return Response({
             "success": False,
             "message": verify.get("message", "Failed to verify id_token."),
             "data": {},
-            "errors": verify.get("errors", {}),
-        }, status=status.HTTP_401_UNAUTHORIZED)  # Unauthorized[4]
+            "errors": verify.get("errors", {}),  # ensure verify_id_token returns 'errors' key even if empty
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
     uid = verify.get("uid")
     if not uid:
@@ -70,18 +70,12 @@ def get_user_climb_stats_view(request: Request) -> Response:
             "message": "Verified token missing uid.",
             "data": {},
             "errors": {"uid": "Not found in decoded token."}
-        }, status=status.HTTP_401_UNAUTHORIZED)  # Unauthorized[4]
+        }, status=status.HTTP_401_UNAUTHORIZED)
 
     # 4) Aggregate statistics
-    # Assumptions about Climb model fields:
-    # - user_id: str (owner)
-    # - style: str choices {"on_sight","red_point",...}
-    # - grade_numeric: float or int (normalized grade for averaging)
-    # - attempts: int (number of attempts for the ascent)
     qs = Climb.objects.filter(user_id=uid)
 
     if not qs.exists():
-        # 200 with empty stats object per diagram’s note to use 200 for empty result[1][3]
         return Response({
             "success": True,
             "message": "No climbs found for user.",
@@ -100,7 +94,6 @@ def get_user_climb_stats_view(request: Request) -> Response:
         avg_attempts=Avg("attempts"),
     )
 
-    # Normalize None values to JSON-friendly types
     payload = {
         "on_sight": int(stats.get("on_sight") or 0),
         "red_point": int(stats.get("red_point") or 0),
@@ -112,4 +105,4 @@ def get_user_climb_stats_view(request: Request) -> Response:
         "success": True,
         "message": "User statistics fetched successfully.",
         "data": payload
-    }, status=status.HTTP_200_OK)  # 200 OK on success[3]
+    }, status=status.HTTP_200_OK)

@@ -5,9 +5,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status
 
-from MyApp.Serializer.climb_logs_serializers import ClimbLogSerializer
+from MyApp.Serializer.serializers import ClimbLogSerializer
 from MyApp.models import Climb  # adjust import to your app
-from MyApp.Utils.helper import authenticate_app_check_token, verify_id_token  # implement in Utils
+from MyApp.Utils.helper import authenticate_app_check_token,verify_id_token   # implement in Utils
 
 @api_view(["POST"])
 def get_user_climb_logs_view(request: Request) -> Response:

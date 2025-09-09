@@ -2,6 +2,9 @@ from django.urls import path
 from MyApp.Boundary.user_boundary import signup_view
 from MyApp.Boundary.auth_boundary import verify_id_token_view, verify_app_check_token_view
 from MyApp.Boundary.crag_info import crag_info_view, crag_monthly_ranking_view, crag_trending_view
+from MyApp.Boundary.climb_logs import get_user_climb_logs_view
+from MyApp.Boundary.climb_stats import get_user_climb_stats_view
+
 
 urlpatterns = [
     path('signup/', signup_view, name='user_signup'),
