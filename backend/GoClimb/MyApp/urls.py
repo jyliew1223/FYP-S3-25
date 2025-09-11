@@ -8,8 +8,8 @@ from MyApp.Boundary.climb_stats import get_user_climb_stats_view
 
 urlpatterns = [
     path('signup/', signup_view, name='user_signup'),
-    path('verify_id_token/', verify_id_token_view, name='verify_id_token'),
-    path('verify_app_check_token/', verify_app_check_token_view, name='verify_app_check_token'),
+    path('verify_id_token/', verify_id_token_view, name='Verify ID Token'),
+    path('verify_app_check_token/', verify_app_check_token_view, name='Verify App Check Token'),
 
     ### 
     # wei rong START edit

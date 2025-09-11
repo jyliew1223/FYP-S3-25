@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from MyApp.Serializer.serializers import ClimbLogSerializer
-from MyApp.models import Climb  # adjust import to your app
+from MyApp.Entity.climblog import ClimbLog  # adjust import to your app
 from MyApp.Utils.helper import authenticate_app_check_token,verify_id_token   # implement in Utils
 
 @api_view(["POST"])
@@ -75,18 +75,18 @@ def get_user_climb_logs_view(request: Request) -> Response:
         }, status=status.HTTP_401_UNAUTHORIZED)  # auth info incomplete[9]
 
     # 4) Fetch user’s climb logs (newest first)
-    qs = Climb.objects.filter(user_id=uid).order_by("-climb_date")
+    qs = ClimbLog.objects.filter(user=uid).order_by("-date_climbed")
 
     # 5) Serialize and map id -> log_id
     ser = ClimbLogSerializer(qs, many=True)
     items: List[Dict[str, Any]] = [{
-        "log_id": row["id"],
-        "crag_id": row["crag_id"],
-        "user_id": row["user_id"],
+        "log_id": row["log_id"],
+        "crag_id": row["crag"],
+        "user_id": row["user"],
         "route_name": row["route_name"],
-        "climb_date": row["climb_date"],
+        "date_climbed": row["date_climbed"],
         "difficulty_grade": row["difficulty_grade"],
-        "note": row["note"],
+       # "note": row["note"],
     } for row in ser.data]
 
     # 6) Always 200 on success, even if list is empty
