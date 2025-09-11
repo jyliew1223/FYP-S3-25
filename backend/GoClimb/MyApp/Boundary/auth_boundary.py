@@ -6,10 +6,11 @@ from rest_framework import status
 from MyApp.Utils.helper import authenticate_app_check_token
 from MyApp.Firebase.helpers import verify_id_token
 
+
 @api_view(["GET"])
 def verify_app_check_token_view(request: Request) -> Response:
     """
-    INPUT:{}
+    INPUT: NIL
     OUTPUT:{
         "success": bool,
         "message": str
@@ -23,10 +24,13 @@ def verify_app_check_token_view(request: Request) -> Response:
 
     return Response(result, status=status.HTTP_200_OK)
 
-@api_view(["GET"])
+
+@api_view(["POST"])
 def verify_id_token_view(request: Request) -> Response:
     """
-    INPUT: ?id_token=(str)
+    INPUT: {
+        'id_token' : str
+    }
     OUTPUT:{
         "success": bool,
         "message": str
@@ -37,12 +41,13 @@ def verify_id_token_view(request: Request) -> Response:
 
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
-    
-    id_token = request.GET.get("id_token", "")
-    
+
+    request_data = cast(dict[str, Any], request.data)
+    id_token = request_data.get("id_token", "")
+
     result = verify_id_token(id_token)
-    
+
     if not result.get("success"):
         return Response(result, status=status.HTTP_400_BAD_REQUEST)
-    
+
     return Response(result, status=status.HTTP_200_OK)
