@@ -35,8 +35,10 @@ class AuthBoundaryAPITest(APITestCase):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
         mock_verify_id.return_value = {"success": True, "message": "ID token verified"}
 
-        url = reverse("Verify ID Token") + "?id_token=fake-token"
-        response = self.client.get(url)
+        url = reverse("Verify ID Token")
+        data = { "id_token": "valid-token" }
+        
+        response = self.client.post(url,data=data, format="json")
         response_json = response.json()
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -49,8 +51,10 @@ class AuthBoundaryAPITest(APITestCase):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
         mock_verify_id.return_value = {"success": False, "message": "Invalid ID token"}
 
-        url = reverse("Verify ID Token")+ "?id_token=bad-token"
-        response = self.client.get(url)
+        url = reverse("Verify ID Token")
+        data = { "id_token": "bad-token" }
+        
+        response = self.client.post(url,data=data, format="json")
         response_json = response.json()
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

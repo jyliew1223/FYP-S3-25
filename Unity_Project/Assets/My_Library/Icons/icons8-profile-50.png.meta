@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 4edf43d8fc55091469f977e25209facc
+guid: 63564d58c97583b4caa6b4707c92109e
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -123,13 +123,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Toast(1280x256B32)_0
+      name: icons8-profile-50_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 1280
-        height: 256
+        x: 2
+        y: 2
+        width: 46
+        height: 46
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -138,8 +138,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: 0
       bones: []
-      spriteID: 0f5ddeaa2f4da9a409c9ecfe98bb038a
-      internalID: 2009380939
+      spriteID: a4eb29c6e44f29b47b8e5703fad807a4
+      internalID: -850448512
       vertices: []
       indices: 
       edges: []
@@ -148,7 +148,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: bb7d48baca96e6c479b44a87e0b2d6ef
+    spriteID: 7c0cddf1b7787e9478c2a65bf71398fe
     internalID: 0
     vertices: []
     indices: 
@@ -160,7 +160,7 @@ TextureImporter:
       - key: SpriteEditor.SliceSettings
         value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":64.0,"y":64.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
     nameFileIdTable:
-      Toast(1280x256B32)_0: 2009380939
+      icons8-profile-50_0: -850448512
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
