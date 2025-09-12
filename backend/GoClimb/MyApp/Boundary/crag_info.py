@@ -4,15 +4,9 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.decorators import api_view
 from rest_framework import status
-from datetime import timedelta
-from django.utils.timezone import now
-from django.db.models import Count
 
 # Serializers
 from MyApp.Serializer.serializers import CragSerializer
-
-# Models
-from MyApp.models import Climb
 
 # Utils
 from MyApp.Utils.helper import authenticate_app_check_token
@@ -33,21 +27,7 @@ def crag_info_view(request: Request) -> Response:
             "message": "Missing crag_id.",
             "errors": {"crag_id": "This field is required."}
         }, status=status.HTTP_400_BAD_REQUEST)
-
-    ''' BEFORE 
-    crag_info = get_crag_info(crag_id)
-    if not crag_info.get("success"):
-        return Response(crag_info, status=status.HTTP_404_NOT_FOUND)
-
-    crag_obj = crag_info.get("crag")
-    crag_data = CragSerializer(crag_obj).data
-    return Response({
-        "success": True,
-        "message": "Crag info fetched successfully.",
-        "data": crag_data
-    }, status=status.HTTP_200_OK)
-    '''
-    # AFTER 
+    
     info = get_crag_info(crag_id)
 
     # If tests mock a plain dict (no 'success'), treat it as already-serialized data
@@ -67,8 +47,7 @@ def crag_info_view(request: Request) -> Response:
         {"success": True, "message": "Crag info fetched successfully.", "data": crag_data},
         status=status.HTTP_200_OK,
     )
-    # AFTER END
-
+    
 @api_view(["GET"])
 def crag_monthly_ranking_view(request: Request) -> Response:
     """GET /crag_monthly_ranking?count=int"""
@@ -97,15 +76,6 @@ def crag_monthly_ranking_view(request: Request) -> Response:
             "errors": {}
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    ''' BEFORE
-    serialized_data = []
-    for idx, crag_obj in enumerate(crag_list, 1):
-        crag_data = CragSerializer(crag_obj).data
-        crag_data['ranking'] = idx # type: ignore
-        serialized_data.append(crag_data)
-    '''
-
-    # AFTER
     serialized_data = []
     for idx, item in enumerate(crag_list, 1):
         # Accept either a Crag model or a dict (as mocked in tests)
@@ -117,10 +87,10 @@ def crag_monthly_ranking_view(request: Request) -> Response:
         # Unknown type; skip safely
             continue
 
-        crag_data["ranking"] = idx
+        if isinstance(crag_data, dict):
+            crag_data["ranking"] = idx
         serialized_data.append(crag_data)
-    # AFTER END
-
+        
     return Response({
         "success": True,
         "message": "Monthly ranking fetched successfully.",
@@ -147,26 +117,7 @@ def crag_trending_view(request: Request) -> Response:
             "message": "Invalid count value.",
             "errors": {"count": "Must be a positive integer."}
         }, status=status.HTTP_400_BAD_REQUEST)
-
-    days = 7
-    today = now().date()
-    period_start = today - timedelta(days=days)
-    lastperiod_start = today - timedelta(days=days*2)
-
-    current_counts = (
-        Climb.objects.filter(date_climbed__gte=period_start)
-        .values('crag')
-        .annotate(current_count=Count('id'))
-    )
-
-    previous_counts = (
-        Climb.objects.filter(date_climbed__gte=lastperiod_start, date_climbed__lt=period_start)
-        .values('crag')
-        .annotate(previous_count=Count('id'))
-    )
-
-    previous_lookup = {item['crag']: item['previous_count'] for item in previous_counts}
-
+        
     trending_list = get_trending_crags(count)
     trending_list_json = []
     
