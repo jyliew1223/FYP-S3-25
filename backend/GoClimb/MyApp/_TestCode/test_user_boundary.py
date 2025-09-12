@@ -118,25 +118,25 @@ class UserBoundaryAPITest(APITestCase):
     def test_signup_success(self, mock_verify):
         mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
 
-    response = self.client.post(
-        self.signup_url, self.user_data, format="json"
-    )
+        response = self.client.post(
+            self.signup_url, self.user_data, format="json"
+        )
 
-    print(
-        self._testMethodName + ":\n" + json.dumps(response.json(), indent=2)
-    )  
+        print(
+            self._testMethodName + ":\n" + json.dumps(response.json(), indent=2)
+        )  
 
-    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-    self.assertTrue(response.json().get("success"))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response.json().get("success"))
 
-    # Check that 'data' exists and contains user info
-    user_data = response.json().get("data")
-    self.assertIsInstance(user_data, dict)
-    self.assertEqual(user_data.get("full_name"), self.user_data["full_name"])
-    self.assertEqual(user_data.get("email"), self.user_data["email"])
+        # Check that 'data' exists and contains user info
+        user_data = response.json().get("data")
+        self.assertIsInstance(user_data, dict)
+        self.assertEqual(user_data.get("full_name"), self.user_data["full_name"])
+        self.assertEqual(user_data.get("email"), self.user_data["email"])
 
    
-    self.assertNotIn("user_id", user_data)
+        self.assertNotIn("user_id", user_data)
 
 
 ### wei rong END edit ####

@@ -8,6 +8,7 @@ from rest_framework import status
 from MyApp.Serializer.serializers import UserSerializer
 from MyApp.Controller.user_control import signup_user
 from MyApp.Utils.helper import authenticate_app_check_token
+from MyApp.Entity.user import User
 
 
 @api_view(["POST"])
