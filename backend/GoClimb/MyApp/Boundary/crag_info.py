@@ -13,45 +13,11 @@ from MyApp.Serializer.serializers import CragSerializer
 
 # Models
 from MyApp.models import Climb
-from MyApp.Entity.crag import Crag
 
 # Utils
 from MyApp.Utils.helper import authenticate_app_check_token
 
-
-# Rename functions to match test expectations
-def get_crag_info(crag_id: str) -> dict:
-    """Fetch a single crag object"""
-    try:
-        crag_obj = Crag.objects.filter(crag_id=crag_id).first()
-        if not crag_obj:
-            return {"success": False, "message": "Crag not found."}
-        return {"success": True, "crag": crag_obj}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
-
-
-def get_monthly_ranking(count: int) -> Optional[list]:
-    """Fetch top crags by number of climbs in the past month"""
-    try:
-        today = now().date()
-        period_start = today - timedelta(days=30)
-        ranking = (
-            Climb.objects.filter(date_climbed__gte=period_start)
-            .values('crag')
-            .annotate(total_climbs=Count('id'))
-            .order_by('-total_climbs')[:count]
-        )
-
-        crag_list = []
-        for item in ranking:
-            crag_obj = Crag.objects.filter(crag_id=item['crag']).first()
-            if crag_obj:
-                crag_list.append(crag_obj)
-        return crag_list
-    except Exception:
-        return None
-
+from MyApp.Controller.crag_control import get_crag_info, get_monthly_ranking, get_trending_crags
 
 @api_view(["GET"])
 def crag_info_view(request: Request) -> Response:
@@ -182,6 +148,7 @@ def crag_trending_view(request: Request) -> Response:
             "errors": {"count": "Must be a positive integer."}
         }, status=status.HTTP_400_BAD_REQUEST)
 
+<<<<<<< Updated upstream
     days = 7
     today = now().date()
     period_start = today - timedelta(days=days)
@@ -253,6 +220,18 @@ def crag_trending_view(request: Request) -> Response:
     trending_list.sort(key=lambda x: x['growth_rate'], reverse=True)
     trending_list = trending_list[:count]
 
+=======
+    trending_list = get_trending_crags(count)
+    
+    if trending_list is None:
+        return Response({
+            "success": False,
+            "message": "Trending fetch failed.",
+            "data": [],
+            "errors": {}
+        }, status=status.HTTP_400_BAD_REQUEST)
+        
+>>>>>>> Stashed changes
     for idx, item in enumerate(trending_list, 1):
         item['ranking'] = idx
 
