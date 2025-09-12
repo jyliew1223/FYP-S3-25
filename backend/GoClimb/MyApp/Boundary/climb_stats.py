@@ -55,14 +55,15 @@ def get_user_climb_stats_view(request: Request) -> Response:
 
     # 3) Verify id_token -> uid
     verify = verify_id_token(id_token)  # ensure helper.py has this function
-    if not verify or not verify.get("success"):
+    if not verify or not verify.get("success") or not verify.get("uid"):
         return Response({
             "success": False,
-            "message": verify.get("message", "Failed to verify id_token."),
+            "message": (verify or {}).get("message", "Failed to verify id_token."),
             "data": {},
-            "errors": verify.get("errors", {}),  # ensure verify_id_token returns 'errors' key even if empty
+            "errors": (verify or {}).get("errors", {"uid": "Missing or invalid."}),  # ensure verify_id_token returns 'errors' key even if empty
         }, status=status.HTTP_401_UNAUTHORIZED)
 
+    '''
     uid = verify.get("uid")
     if not uid:
         return Response({
@@ -71,7 +72,9 @@ def get_user_climb_stats_view(request: Request) -> Response:
             "data": {},
             "errors": {"uid": "Not found in decoded token."}
         }, status=status.HTTP_401_UNAUTHORIZED)
+    '''
 
+    '''
     # 4) Aggregate statistics
     qs = Climb.objects.filter(user_id=uid)
 
@@ -84,6 +87,7 @@ def get_user_climb_stats_view(request: Request) -> Response:
                 "red_point": 0,
                 "avg_grade": None,
                 "avg_attempts": None,
+                "total_routes": 0, # Newly added
             }
         }, status=status.HTTP_200_OK)
 
@@ -95,14 +99,35 @@ def get_user_climb_stats_view(request: Request) -> Response:
     )
 
     payload = {
-        "on_sight": int(stats.get("on_sight") or 0),
-        "red_point": int(stats.get("red_point") or 0),
+        "on_sight": int(stats.get("on_sight") or 0) if "on_sight" in stats else 0,
+        "red_point": int(stats.get("red_point") or 0) if "red_point" in stats else 0,
         "avg_grade": float(stats["avg_grade"]) if stats.get("avg_grade") is not None else None,
         "avg_attempts": float(stats["avg_attempts"]) if stats.get("avg_attempts") is not None else None,
+         "total_routes": qs.count(),  # <-- add this
     }
+
+    total_routes = qs.count()  # ADD THIS (NEW)
 
     return Response({
         "success": True,
         "message": "User statistics fetched successfully.",
-        "data": payload
-    }, status=status.HTTP_200_OK)
+        "data": {
+            "total_routes": total_routes
+            }   
+        }, 
+        status=status.HTTP_200_OK
+    )
+'''
+
+
+# 4) NEW CODE OF 4 Compute stats (only total_routes for now)
+    total_routes = Climb.objects.count()
+
+    return Response(
+        {
+            "success": True,
+            "message": "User statistics fetched successfully.",
+            "data": {"total_routes": total_routes},
+        },
+        status=status.HTTP_200_OK,
+    )
