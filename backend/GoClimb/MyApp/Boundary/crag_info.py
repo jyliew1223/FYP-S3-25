@@ -101,7 +101,7 @@ def crag_monthly_ranking_view(request: Request) -> Response:
     serialized_data = []
     for idx, crag_obj in enumerate(crag_list, 1):
         crag_data = CragSerializer(crag_obj).data
-        crag_data['ranking'] = idx
+        crag_data['ranking'] = idx # type: ignore
         serialized_data.append(crag_data)
     '''
 
@@ -148,13 +148,11 @@ def crag_trending_view(request: Request) -> Response:
             "errors": {"count": "Must be a positive integer."}
         }, status=status.HTTP_400_BAD_REQUEST)
 
-<<<<<<< Updated upstream
     days = 7
     today = now().date()
     period_start = today - timedelta(days=days)
     lastperiod_start = today - timedelta(days=days*2)
 
-    ''' BEFORE
     current_counts = (
         Climb.objects.filter(date_climbed__gte=period_start)
         .values('crag')
@@ -166,73 +164,19 @@ def crag_trending_view(request: Request) -> Response:
         .values('crag')
         .annotate(previous_count=Count('id'))
     )
-    '''
-
-    # AFTER
-    try:
-        current_qs = Climb.objects.filter(date_climbed__gte=period_start)
-        previous_qs = Climb.objects.filter(
-            date_climbed__gte=lastperiod_start, date_climbed__lt=period_start
-        )
-
-        # If mocks returned lists, short-circuit with empty data for tests
-        if not hasattr(current_qs, "values") or not hasattr(previous_qs, "values"):
-            return Response(
-                {"success": True, "message": "Trending crags fetched successfully.", "data": [], "errors": {}},
-                status=status.HTTP_200_OK,
-            )
-
-        current_counts = current_qs.values("crag").annotate(current_count=Count("id"))
-        previous_counts = previous_qs.values("crag").annotate(previous_count=Count("id"))
-
-    except Exception:
-         # Be forgiving in tests
-        return Response(
-            {"success": True, "message": "Trending crags fetched successfully.", "data": [], "errors": {}},
-            status=status.HTTP_200_OK,
-        )
-    # AFTER END
 
     previous_lookup = {item['crag']: item['previous_count'] for item in previous_counts}
 
-    trending_list = []
-    for current in current_counts:
-        crag_id = current['crag']
-        current_count = current['current_count']
-        previous_count = previous_lookup.get(crag_id, 0)
-
-        growth = current_count - previous_count
-        growth_rate = (growth / previous_count) if previous_count > 0 else (float('inf') if growth > 0 else 0)
-
-        if growth > 0:
-            crag_obj = Crag.objects.filter(crag_id=crag_id).first()
-            if crag_obj:
-                crag_data = CragSerializer(crag_obj).data
-                crag_data.update({
-                    "ranking": 0,
-                    "current_count": current_count,
-                    "previous_count": previous_count,
-                    "growth": growth,
-                    "growth_rate": growth_rate,
-                })
-                trending_list.append(crag_data)
-
-    trending_list.sort(key=lambda x: x['growth_rate'], reverse=True)
-    trending_list = trending_list[:count]
-
-=======
     trending_list = get_trending_crags(count)
+    trending_list_json = []
     
-    if trending_list is None:
-        return Response({
-            "success": False,
-            "message": "Trending fetch failed.",
-            "data": [],
-            "errors": {}
-        }, status=status.HTTP_400_BAD_REQUEST)
-        
->>>>>>> Stashed changes
-    for idx, item in enumerate(trending_list, 1):
+    for item in trending_list:
+        if item:
+            crag_obj = item[0]  # get the Crag instance
+            crag_data = CragSerializer(crag_obj).data
+            trending_list_json.append(crag_data)
+            
+    for idx, item in enumerate(trending_list_json, 1):
         item['ranking'] = idx
 
     return Response({

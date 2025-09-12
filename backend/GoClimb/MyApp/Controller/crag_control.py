@@ -38,7 +38,7 @@ def get_monthly_ranking(count: int) -> Optional[list]:
     except Exception:
         return None
     
-def get_trending_crags(count: int) -> Optional[list]:
+def get_trending_crags(count: int) -> list:
     days = 7
     today = now().date()
     period_start = today - timedelta(days=days)
