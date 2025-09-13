@@ -11,7 +11,12 @@ from MyApp.Serializer.serializers import CragSerializer
 # Utils
 from MyApp.Utils.helper import authenticate_app_check_token
 
-from MyApp.Controller.crag_control import get_crag_info, get_monthly_ranking, get_trending_crags
+from MyApp.Controller.crag_control import (
+    get_crag_info,
+    get_monthly_ranking,
+    get_trending_crags,
+)
+
 
 @api_view(["GET"])
 def crag_info_view(request: Request) -> Response:
@@ -22,32 +27,40 @@ def crag_info_view(request: Request) -> Response:
 
     crag_id = request.query_params.get("crag_id", "")
     if not crag_id:
-        return Response({
-            "success": False,
-            "message": "Missing crag_id.",
-            "errors": {"crag_id": "This field is required."}
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
-    info = get_crag_info(crag_id)
-
-    # If tests mock a plain dict (no 'success'), treat it as already-serialized data
-    if isinstance(info, dict) and "success" not in info:
-     return Response(
-        {"success": True, "message": "Crag info fetched successfully.", "data": info},
-        status=status.HTTP_200_OK,
+        return Response(
+            {
+                "success": False,
+                "message": "Missing crag_id.",
+                "errors": {"crag_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if not info.get("success"):
-        msg = (info.get("message") or "").lower()
-        return Response(info, status=status.HTTP_404_NOT_FOUND if "not found" in msg else status.HTTP_400_BAD_REQUEST)
+    try:
+        crag = get_crag_info(crag_id)
+        if not crag:
+            return Response(
+                {"success": False, "message": "Crag not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-    crag_obj = info.get("crag")
-    crag_data = CragSerializer(crag_obj).data
-    return Response(
-        {"success": True, "message": "Crag info fetched successfully.", "data": crag_data},
-        status=status.HTTP_200_OK,
-    )
-    
+        serializer = CragSerializer(crag)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Crag info fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+    except Exception as e:
+        return Response(
+            {"success": False, "message": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 @api_view(["GET"])
 def crag_monthly_ranking_view(request: Request) -> Response:
     """GET /crag_monthly_ranking?count=int"""
@@ -55,48 +68,66 @@ def crag_monthly_ranking_view(request: Request) -> Response:
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
 
-    count = request.query_params.get("count")
+    count_param = request.query_params.get("count")
     try:
-        count = int(count) if count is not None else 10
-        if count < 1:
-            raise ValueError
-    except (ValueError, TypeError):
-        return Response({
-            "success": False,
-            "message": "Invalid count value.",
-            "errors": {"count": "Must be a positive integer."}
-        }, status=status.HTTP_400_BAD_REQUEST)
+        count = int(count_param) if count_param is not None else 0  # default value
+    except ValueError:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid count value.",
+                "errors": {"count must be an integer."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    crag_list = get_monthly_ranking(count)
-    if crag_list is None:
-        return Response({
-            "success": False,
-            "message": "Ranking fetch failed.",
-            "data": [],
-            "errors": {}
-        }, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        crag_list: list = get_monthly_ranking(count)
 
-    serialized_data = []
-    for idx, item in enumerate(crag_list, 1):
-        # Accept either a Crag model or a dict (as mocked in tests)
-        if hasattr(item, "_meta"):            # Django model
-            crag_data = CragSerializer(item).data
-        elif isinstance(item, dict):          # mocked dict from tests
-            crag_data = dict(item)
-        else:
-        # Unknown type; skip safely
-            continue
+        serialized_data = []
+        for idx, item in enumerate(crag_list, 1):
+            # Accept either a Crag model or a dict (as mocked in tests)
+            if hasattr(item, "_meta"):  # Django model
+                crag_data = CragSerializer(item).data
+            elif isinstance(item, dict):  # mocked dict from tests
+                crag_data = dict(item)
+            else:
+                # Unknown type; skip safely
+                continue
 
-        if isinstance(crag_data, dict):
-            crag_data["ranking"] = idx
-        serialized_data.append(crag_data)
-        
-    return Response({
-        "success": True,
-        "message": "Monthly ranking fetched successfully.",
-        "data": serialized_data,
-        "errors": {},
-    }, status=status.HTTP_200_OK)
+            if isinstance(crag_data, dict):
+                crag_data["ranking"] = idx
+            serialized_data.append(crag_data)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Monthly ranking fetched successfully.",
+                "data": serialized_data,
+                "errors": {},
+            },
+            status=status.HTTP_200_OK,
+        )
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": f"Error: {str(ve)}",
+                "data": [],
+                "errors": {str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": f"Error fetching climb logs: {str(e)}",
+                "data": [],
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["GET"])
@@ -106,33 +137,58 @@ def crag_trending_view(request: Request) -> Response:
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
 
-    count = request.query_params.get("count")
+    count_param = request.query_params.get("count")
     try:
-        count = int(count) if count is not None else 10
-        if count < 1:
-            raise ValueError
-    except (ValueError, TypeError):
-        return Response({
-            "success": False,
-            "message": "Invalid count value.",
-            "errors": {"count": "Must be a positive integer."}
-        }, status=status.HTTP_400_BAD_REQUEST)
-        
-    trending_list = get_trending_crags(count)
-    trending_list_json = []
-    
-    for item in trending_list:
-        if item:
-            crag_obj = item[0]  # get the Crag instance
-            crag_data = CragSerializer(crag_obj).data
-            trending_list_json.append(crag_data)
-            
-    for idx, item in enumerate(trending_list_json, 1):
-        item['ranking'] = idx
+        count = int(count_param) if count_param is not None else 0  # default value
+    except ValueError:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid count value.",
+                "errors": {"count must be an integer."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    return Response({
-        "success": True,
-        "message": "Trending crags fetched successfully.",
-        "data": trending_list,
-        "errors": {},
-    }, status=status.HTTP_200_OK)
+    try:
+        trending_list = get_trending_crags(count)
+        trending_list_json = []
+
+        for item in trending_list:
+            if item:
+                crag_obj = item[0]  # get the Crag instance
+                crag_data = CragSerializer(crag_obj).data
+                trending_list_json.append(crag_data)
+
+        for idx, item in enumerate(trending_list_json, 1):
+            item["ranking"] = idx
+
+        return Response(
+            {
+                "success": True,
+                "message": "Trending crags fetched successfully.",
+                "data": trending_list,
+                "errors": {},
+            },
+            status=status.HTTP_200_OK,
+        )
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": f"Error: {str(ve)}",
+                "data": [],
+                "errors": {str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": f"Error fetching climb logs: {str(e)}",
+                "data": [],
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

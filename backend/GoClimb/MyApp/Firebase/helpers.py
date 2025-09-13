@@ -1,7 +1,7 @@
 # MyApp/Firebase/helpers.py
 
 from typing import Any
-from firebase_admin import auth, exceptions,app_check
+from firebase_admin import auth, exceptions, app_check
 
 
 def verify_id_token(id_token: str) -> dict[str, Any]:
@@ -23,6 +23,7 @@ def verify_id_token(id_token: str) -> dict[str, Any]:
     except Exception as e:
         return {"success": False, "message": f"Unexpected error: {str(e)}"}
 
+
 def verify_app_check_token(app_check_token) -> dict[str, Any]:
     """
     Verifies a Firebase App Check token using the Firebase Admin SDK.
@@ -32,7 +33,7 @@ def verify_app_check_token(app_check_token) -> dict[str, Any]:
         return {
             "success": True,
             "message": "App Check token verified successfully",
-            "token_info": decoded_token
+            "token_info": decoded_token,
         }
     except exceptions.FirebaseError as e:
         return {"success": False, "message": f"Firebase error: {str(e)}"}

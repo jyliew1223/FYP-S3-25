@@ -8,14 +8,18 @@ from firebase_admin import auth, credentials
 
 # Initialize Firebase app (if not already initialized)
 if not firebase_admin._apps:
-    cred = credentials.Certificate("path/to/your/firebase-service-account.json")  # <-- change path
+    cred = credentials.Certificate(
+        "path/to/your/firebase-service-account.json"
+    )  # <-- change path
     firebase_admin.initialize_app(cred)
-
 
 # ------------------------------
 # App Check authentication
 # ------------------------------
-from MyApp.Firebase.helpers import verify_app_check_token  # keep your existing App Check function
+from MyApp.Firebase.helpers import (
+    verify_app_check_token,
+)  # keep your existing App Check function
+
 
 def authenticate_app_check_token(request: Request) -> Dict[str, Any]:
     """
@@ -48,7 +52,7 @@ def verify_id_token(id_token: str) -> Dict[str, Any]:
         return {
             "success": False,
             "message": "Invalid token format.",
-            "errors": {"id_token": "Token must be a non-empty string."}
+            "errors": {"id_token": "Token must be a non-empty string."},
         }
 
     try:
@@ -59,31 +63,31 @@ def verify_id_token(id_token: str) -> Dict[str, Any]:
             return {
                 "success": False,
                 "message": "Token verified but UID not found.",
-                "errors": {"uid": "Missing UID in decoded token."}
+                "errors": {"uid": "Missing UID in decoded token."},
             }
 
         return {
             "success": True,
             "uid": uid,
             "message": "Token verified successfully.",
-            "errors": {}
+            "errors": {},
         }
 
     except auth.ExpiredIdTokenError:
         return {
             "success": False,
             "message": "Token has expired.",
-            "errors": {"id_token": "Expired token."}
+            "errors": {"id_token": "Expired token."},
         }
     except auth.InvalidIdTokenError:
         return {
             "success": False,
             "message": "Invalid token.",
-            "errors": {"id_token": "Token is not valid."}
+            "errors": {"id_token": "Token is not valid."},
         }
     except Exception as e:
         return {
             "success": False,
             "message": f"Failed to verify token: {str(e)}",
-            "errors": {}
+            "errors": {},
         }

@@ -1,5 +1,5 @@
 from django.urls import reverse
-from rest_framework.test import APITestCase
+from django.test import TestCase
 from rest_framework import status
 import uuid
 import json
@@ -7,102 +7,231 @@ from unittest.mock import patch
 
 from MyApp.Entity.user import User
 
-DUMMY_ID_TOKEN = "dummy-id-token"
 
-
-class UserBoundaryAPITest(APITestCase):
+class SignUpViewTest(TestCase):
 
     def setUp(self):
-        self.signup_url = reverse("user_signup")
-        self.user_data = {
-            "id_token": DUMMY_ID_TOKEN,
-            "full_name": "Real Token User",
-            "email": f"realtest{uuid.uuid4().hex[:6]}@example.com",
-        }
+        self.url = reverse("Sign Up User")
+        self.id_token = "fake-id-token"
+        self.user_id = "user-123"
+        self.username = f"testuser{uuid.uuid4().hex[:6]}"
+        self.user_email = f"test{uuid.uuid4().hex[:6]}@example.com"
+        self.exsisting_id_token = "exsisting_fake-id-token"
+        self.exsisting_user_id = "exsisting_ser-123"
+        self.exsisting_username = f"exsisting_testuser{uuid.uuid4().hex[:6]}"
+        self.exsisting_user_email = f"exsisting_test{uuid.uuid4().hex[:6]}@example.com"
+        self.exsting_user = User.objects.create(
+            user_id=self.exsisting_user_id,
+            full_name=self.exsisting_username,
+            email=self.exsisting_user_email,
+            profile_picture="https://example.com/avatar.png",
+            role="member",
+            status=True,
+        )
 
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    def test_signup_unothorize(self, mock_verify):
-        mock_verify.return_value = {"success": False, "message": "Mocked Failed"}
-        resp = self.client.post(self.signup_url, self.user_data, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertFalse(resp.json().get("success"))
-
-    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Boundary.user_boundary.signup_user")
-    def test_signup_invalid_id_token(self, mock_signup_user, mock_verify):
-        mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
-        mock_signup_user.return_value = {
+    def test_signup_unauthorize(self, mock_app_check):
+        mock_app_check.return_value = {
             "success": False,
-            "message": "Invalid ID token.",
-            "errors": {"id_token": ["Invalid or expired."]},
-        }
-        bad_payload = dict(self.user_data, id_token="invalid_token")
-        resp = self.client.post(self.signup_url, bad_payload, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(resp.json().get("success"))
-
-
-    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Boundary.user_boundary.signup_user")
-    def test_signup_duplicate_email(self, mock_signup_user, mock_verify):
-        mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
-
-        # 1st call: let the *mocked controller* create the user (so serializer sees no duplicate)
-        def create_user_side_effect(id_token, full_name, email):
-            if not User.objects.filter(email=email).exists():
-                User.objects.create(
-                    user_id=uuid.uuid4().hex,
-                    full_name=full_name,
-                    email=email,
-                    role="member",
-                    status=True,
-                )
-            return {"success": True, "message": "Created."}
-
-        mock_signup_user.side_effect = create_user_side_effect
-
-        resp1 = self.client.post(self.signup_url, self.user_data, format="json")
-        self.assertEqual(resp1.status_code, status.HTTP_201_CREATED)
-
-        # 2nd call: controller signals duplicate this time
-        mock_signup_user.side_effect = None
-        mock_signup_user.return_value = {
-            "success": False,
-            "message": "Duplicate email.",
-            "errors": {"email": ["This email is already registered."]},
+            "message": "Invalid App Check token.",
         }
 
-        resp2 = self.client.post(self.signup_url, self.user_data, format="json")
-        self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(resp2.json().get("success"))
+        payload = {
+            "id_token": self.id_token,
+            "full_name": self.username,
+            "email": self.user_email,
+        }
+        response = self.client.post(self.url, payload, format="json")
 
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
 
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(response_json.get("success"))
 
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Boundary.user_boundary.signup_user")
-    def test_signup_success_returns_data_without_user_id(self, mock_signup_user, mock_verify):
-        mock_verify.return_value = {"success": True, "message": "Mocked Success", "uid": "mocked_uid"}
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_signup_serialize_failed(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": self.user_id}
 
-        # Controller creates the user row so serializer can later fetch it
-        def create_user_side_effect(id_token, full_name, email):
-            if not User.objects.filter(email=email).exists():
-                User.objects.create(
-                    user_id=uuid.uuid4().hex,
-                    full_name=full_name,
-                    email=email,
-                    role="member",
-                    status=True,
-                )
-            return {"success": True, "message": "Created."}
+        payload = {
+            "id_tokdawen": self.id_token,
+            "fullawd_name": self.username,
+            "emaawd": self.user_email,
+        }
+        response = self.client.post(self.url, payload, format="json")
 
-        mock_signup_user.side_effect = create_user_side_effect
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
 
-        resp = self.client.post(self.signup_url, self.user_data, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(resp.json().get("success"))
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response_json.get("success"))
 
-        payload = resp.json().get("data")
-        self.assertIsInstance(payload, dict)
-        self.assertEqual(payload.get("full_name"), self.user_data["full_name"])
-        self.assertEqual(payload.get("email"), self.user_data["email"])
-        self.assertNotIn("user_id", payload)
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_signup_missing_field(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": self.user_id}
+
+        payload = {"id_token": "", "full_name": "", "email": ""}
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response_json.get("success"))
+
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_signup_success(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": self.user_id}
+
+        payload = {
+            "id_token": self.id_token,
+            "full_name": self.username,
+            "email": self.user_email,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(response_json.get("success"))
+
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_signup_user_already_exsits(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": self.user_id}
+
+        payload = {
+            "id_token": self.exsisting_id_token,
+            "full_name": self.exsisting_id_token,
+            "email": self.exsisting_id_token,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response_json.get("success"))
+
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_signup_invalid_uid(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": None}
+
+        payload = {
+            "id_token": self.id_token,
+            "full_name": self.username,
+            "email": self.user_email,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response_json.get("success"))
+
+
+class GetUserTests(TestCase):
+    def setUp(self):
+        self.url = reverse("Get User")
+        self.user_id = "user-123"
+        self.username = f"testuser{uuid.uuid4().hex[:6]}"
+        self.user_email = f"test{uuid.uuid4().hex[:6]}@example"
+        self.id_token = "fake-id-token"
+        self.user = User.objects.create(
+            user_id=self.user_id,
+            full_name=self.username,
+            email=self.user_email,
+            role="member",
+            status=True,
+        )
+        
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_get_user_unauthorize(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": False}
+        mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
+
+        payload = {
+            "id_token": self.id_token,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(response_json.get("success"))
+        
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_get_user_missing_id_token(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
+
+        payload = {
+            "id_token": "",
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response_json.get("success"))
+        
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_get_user_success(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": self.user_id}
+
+        payload = {
+            "id_token": self.id_token,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response_json.get("success"))
+        self.assertIn("data", response_json)
+        
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    def test_get_user_not_found(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": "nonexistent-user-id"}
+
+        payload = {
+            "id_token": self.id_token,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertFalse(response_json.get("success"))
+    

@@ -7,7 +7,7 @@ class User(models.Model):
     class Meta:
         db_table = "user"
         managed = True
-        
+
     user_id = models.CharField(max_length=128, primary_key=True, editable=False)
     full_name = models.CharField(max_length=100)
     email = models.EmailField(max_length=255, unique=True)

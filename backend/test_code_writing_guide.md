@@ -1,238 +1,318 @@
-# 🧪 Django Backend Testing Handbook
+# 🧪 Django Backend Testing Coding Handbook
 
-This document explains how to test our Django backend, write test cases, and run them effectively.
-
-# 📌 Why Testing Matters
-
-1. Ensures code correctness before deployment
-
-2. Prevents regressions when adding new features
-
-3. Helps developers understand expected API behavior
-
-4. Increases confidence in refactoring
-
-# ⚙️ Setting Up the Test Environment
-
-1. Use a separate database for tests
-    - Django automatically creates a temporary test database when running tests.
-
-2. Run tests
-
+## Use this endpoint for the example for testing
 ```ini
-python manage.py test # haven't setup yet dont use!!!
+# crag_info.py
+
+@api_view(["GET"])
+def crag_info_view(request: Request) -> Response:
+    #GET /crag_info?crag_id=str
+    result: dict = authenticate_app_check_token(request)
+    if not result.get("success"):
+        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+
+    crag_id = request.query_params.get("crag_id", "")
+    if not crag_id:
+        return Response({
+            "success": False,
+            "message": "Missing crag_id.",
+            "errors": {"crag_id": "This field is required."}
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    crag_info = get_crag_info(crag_id)
+    if not crag_info.get("success"):
+        return Response(crag_info, status=status.HTTP_404_NOT_FOUND)
+
+    crag_obj = crag_info.get("crag")
+    crag_data = CragSerializer(crag_obj).data
+    return Response({
+        "success": True,
+        "message": "Crag info fetched successfully.",
+        "data": crag_data
+    }, status=status.HTTP_200_OK)
 ```
+ - First thing to do is indentify what is the possible result that this end point will return
+ - for this example there will have these possible results:
+    - **HTTP_401_UNAUTHORIZE**, which will returned by this endpoint when authenticate_app_check_token failed
+    - **HTTP_400_BAD_REQUEST**, which will returned by this endpoint when receiving a invalid request
+    - **HTTP_404_NOT_FOUND**, which will returned by this endpoint when receiving a valid request but there is no relevant data in database
+    - **HTTP_200_OK**, which will returned by this endpoint when receiving a valid request and successfully fetched a valid data from database
 
- - or to run specific tests:
+## Setting up testing enviroment
 
+ - The class of the testcode is a class that inherit APITestCase which integreted in Djsngo to help developers to debug and test the backend
+ - The class can named to any name, but try to name it to a name that others can know which endpoint this test code is testing
+    - For example i am testing for crag_info_view, then my class name will be:
 ```ini
-python manage.py test MyApp.tests.test_user_boundary
+# test_crag_info_view.py
+
+class CragInfoViewTests(APITestCase):
 ```
-
-# 🛠 Tools We Use
-
-1. Django APITestCase – from rest_framework.test, simulates API calls
-
-2. reverse() – gets URL by name (avoids hardcoding URLs)
-
-3. patch() from unittest.mock – to mock external services (e.g., Firebase)
-
-4. status – for readable HTTP status codes (e.g., status.HTTP_201_CREATED)
-
-# 📝 Writing a Test Case
-
-Each test case is a class that extends APITestCase.
-Inside, each test is a function that starts with test_.
-
-Example Structure
+ - Before starting coding test code, we will need to tell Django how to test this test code correctly inside this class by providing these datas in setUp():
+    - Endpoint: the name of the endpoint that defined in url.py    
+    - Datas: the needed data that will be used in the test:
+        - crag_id: the crag id used to generate a Crag object in temparory database
+        - empty_crag_id: the crag id used for test **HTTP_404_NOT_FOUND**
+        - crag object: a crag object stored in temporary database which will be fetched during testing
+        > **Django will create a temporary database when running test, but need to feed the database with some data first**
 ```ini
+# url.py
+
+from MyApp.Boundary.crag_info import crag_info_view
+
+urlpatterns = [
+    # Therefore the endpoint name will be 'crag_info'
+    path('crag_info/', crag_info_view, name='crag_info')
+]
+
+```
+```ini
+# test_crag_info_view.py
+
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework import status
 from unittest.mock import patch
-import uuid, json
+from MyApp.Entity.crag import Crag
 
-class UserBoundaryAPITest(APITestCase):
-
+class CragInfoViewTests(APITestCase):
     def setUp(self):
-        """Run before every test"""
-        self.signup_url = reverse("User Signup")
-        self.user_data = {
-            "id_token": "mock_token",
-            "full_name": "Test User",
-            "email": f"test{uuid.uuid4().hex[:6]}@example.com",
-        }
+        # telling Django the testing endpoint
+        self.url = reverse("crag_info")
 
-    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    def test_signup_success(self, mock_verify):
-        """✅ User can successfully sign up"""
-        mock_verify.return_value = {"success": True, "uid": "mocked_uid"}
+        # defining the testing data
+        self.crag_id = "crag-123"   # valid data
+        self.empty_crag_id = "nonexistent-crag" # invalid data
 
-        response = self.client.post(self.signup_url, self.user_data, format="json")
-
-        print("test_signup_success:\n", json.dumps(response.json(), indent=2))
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertTrue(response.json().get("success"))
+        # create a object and store it into tempapory database
+        # this object must be a instance of MyApp.Entity.crag.Crag Object which is also the model that the endpoint will be fetching
+        self.crag = Crag.objects.create(
+            crag_id=self.crag_id , 
+            name="Bukit Takun",
+            location_lat=3.2986,
+            location_lon=101.6312,
+            description="A scenic limestone hill popular for sport climbing.",
+            image_urls=[
+                "https://example.com/takun1.jpg",
+                "https://example.com/takun2.jpg"
+            ]
+        )
 ```
 
-# 🔑 Best Practices
+## Writing test code
+- Django will assume every method that start with **test_** will needed to be tested, be careful when naming testing method
+- the test code can be split to few part:
+    - defining the mocking methods and results
+        - there is few method that required when testing a endpoint which is impossible to get a valid value during testing, therefore we need to mock these method before actual testing.
+        - usually the method needed to be mock will be method that related to authentication, e.g. **authenticate_app_check_token()**, **verify_id_token()**
+    - start testing
+    - printing result:
+        - this step can skip if u sure that the returning result is correct, but printing it out will help when doing debugging
+    - asserting results:
+        - this step is telling Django the expected reuslt when running individual test
+        - if current test is testing for failed, then tell Django this test should failed etc
+    
+### Mocking
+- for mocking need to tell Django which method to mock using **@patch(path.method_to_mock)** before the test method
+    - note that the 'path' is the path to the testing endpoint instead of the path to the method to mock
+    - can thinking it is replacing the method in the targeting endpoint's files to a new method
+    - u will need to define the mocking method as a input to the testing method
+    - for example:
+    ```ini
+    # test_crag_info_view.py
 
-1. Use setUp() for shared test data
+    # wrong path
+    @patch("MyApp.Utils.helper.authenticate_app_check_token")
+    def test_crag_info_view_unouthorize(self, mock_appcheck):
+    
+    # correct path
+    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
+    def test_crag_info_view_unouthorize(self, mock_appcheck):
 
-2. Name tests clearly (test_signup_success, test_signup_duplicate_email)
+    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
+    def test_crag_info_view_unouthorize(self, mock_appcheck): #<-- define the mocking method as a input
+        mock_appcheck.return_value = ["success" : true] #<-- defining the returning results
 
-3. Mock external APIs – never rely on real Firebase/Stripe/etc. in tests
+    # if have multiple @patch
+    @patch("mock_a")
+    @patch("mock_b")
+    def test_crag_info_view_unouthorize(self, mock_a, mock_b):
+        mock_a.return_value = ...
+        mock_b.return_value = ...
 
-4. Test both success and failure cases
+    ```
 
-5. Use assertions:
+### Start Testing
+ - tell Django the testing endpoint and payloads
+    ```ini
+    # GET example
+    response = self.client.get(f"{self.url}?crag_id={self.crag_id}")
 
-    - self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    # POST example
+    payload = {
+        "crag_id": self.crag_id,
+        "comment": "Amazing climbing spot!"
+    }
+    response = self.client.post(self.url, payload, format="json")
+    ```
 
-    - self.assertTrue(response.json().get("success"))
+### Printing result
+- there is no rule for printing the result, just make it clean and clear
+- can use json() to make json looks clean and clear
+    ```ini
+    import json
 
-    - self.assertFalse(response.json().get("success"))
+    ....
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+    ```
 
-# 📂 File Organization
+### Asserting results
+- Django provide multiple method for asserting result
+    ```ini
+        # check if a field returned true
+        self.assertTrue(condition) 
+        
+        # check if a field returned false
+        self.assertFalse(condition) 
+
+        # check is two value equals
+        self.assertEqual(value_a, value_b)
+        
+        # check is two value NOT equals
+        self.assertNotEqual(value_a, value_b)
+
+        # check is a key is inside a dict
+        self.assertIn("name", response_json.get("data"))
+
+        # check is a key is NOT inside a dict
+        self.assertNotIn("name", response_json.get("data"))
+    ```
+- can check online for others
+
+## Full Example
 ```ini
-backend/
- └── GoClimb/
-    └── MyApp/
-        └── _TestCode/
-            ├── __init__.py
-            ├── test_user_boundary.py   # User signup/login tests
-            └── others....
-```
+# MyApp/_TestCode/test_crag_info_view.py
 
-# 🧾 Example Test Scenarios (User Signup)
-| Test Name | Description | Expected Result |
-|----------|----------|----------|
-| test_signup_success | User signs up with valid token & email | 201 CREATED, success=True  |
-|test_signup_duplicate_email | User tries to sign up again with same email	|400 BAD REQUEST, success=False|
-|test_signup_invalid_id_token|	Invalid Firebase token	| 400 BAD REQUEST, success=False|
-|test_signup_unothorize |	App Check token invalid|	401 UNAUTHORIZED, success=False|
+import json
 
-
-
-# 🧰 Mocking in Django Tests
-## 🔎 What is Mocking?
-
-Mocking replaces real external calls (e.g., Firebase Auth, payment APIs, email services) with fake objects or responses during tests.
-This makes tests:
-
-1. Faster – no network calls
-
-2. Reliable – no random external failures
-
-3. Isolated – only your backend logic is tested
-
-## ⚙️ The patch() Function
-
-We use unittest.mock.patch to temporarily replace functions/classes with fakes.
-
-Basic Example
-```ini
+from django.urls import reverse
+from rest_framework.test import APITestCase
+from rest_framework import status
 from unittest.mock import patch
+from MyApp.Entity.crag import Crag
 
-@patch("path.to.module.function_name")
-def test_something(mock_function):
-    mock_function.return_value = "fake result"
-    assert mock_function() == "fake result"
+class CragInfoViewTests(APITestCase):
+    # setting up
+    def setUp(self):       
+        # setting testing endpoint
+        self.url = reverse("crag_info")
+
+        # setting testing data
+        self.crag_id = "crag-123"
+        self.empty_crag_id = "nonexistent-crag"
+
+        # setting temporary database
+        self.crag = Crag.objects.create(
+            crag_id=self.crag_id , 
+            name="Bukit Takun",
+            location_lat=3.2986,
+            location_lon=101.6312,
+            description="A scenic limestone hill popular for sport climbing.",
+            image_urls=[
+                "https://example.com/takun1.jpg",
+                "https://example.com/takun2.jpg"
+            ]
+        )
+    
+    # testing for HTTP_401_UNAUTHORIZED
+    # telling Django what method needed to mock
+    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
+    def test_crag_info_view_unouthorize(self, mock_appcheck):
+
+        # defining the result needed to returned by mocking method
+        mock_appcheck.return_value = {"success": False}
+        
+        # run the test
+        response = self.client.get(f"{self.url}?crag_id={self.crag_id}")
+
+        # printing results
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+        
+        # Tell Django the expecting results
+        # this test should get status code HTTP_401_UNAUTHORIZE
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        # this test should get success = false
+        self.assertFalse(response_json.get("success"))
+    
+    # testing for HTTP_400_BAD_REQUEST
+    # telling Django what method needed to mock
+    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
+    def test_crag_info_view_bad_request(self, mock_appcheck):
+        
+        # defining the result needed to returned by mocking method
+        mock_appcheck.return_value = {"success": True}
+        
+        # run the test
+        response = self.client.get(f"{self.url}")
+
+        # printing results
+        response_json = response.json()    
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+        
+        # Tell Django the expecting results
+        # this test should get status code HTTP_400_BAD_REQUEST
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)        
+        # this test should get success = false
+        self.assertFalse(response_json.get("success"))        
+        
+    # testing for HTTP_404_NOT_FOUND
+    # telling Django what method needed to mock
+    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
+    def test_crag_info_view_crag_not_found(self, mock_appcheck):
+        
+        # defining the result needed to returned by mocking method
+        mock_appcheck.return_value = {"success": True}
+        
+        # run the test
+        response = self.client.get(f"{self.url}?crag_id={self.empty_crag_id}")
+
+        # printing results
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+        
+        # Tell Django the expecting results
+        # this test should get status code HTTP_404_NOT_FOUND
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        # this test should get success = false
+        self.assertFalse(response_json.get("success"))
+        
+    # testing for HTTP_200_OK
+    # telling Django what method needed to mock
+    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
+    def test_crag_info_view_success(self, mock_appcheck):
+        
+        # defining the result needed to returned by mocking method
+        mock_appcheck.return_value = {"success": True}
+        
+        # run the test
+        response = self.client.get(f"{self.url}?crag_id={self.crag_id}")
+        
+        # printing results
+        response_json = response.json()    
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+        
+        # Tell Django the expecting results
+        # this test should get status code HTTP_200_OK
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        # this test should get success = true
+        self.assertTrue(response_json.get("success"))
+        # this result should contain a crag which crag_id is same as inputed crag_id
+        self.assertEqual(response_json.get("data")["crag_id"], self.crag_id)     
 ```
-
-## 🧑‍💻 Mocking in Django REST API Tests
-1. Mock Firebase App Check
-    - In your code, you might have:
-
-```ini
-    from firebase_admin import auth
-
-    def authenticate_app_check_token(token: str) -> dict:
-        # Real Firebase call
-        decoded = auth.verify_id_token(token)
-        return {"success": True, "uid": decoded["uid"]}
-```
-
-
-➡️ In tests, mock it:
-
-```ini
-@patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-def test_invalid_token(self, mock_verify):
-    mock_verify.return_value = {"success": False, "message": "Invalid token"}
-
-    response = self.client.post(self.signup_url, self.user_data, format="json")
-
-    self.assertEqual(response.status_code, 401)
-    self.assertFalse(response.json().get("success"))
-```
-
-2. Mock Firebase auth.create_custom_token
-
-    - Normally this calls Firebase servers. For testing:
-
-```ini
-@patch("firebase_admin.auth.create_custom_token")
-def test_mock_custom_token(self, mock_create_token):
-    mock_create_token.return_value = b"fake_custom_token"
-    token = auth.create_custom_token("test_uid")
-    self.assertEqual(token, b"fake_custom_token")
-```
-
-3. Mock requests.post
-
-    - Sometimes your code calls an external REST API:
-
-```ini
-import requests
-def get_id_token(custom_token: str):
-    response = requests.post("https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken", ...)
-    return response.json()
-```
-
-
-➡️ In tests:
-
-```ini
-@patch("requests.post")
-def test_mock_requests(self, mock_post):
-    mock_post.return_value.status_code = 200
-    mock_post.return_value.json.return_value = {"idToken": "fake_id"}
-
-    token = get_id_token("custom_token")
-    self.assertEqual(token["idToken"], "fake_id")
-```
-
-🔑 Mocking Best Practices
-
-1. ✅ Patch at the right location
-    - Patch where the function is used, not where it is defined.
-    - Example: If your function imports authenticate_app_check_token inside MyApp.Boundary.user_boundary, patch:
-
-```ini
-@patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-```
-
-
-    - (not @patch("firebase_admin.auth.verify_id_token") unless you want to mock Firebase directly).
-
-2. ✅ Return realistic fake responses
-    - If Firebase returns {"uid": "...", "email": "..."}, make your mock return something similar.
-
-3. ✅ Test both success & failure paths
-
-    - Success → mocked API returns expected data
-
-    - Failure → mocked API raises an exception or returns an error
-
-4. ✅ Don’t mock too much
-    - Only mock external dependencies.
-    - Don’t mock your own business logic (otherwise you’re not really testing it).
-
-## 📌 Quick Mocking Examples
-|Case|	What to Mock|	Example|
-|----------|----------|----------|
-|Firebase App Check|	authenticate_app_check_token|	Return {"success": False} for failure|
-|Firebase Custom Token	|firebase_admin.auth.create_custom_token	|Return fake bytes|
-|External REST API	|requests.post|	Return fake JSON response
-|Email Sending	|django.core.mail.send_mail|turn fake success count|

@@ -1,43 +1,42 @@
 # MyApp/Controller/user_control.py
 
-from typing import Any
+from typing import Optional
+from firebase_admin import auth
+
 from MyApp.Entity.user import User
-from MyApp.Firebase.helpers import verify_id_token
+
+from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
 
 
-def signup_user(id_token: str, full_name: str, email: str) -> dict[str, Any]:
-    try:
-        # Create Firebase user
-        result: dict[str, Any] = verify_id_token(id_token)
+def signup_user(id_token: str, full_name: str, email: str) -> bool:
+    decoded_token = auth.verify_id_token(id_token)  # throws if invalid
+    user_id = decoded_token.get("uid")
+    if not user_id:
+        raise InvalidUIDError("User ID is null or empty.")
 
-        if not result.get("success"):
-            return {"success": False, "message": result.get("message")}
+    existing_user = User.objects.filter(email=email).exclude(user_id=user_id).first()
+    if existing_user:
+        raise UserAlreadyExistsError("Email already linked to another account.")
 
-        user_id: str = str(result.get("uid"))
-        
-        if not user_id:
-            return {"success": False, "message": "User ID is null or empty."}
+    user = User.objects.filter(user_id=user_id).first()
+    if user:
+        raise Exception("User ID already linked to another account.")
 
-        # Check if user with same email but different UID exists
-        existing_user = (
-            User.objects.filter(email=email).exclude(user_id=user_id).first()
-        )
-        if existing_user:
-            return {
-                "success": False,
-                "message": "Email already linked to another account.",
-            }
+    user = User(
+        user_id=user_id,
+        full_name=full_name,
+        email=email,
+        role="member",
+        status=True,
+    )
+    user.save()
+    return True
 
-        # Save user to the database
-        user: User = User(
-            user_id=user_id,
-            full_name=full_name,
-            email=email,
-            role="member",
-            status=True,
-        )
-        user.save()
 
-        return {"success": True, "message": "User created successfully."}
-    except Exception as e:
-        return {"success": False, "message": str(e)}
+def get_user_by_id(id_token: str) -> Optional[User]:
+    decoded_token = auth.verify_id_token(id_token)  # throws if invalid
+    user_id = decoded_token.get("uid")
+    if not user_id:
+        raise InvalidUIDError("User ID is null or empty.")
+
+    return User.objects.filter(user_id=user_id).first()

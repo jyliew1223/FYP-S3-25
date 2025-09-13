@@ -1,64 +1,104 @@
 # MyApp_TestCode/test_climb_stats_boundary.py
+import json
+
 from unittest.mock import patch
 from django.urls import reverse
-from rest_framework.test import APITestCase
+from django.test import TestCase
 from rest_framework import status
-from MyApp.models import Climb
 
 # add this
-from datetime import date
+import datetime
+from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
+from MyApp.Entity.climblog import ClimbLog
 
-class UserStatsApiTests(APITestCase):
+
+class GetUserClimbStatsTests(TestCase):
     def setUp(self):
         self.url = reverse("climb_stats")
-        self.uid = "user-123"
-        self.token = "id-token"
+        self.user_id = "user-123"
+        self.id_token = "fake-id-token"
 
-    @patch("MyApp.Boundary.climb_stats.authenticate_app_check_token")
-    @patch("MyApp.Boundary.climb_stats.verify_id_token")
-    def test_missing_id_token_400(self, mock_verify, mock_app):
-        mock_app.return_value = {"success": True}
-        resp = self.client.post(self.url, data={}, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)  # Bad Request[5]
-
-    @patch("MyApp.Boundary.climb_stats.authenticate_app_check_token")
-    @patch("MyApp.Boundary.climb_stats.verify_id_token")
-    def test_empty_stats_200(self, mock_verify, mock_app):
-        mock_app.return_value = {"success": True}
-        mock_verify.return_value = {"success": True, "uid": self.uid}
-        resp = self.client.post(self.url, data={"id_token": self.token}, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)  # 200 with empty stats[3]
-        self.assertIn("data", resp.data)
-        # add new code below. no row yet = total_routes is 0
-        self.assertEqual(resp.data["data"]["total_routes"], 0)
-
-    @patch("MyApp.Boundary.climb_stats.authenticate_app_check_token")
-    @patch("MyApp.Boundary.climb_stats.verify_id_token")
-    def test_stats_values_200(self, mock_verify, mock_app):
-        mock_app.return_value = {"success": True}
-        mock_verify.return_value = {"success": True, "uid": self.uid}
-
-        # Create the FK target first
-        Crag.objects.create(
-            crag_id="C1",
-            name="Test Crag",
-            location_lat=0.0,
-            location_lon=0.0,
-            description="",
-            image_urls=[],
+        # Create a user
+        self.user = User.objects.create(
+            user_id=self.user_id, full_name="Test User01", email="email01@example.com"
         )
-        # END OF NEW CODES
 
-        # Create 2 Climb rows using REAL fields that exist in your Climb model
-        Climb.objects.create(name="Route A", crag_id="C1", date_climbed=date.today())
-        Climb.objects.create(name="Route B", crag_id="C1", date_climbed=date.today())
+        # Optionally create a crag
+        self.crag = Crag.objects.create(
+            name="Bukit Timah",
+            location_lat=1.3483,
+            location_lon=103.7795,
+            description="A popular climbing crag in Singapore.",
+            image_urls=[
+                "https://example.com/crag1.jpg",
+                "https://example.com/crag2.jpg",
+            ],
+        )
 
-        # Climb.objects.create(user_id=self.uid, style="on_sight", grade_numeric=6.5, attempts=1, crag_id=1, route_name="A")
-        # Climb.objects.create(user_id=self.uid, style="red_point", grade_numeric=6.7, attempts=2, crag_id=1, route_name="B")
-        
-        resp = self.client.post(self.url, data={"id_token": self.token}, format="json")
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        # Create a climb log
+        self.climb_log = ClimbLog.objects.create(
+            user=self.user,
+            crag=self.crag,
+            route_name="Easy Route",
+            date_climbed=datetime.date.today(),
+            difficulty_grade="5.8",
+            notes="Test climb log",
+        )
 
-        # Since your model doesn’t have 'style' etc., assert 'total_routes' instead
-        self.assertGreaterEqual(resp.data["data"]["total_routes"], 1)
+    @patch("MyApp.Boundary.climb_stats.authenticate_app_check_token")
+    @patch("MyApp.Controller.climblog_control.auth.verify_id_token")
+    def test_get_user_climb_stats_view_unauthorize(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": False}
+        mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
+
+        payload = {
+            "id_token": self.id,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(response_json.get("success"))
+
+    @patch("MyApp.Boundary.climb_stats.authenticate_app_check_token")
+    @patch("MyApp.Controller.climblog_control.auth.verify_id_token")
+    def test_get_user_climb_stats_view_missing_id_token(
+        self, mock_id_token, mock_app_check
+    ):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
+
+        payload = {
+            "id_token": self.id,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(response_json.get("success"))
+
+    @patch("MyApp.Boundary.climb_stats.authenticate_app_check_token")
+    @patch("MyApp.Controller.climblog_control.auth.verify_id_token")
+    def test_get_user_climb_stats_success(self, mock_id_token, mock_app_check):
+        mock_app_check.return_value = {"success": True}
+        mock_id_token.return_value = {"uid": self.user_id}
+
+        payload = {
+            "id_token": self.id,
+        }
+        response = self.client.post(self.url, payload, format="json")
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response_json.get("success"))
+        self.assertIn("data", response_json)
