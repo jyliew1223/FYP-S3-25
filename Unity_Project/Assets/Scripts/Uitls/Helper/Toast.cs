@@ -1,12 +1,12 @@
-
+using System.Collections;
 using TMPro;
 using UnityEngine;
-using System.Collections;
 
 [RequireComponent(typeof(CanvasGroup))]
 public class Toast : MonoBehaviour
 {
-    [SerializeField] private TextMeshProUGUI inputField;
+    [SerializeField]
+    private TextMeshProUGUI inputField;
 
     private CanvasGroup canvasGroup;
 

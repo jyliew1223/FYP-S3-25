@@ -3,8 +3,7 @@ using UnityEngine;
 [RequireComponent(typeof(RectTransform))]
 public class SafeAreaAdjuster : MonoBehaviour
 {
-    [Range(0f, 1f)]
-    [SerializeField] private float safeAreaMultiplier = .75f;
+    private float safeAreaMultiplier = 1;
     private RectTransform panel;
     private Rect lastSafeArea;
 
@@ -13,6 +12,7 @@ public class SafeAreaAdjuster : MonoBehaviour
         TryGetComponent(out panel);
         ApplySafeArea();
     }
+
     void ApplySafeArea()
     {
         Rect fullArea = new Rect(0, 0, Screen.width, Screen.height);

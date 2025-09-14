@@ -2,11 +2,13 @@ using UnityEngine;
 
 public class ToastController : MonoBehaviour
 {
-    [SerializeField] private GameObject toastPrefab;
+    [SerializeField]
+    private GameObject toastPrefab;
 
     public static ToastController Instance { get; private set; }
 
     private static GameObject instance;
+
     private void Awake()
     {
         if (Instance == null)

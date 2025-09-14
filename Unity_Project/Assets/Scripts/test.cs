@@ -1,25 +1,22 @@
-﻿using UnityEngine;
+﻿using System.Collections;
+using System.Text;
+using System.Threading.Tasks;
 using Firebase;
 using Firebase.AppCheck;
-using System.Threading.Tasks;
-using System.Text;
+using UnityEngine;
 using UnityEngine.Networking;
-using System.Collections;
 
 public class TestAppCheck : MonoBehaviour
 {
     void Start()
     {
-
 #if UNITY_EDITOR
         DebugAppCheckProviderFactory.Instance.SetDebugToken("523DF6DB-B8A0-453A-A9E1-2F2406A41090");
         FirebaseAppCheck.SetAppCheckProviderFactory(DebugAppCheckProviderFactory.Instance);
 #elif UNITY_ANDROID && !UNITY_EDITOR
-        FirebaseAppCheck.SetAppCheckProviderFactory(
-            PlayIntegrityProviderFactory.Instance);
+        FirebaseAppCheck.SetAppCheckProviderFactory(PlayIntegrityProviderFactory.Instance);
 #elif UNITY_IOS && !UNITY_EDITOR
-        FirebaseAppCheck.SetAppCheckProviderFactory(
-            AppAttestProviderFactory.Instance);
+        FirebaseAppCheck.SetAppCheckProviderFactory(AppAttestProviderFactory.Instance);
 #else
         Debug.Log("App Check not initialized in editor or unsupported platform");
 #endif
@@ -31,7 +28,9 @@ public class TestAppCheck : MonoBehaviour
     {
         try
         {
-            AppCheckToken token = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(false);
+            AppCheckToken token = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(
+                false
+            );
 
             if (!string.IsNullOrEmpty(token.Token))
             {
@@ -48,6 +47,7 @@ public class TestAppCheck : MonoBehaviour
             Debug.LogError("Failed to get App Check token: " + e.Message);
         }
     }
+
     IEnumerator SendTokenToBackend(string appCheckToken)
     {
         string url = "http://127.0.0.1:8000/verify_app_check_token/"; // your Django endpoint
@@ -68,5 +68,4 @@ public class TestAppCheck : MonoBehaviour
         else
             Debug.Log("Backend response: " + request.downloadHandler.text);
     }
-
 }

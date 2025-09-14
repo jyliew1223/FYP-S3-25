@@ -1,18 +1,19 @@
+using System;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+using Firebase;
 using Firebase.AppCheck;
 using Firebase.Auth;
+using Firebase.Extensions;
 using Newtonsoft.Json.Linq;
-using System.IO;
-using System;
-using System.Threading.Tasks;
 using UnityEngine;
-using Newtonsoft.Json;
 using UnityEngine.Networking;
-using Firebase;
-using System.Text;
 
 public static class FirebaseHelper
 {
     private static FirebaseAuth auth;
+    private static FirebaseApp app;
     public const float AuthenticationCooldown = 500f; // milliseconds
 
     public static FirebaseAuth Auth
@@ -21,11 +22,87 @@ public static class FirebaseHelper
         {
             if (auth == null)
             {
-                Debug.LogError($"{nameof(FirebaseHelper)}: Firebase Auth is not initialized. Call InitFirebaseAuth() first.");
+                Debug.LogError(
+                    $"{nameof(FirebaseHelper)}: Firebase Auth is not initialized. Call InitFirebaseAuth() first."
+                );
             }
             return auth;
         }
         set => auth = value;
+    }
+
+    public static async Task<Firebase.FirebaseApp> GetAppAsync()
+    {
+        if (app != null)
+            return app;
+
+        var dependencyStatus = await Firebase.FirebaseApp.CheckAndFixDependenciesAsync();
+        if (dependencyStatus == Firebase.DependencyStatus.Available)
+        {
+            app = Firebase.FirebaseApp.DefaultInstance;
+            return app;
+        }
+        else
+        {
+            Debug.LogError(
+                $"{nameof(FirebaseHelper)}: Firebase dependencies not available: {dependencyStatus}"
+            );
+            return null;
+        }
+    }
+
+    public static async Task<bool> InitFirebaseWithAppCheck()
+    {
+        var dependencyStatus = await FirebaseApp.CheckAndFixDependenciesAsync();
+        if (dependencyStatus != DependencyStatus.Available)
+        {
+            Debug.LogError(
+                $"{nameof(FirebaseHelper)}: Could not resolve Firebase dependencies: {dependencyStatus}"
+            );
+            return false;
+        }
+
+#if UNITY_EDITOR
+        Debug.Log($"{nameof(FirebaseHelper)}: Firebase App Check initializing in Editor.");
+        string path = Path.Combine(Application.streamingAssetsPath, "secrets.json");
+        if (File.Exists(path))
+        {
+            string json = await File.ReadAllTextAsync(path);
+            JObject secrets = JObject.Parse(json);
+            string debugToken = secrets["debug_token"]?.ToString();
+            if (!string.IsNullOrEmpty(debugToken))
+            {
+                DebugAppCheckProviderFactory.Instance.SetDebugToken(debugToken);
+                FirebaseAppCheck.SetAppCheckProviderFactory(DebugAppCheckProviderFactory.Instance);
+            }
+        }
+#endif
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+
+#if DEVELOPMENT_BUILD
+        Debug.Log(
+            $"{nameof(FirebaseHelper)}: Firebase App Check initializing on Android with Develepment Build enabled."
+        );
+
+        DebugAppCheckProviderFactory.Instance.SetDebugToken("7C1EAF82-F125-431C-8525-24CF4AFEB128");
+        FirebaseAppCheck.SetAppCheckProviderFactory(DebugAppCheckProviderFactory.Instance);
+#else
+        Debug.Log($"{nameof(FirebaseHelper)}: Firebase App Check initializing on Android.");
+
+        FirebaseAppCheck.SetAppCheckProviderFactory(PlayIntegrityProviderFactory.Instance);
+#endif
+
+#endif
+
+#if UNITY_IOS && !UNITY_EDITOR
+        FirebaseAppCheck.SetAppCheckProviderFactory(AppAttestProviderFactory.Instance);
+#endif
+
+        app = FirebaseApp.DefaultInstance;
+        Debug.Log($"{nameof(FirebaseHelper)}: Firebase App initialized with AppCheck.");
+
+        return true;
     }
 
     // ==============================================================
@@ -35,89 +112,26 @@ public static class FirebaseHelper
     {
         Debug.Log($"{nameof(FirebaseHelper)}: Initializing Firebase...");
 
-        var dependencyStatus = await Firebase.FirebaseApp.CheckAndFixDependenciesAsync();
-        if (dependencyStatus == Firebase.DependencyStatus.Available)
+        if (await GetAppAsync() == null)
         {
-            Auth = FirebaseAuth.DefaultInstance;
-            Debug.Log($"{nameof(FirebaseHelper)}: Firebase initialized successfully.");
+            Debug.LogError($"{nameof(FirebaseHelper)}: Firebase App not initialized.");
+            return false;
+        }
 
+        Auth = FirebaseAuth.DefaultInstance;
+
+        if (Auth != null)
+        {
+            Debug.Log($"{nameof(FirebaseHelper)}: Firebase initialized successfully.");
             return true;
         }
         else
         {
-            Debug.LogError($"{nameof(FirebaseHelper)}: Could not resolve all Firebase dependencies: {dependencyStatus}");
-        }
-
-        if (Auth == null)
-        {
-            Debug.LogError($"{nameof(FirebaseHelper)}: Firebase Auth is not initialized after InitFirebaseAuth().");
+            Debug.LogError(
+                $"{nameof(FirebaseHelper)}: Firebase Auth is not initialized after InitFirebaseAuth()."
+            );
             return false;
         }
-
-        return false;
-    }
-
-    // ==============================================================
-    // Initialize Firebase App Check
-    // ==============================================================
-    public static async Task<bool> InitFirebaseAppCheck()
-    {
-        Debug.Log($"{nameof(FirebaseHelper)}: Initializing Firebase App Check...");
-        try
-        {
-#if UNITY_EDITOR
-            string path = Path.Combine(Application.streamingAssetsPath, "secrets.json");
-
-            if (!File.Exists(path))
-            {
-                Debug.LogError($"{nameof(FirebaseHelper)}: secrets.json not found at {path}");
-                return false;
-            }
-
-            string json = await File.ReadAllTextAsync(path);
-            JObject secrets = JObject.Parse(json);
-
-            string debugToken = secrets["debug_token"]?.ToString();
-            if (string.IsNullOrEmpty(debugToken))
-            {
-                Debug.LogError($"{nameof(FirebaseHelper)}: Debug token not found in secrets.json");
-                return false;
-            }
-
-            DebugAppCheckProviderFactory.Instance.SetDebugToken(debugToken);
-            FirebaseAppCheck.SetAppCheckProviderFactory(DebugAppCheckProviderFactory.Instance);
-
-#elif UNITY_ANDROID && !UNITY_EDITOR
-
-            FirebaseAppCheck.SetAppCheckProviderFactory(
-                PlayIntegrityProviderFactory.Instance);
-
-#elif UNITY_IOS && !UNITY_EDITOR
-
-            FirebaseAppCheck.SetAppCheckProviderFactory(
-                AppAttestProviderFactory.Instance);
-
-#else
-
-             Debug.Log("App Check not initialized in editor or unsupported platform");
-
-#endif
-            Debug.Log($"{nameof(FirebaseHelper)}: Firebase App Check initialized successfully.");
-
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"{nameof(FirebaseHelper)}: Failed to initialize Firebase App Check: {e.Message}");
-            return false;
-        }
-
-        if (FirebaseAppCheck.DefaultInstance == null)
-        {
-            Debug.LogError($"{nameof(FirebaseHelper)}: Firebase App Check is not initialized.");
-            return false;
-        }
-
-        return true;
     }
 
     // ==============================================================
@@ -125,13 +139,22 @@ public static class FirebaseHelper
     // ==============================================================
     public static async Task<bool> SignInFirebase()
     {
-        if (Auth == null) return false;
+        if (Auth == null)
+            return false;
 
         Debug.Log($"{nameof(FirebaseHelper)}: Signing in...");
-        
+
         if (Auth.CurrentUser == null)
         {
             Debug.Log($"{nameof(FirebaseHelper)}: Previous session not found");
+#if UNITY_EDITOR
+            await SignInFirebaseWithEmailAndPassword(
+                GlobalSetting.TestUserEmail,
+                GlobalSetting.TestUserPassword
+            );
+
+            return await SignInFirebase();
+#endif
         }
         else
         {
@@ -180,7 +203,9 @@ public static class FirebaseHelper
 
         if (!verifyIdTokenTaskResult)
         {
-            Debug.LogWarning($"{nameof(FirebaseHelper)}: Failed to verify Token, Signing user out...");
+            Debug.LogWarning(
+                $"{nameof(FirebaseHelper)}: Failed to verify Token, Signing user out..."
+            );
             UserGlobalData.IDToken = null;
             Auth.SignOut();
             return true;
@@ -191,23 +216,20 @@ public static class FirebaseHelper
         return true;
     }
 
-
     [System.Serializable]
     public class VerifyIdTokenPayload
     {
         public string id_token;
     }
-    private record VerifyIdTokenResponse
-    {
-        public bool success;
-        public string message;
-        public string errors;
-    }
+
+    private record VerifyIdTokenResponse : WebResponse { }
+
     public static async Task<bool> VerifyIdToken(string idToken, int retryCount = 0)
     {
-        if(Auth == null) return false;
+        if (Auth == null)
+            return false;
 
-        if (retryCount > 10)
+        if (retryCount > GlobalSetting.MaxWebRequestFailedCount)
         {
             Debug.LogError($"{nameof(FirebaseHelper)}: Token verification failed after retry.");
             return false;
@@ -232,44 +254,43 @@ public static class FirebaseHelper
         request.downloadHandler = new DownloadHandlerBuffer();
         request.SetRequestHeader("Content-Type", "application/json");
 
-        AppCheckToken appCheckToken = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(false);
+        AppCheckToken appCheckToken = await FirebaseAppCheck.DefaultInstance.GetAppCheckTokenAsync(
+            false
+        );
         request.SetRequestHeader("X-Firebase-AppCheck", appCheckToken.Token);
 
         try
         {
             await request.SendWebRequest();
 
-            VerifyIdTokenResponse response = JsonUtility.FromJson<VerifyIdTokenResponse>(request.downloadHandler.text);
+            VerifyIdTokenResponse response = JsonUtility.FromJson<VerifyIdTokenResponse>(
+                request.downloadHandler.text
+            );
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                if (!string.IsNullOrEmpty(response.errors))
+                if (
+                    !string.IsNullOrEmpty(response.Message)
+                    && response.Message.Contains("Token used too early")
+                )
                 {
-                    try
-                    {
-                        JObject parsedErrors = JObject.Parse(response.errors);
-                        string formattedErrors = parsedErrors.ToString(Formatting.Indented);
-                        Debug.LogError($"{nameof(FirebaseHelper)}: Verify request failed: {request.error}:\n{formattedErrors}");
-                    }
-                    catch (JsonReaderException e)
-                    {
-                        Debug.LogError($"{nameof(FirebaseHelper)}: Failed to parse error JSON: {e.Message}\nRaw error string: {response.errors}");
-                    }
-                }
-                else
-                {
-                    Debug.LogError($"{nameof(FirebaseHelper)}: Verify request failed: {request.error}: {response.message ?? "No message..."}");
-                }
+                    retryCount++;
+                    Debug.LogWarning(
+                        $"{nameof(FirebaseHelper)}: id_token used too early. Retrying... {retryCount}"
+                    );
+                    await Task.Delay(GlobalSetting.WebRequestRetryCooldown); // Wait a moment before retrying
 
-                return false;
+                    return await VerifyIdToken(idToken, retryCount);
+                }
+                Debug.LogError(WebResponseHelper.LogResponse(response, request));
             }
 
-            if (response.success)
+            if (response.Success)
             {
                 Debug.Log($"{nameof(FirebaseHelper)}: Token Verified");
                 return true;
             }
-            else if (response.message.Contains("expired"))
+            else if (response.Message.Contains("expired"))
             {
                 Debug.Log($"{nameof(FirebaseHelper)}: Token expired. Refreshing...");
 
@@ -279,7 +300,10 @@ public static class FirebaseHelper
             }
             else
             {
-                Debug.LogError($"{nameof(FirebaseHelper)}: Failed to verify:" + response.message);
+                Debug.LogError(
+                    $"{nameof(FirebaseHelper)}: Failed to verify:\n"
+                        + $"{WebResponseHelper.LogResponse(response, request)}"
+                );
                 return false;
             }
         }
@@ -290,10 +314,10 @@ public static class FirebaseHelper
         }
     }
 
-
     public static async Task SignInFirebaseWithEmailAndPassword(string email, string password)
     {
-        if (Auth == null) return;
+        if (Auth == null)
+            return;
 
         Debug.Log($"{nameof(FirebaseHelper)}: Signing in with email and password...");
 
@@ -303,10 +327,14 @@ public static class FirebaseHelper
             FirebaseUser newUser = result.User;
             if (newUser == null)
             {
-                Debug.LogError($"{nameof(FirebaseHelper)}: SignInWithEmailAndPasswordAsync completed but returned null user.");
+                Debug.LogError(
+                    $"{nameof(FirebaseHelper)}: SignInWithEmailAndPasswordAsync completed but returned null user."
+                );
                 return;
             }
-            Debug.Log($"{nameof(FirebaseHelper)}: User signed in successfully: {newUser.DisplayName ?? newUser.Email}");
+            Debug.Log(
+                $"{nameof(FirebaseHelper)}: User signed in successfully: {newUser.DisplayName ?? newUser.Email}"
+            );
         }
         catch (FirebaseException e)
         {
@@ -321,11 +349,15 @@ public static class FirebaseHelper
                     return;
 
                 case AuthError.NetworkRequestFailed:
-                    Debug.LogError($"{nameof(FirebaseHelper)}: Network error. Please check your connection.");
+                    Debug.LogError(
+                        $"{nameof(FirebaseHelper)}: Network error. Please check your connection."
+                    );
                     return;
 
                 default:
-                    Debug.LogError($"{nameof(FirebaseHelper)}: Firebase sign-in error: {e.Message}");
+                    Debug.LogError(
+                        $"{nameof(FirebaseHelper)}: Firebase sign-in error: {e.Message}"
+                    );
                     return;
             }
         }
@@ -339,14 +371,17 @@ public static class FirebaseHelper
     // ==============================================================
     // Obtain App Check Token for testing
     // ==============================================================
-    private record VerifyAppCheckTokenResponse
+    private record VerifyAppCheckTokenResponse : WebResponse { }
+
+    public static async Task<bool> VerifyAppCheckToken(int retryCount = 0)
     {
-        public bool success;
-        public string message;
-        public string errors;
-    }
-    public static async Task<bool> VerifyAppCheckToken()
-    {
+        if (retryCount > GlobalSetting.MaxWebRequestFailedCount)
+        {
+            Debug.LogError(
+                $"{nameof(FirebaseHelper)}: App Check token verification failed after {GlobalSetting.MaxWebRequestFailedCount} retries."
+            );
+            return false;
+        }
 
         Debug.Log($"{nameof(FirebaseHelper)}: Obtaining App Check token...");
 
@@ -363,40 +398,42 @@ public static class FirebaseHelper
         try
         {
             var operation = request.SendWebRequest();
-            while (!operation.isDone) await Task.Yield();
+            while (!operation.isDone)
+                await Task.Yield();
 
-            VerifyAppCheckTokenResponse response = JsonUtility.FromJson<VerifyAppCheckTokenResponse>(request.downloadHandler.text);
+            VerifyAppCheckTokenResponse response =
+                JsonUtility.FromJson<VerifyAppCheckTokenResponse>(request.downloadHandler.text);
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                if (!string.IsNullOrEmpty(response.errors))
+                if (
+                    !string.IsNullOrEmpty(response.Message)
+                    && response.Message.Contains("The token is not yet valid (iat)")
+                )
                 {
-                    try
-                    {
-                        JObject parsedErrors = JObject.Parse(response.errors);
-                        string formattedErrors = parsedErrors.ToString(Formatting.Indented);
-                        Debug.LogError($"{nameof(FirebaseHelper)}: Verify request failed: {request.error}:\n{formattedErrors}");
-                    }
-                    catch (JsonReaderException e)
-                    {
-                        Debug.LogError($"{nameof(FirebaseHelper)}: Failed to parse error JSON: {e.Message}\nRaw error string: {response.errors}");
-                    }
+                    retryCount++;
+                    Debug.LogWarning(
+                        $"{nameof(FirebaseHelper)}: App Check token is invalid or expired. Retrying... {retryCount}"
+                    );
+                    await Task.Delay(GlobalSetting.WebRequestRetryCooldown); // Wait a moment before retrying
+
+                    return await VerifyAppCheckToken(retryCount);
                 }
-                else
-                {
-                    Debug.LogError($"{nameof(FirebaseHelper)}: Verify request failed: {request.error}: {response.message ?? "No message..."}");
-                }
-                return false;
+
+                Debug.LogError(WebResponseHelper.LogResponse(response, request));
             }
 
-            if (response.success)
+            if (response.Success)
             {
                 Debug.Log($"{nameof(FirebaseHelper)}: App Check Token Verified");
                 return true;
             }
             else
             {
-                Debug.LogError($"{nameof(FirebaseHelper)}: Failed to verify App Check Token: {response.message}");
+                Debug.LogError(
+                    $"{nameof(FirebaseHelper)}: Failed to verify App Check Token:\n"
+                        + $"{WebResponseHelper.LogResponse(response, request)}"
+                );
                 return false;
             }
         }

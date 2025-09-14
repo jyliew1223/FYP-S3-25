@@ -272,7 +272,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3759b95e58db6c14a96d34c7af494b83, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  safeAreaMultiplier: 0.75
 --- !u!1 &1491606837582189758
 GameObject:
   m_ObjectHideFlags: 0
@@ -361,6 +360,7 @@ GameObject:
   - component: {fileID: 1196024354202507008}
   - component: {fileID: 4482588645718777555}
   - component: {fileID: 5119039625277925468}
+  - component: {fileID: 6971140240854480868}
   m_Layer: 5
   m_Name: ActivityBtn
   m_TagString: Untagged
@@ -484,6 +484,19 @@ MonoBehaviour:
   m_EffectColor: {r: 0.65882355, g: 0.65882355, b: 0.65882355, a: 0.5}
   m_EffectDistance: {x: 2.5, y: 2.5}
   m_UseGraphicAlpha: 1
+--- !u!114 &6971140240854480868
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1584816506961866856}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26207c16038388f479526293c195c326, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToLoad: {fileID: 102900000, guid: 93f6c394c42e9e14a9145728fa109252, type: 3}
 --- !u!1 &3163629600506567150
 GameObject:
   m_ObjectHideFlags: 0
@@ -497,6 +510,7 @@ GameObject:
   - component: {fileID: 6290782606514937706}
   - component: {fileID: 7692449412052281917}
   - component: {fileID: 6859740681719040333}
+  - component: {fileID: 2185812466837000148}
   m_Layer: 5
   m_Name: ForumsBtn
   m_TagString: Untagged
@@ -620,6 +634,19 @@ MonoBehaviour:
   m_EffectColor: {r: 0.65882355, g: 0.65882355, b: 0.65882355, a: 0.5}
   m_EffectDistance: {x: 2.5, y: 2.5}
   m_UseGraphicAlpha: 1
+--- !u!114 &2185812466837000148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3163629600506567150}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f70559f1fd536e40a5ce71dd15642a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToLoad: {fileID: 102900000, guid: 72c925cfb0228f54b811792f2283f645, type: 3}
 --- !u!1 &3360252661009207137
 GameObject:
   m_ObjectHideFlags: 0
@@ -978,6 +1005,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7eacc2afe60b7774097f07288312a47b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  sceneToLoad: {fileID: 102900000, guid: b9d73c4408b99ee449d059ef10fc0bcd, type: 3}
   loginPanel: {fileID: 319197568573716989, guid: c9c56ec7513b2b34b9e868b76ed031bf, type: 3}
 --- !u!1 &4858549913899487355
 GameObject:
@@ -991,6 +1019,7 @@ GameObject:
   - component: {fileID: 4025897124436982418}
   - component: {fileID: 8408231782719678953}
   - component: {fileID: 3988154330899609832}
+  - component: {fileID: 8100111261941033276}
   m_Layer: 5
   m_Name: LogoutBtn
   m_TagString: Untagged
@@ -1100,6 +1129,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &8100111261941033276
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4858549913899487355}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8c03fc60fcbbc2d47893ddfdee661ac4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToLoad: {fileID: 102900000, guid: 8bd033fa475245646938b9823c9cc8f5, type: 3}
 --- !u!1 &4873934505312636410
 GameObject:
   m_ObjectHideFlags: 0
@@ -1113,6 +1155,7 @@ GameObject:
   - component: {fileID: 7943858456413837964}
   - component: {fileID: 4190562226906718615}
   - component: {fileID: 1430717984354424160}
+  - component: {fileID: 4043414917198934995}
   m_Layer: 5
   m_Name: MapBtn
   m_TagString: Untagged
@@ -1236,6 +1279,19 @@ MonoBehaviour:
   m_EffectColor: {r: 0.65882355, g: 0.65882355, b: 0.65882355, a: 0.5}
   m_EffectDistance: {x: 2.5, y: 2.5}
   m_UseGraphicAlpha: 1
+--- !u!114 &4043414917198934995
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4873934505312636410}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: efaa73ce30046c14d90248a314533bf6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToLoad: {fileID: 102900000, guid: 059049a75c7ba334ea2f7a87a4133a6b, type: 3}
 --- !u!1 &4973306844750824982
 GameObject:
   m_ObjectHideFlags: 0
@@ -1376,6 +1432,7 @@ GameObject:
   - component: {fileID: 3379394118196876514}
   - component: {fileID: 2018327643817219855}
   - component: {fileID: 8377549743897108277}
+  - component: {fileID: 5519952859910573171}
   m_Layer: 5
   m_Name: HomeBtn
   m_TagString: Untagged
@@ -1499,6 +1556,19 @@ MonoBehaviour:
   m_EffectColor: {r: 0.65882355, g: 0.65882355, b: 0.65882355, a: 0.5}
   m_EffectDistance: {x: 2.5, y: 2.5}
   m_UseGraphicAlpha: 1
+--- !u!114 &5519952859910573171
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5340256253794352998}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c79ff7356c1bb848a86f4c85a09ff89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToLoad: {fileID: 102900000, guid: 2e29b2174cd60984b8b8e2cb27a070e7, type: 3}
 --- !u!1 &5963347638584301969
 GameObject:
   m_ObjectHideFlags: 0
@@ -1655,6 +1725,7 @@ GameObject:
   - component: {fileID: 4881036593802869963}
   - component: {fileID: 338170034620140690}
   - component: {fileID: 8595253667561339053}
+  - component: {fileID: 7051804637967196809}
   m_Layer: 5
   m_Name: RoutesBtn
   m_TagString: Untagged
@@ -1778,6 +1849,19 @@ MonoBehaviour:
   m_EffectColor: {r: 0.65882355, g: 0.65882355, b: 0.65882355, a: 0.5}
   m_EffectDistance: {x: 2.5, y: 2.5}
   m_UseGraphicAlpha: 1
+--- !u!114 &7051804637967196809
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6558447612397164549}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62c848758cda5e245b23a14bad84d16a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sceneToLoad: {fileID: 102900000, guid: 08175f1132ba035458980119799bc149, type: 3}
 --- !u!1 &6900474035986918817
 GameObject:
   m_ObjectHideFlags: 0
@@ -2673,3 +2757,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sidePanel: {fileID: 5097430359906542142}
+  profileButton: {fileID: 7385689607200953368}

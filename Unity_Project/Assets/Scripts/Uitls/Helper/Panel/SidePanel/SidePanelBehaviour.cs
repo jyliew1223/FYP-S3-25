@@ -1,14 +1,15 @@
-using System.Collections.Generic;
+
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 public class SidePanelBehaviour : MonoBehaviour
 {
-    [SerializeField] private Button sidePanelButton;
+    [SerializeField]
+    private Button sidePanelButton;
 
     private InputSystem_Actions inputSystem_Actions;
+
     private void Awake()
     {
         if (sidePanelButton == null)
@@ -23,27 +24,38 @@ public class SidePanelBehaviour : MonoBehaviour
 
         inputSystem_Actions = new();
     }
+
+    private void Init()
+    {
+        if (UserGlobalData.isLoggedIn) { }
+    }
+
     private void Start()
     {
         gameObject.SetActive(false);
-    }   
+    }
+
     private void OnEnable()
     {
         inputSystem_Actions.UI.Click.performed += OnClickPerformed;
         inputSystem_Actions.Enable();
     }
+
     private void OnDisable()
     {
         inputSystem_Actions.UI.Click.performed -= OnClickPerformed;
         inputSystem_Actions.Disable();
     }
+
     private void OnDestroy()
     {
         sidePanelButton.onClick.RemoveAllListeners();
     }
+
     private void OnClickPerformed(InputAction.CallbackContext ctx)
     {
-        if (gameObject.activeSelf == false) return;
+        if (gameObject.activeSelf == false)
+            return;
 
         Vector2 pointerPos = Vector2.zero;
 
@@ -62,6 +74,7 @@ public class SidePanelBehaviour : MonoBehaviour
             gameObject.SetActive(false);
         }
     }
+
     private void ToggleSidePanel()
     {
         gameObject.SetActive(!gameObject.activeSelf);

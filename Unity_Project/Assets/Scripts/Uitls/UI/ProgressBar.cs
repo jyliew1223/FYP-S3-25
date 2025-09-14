@@ -1,13 +1,14 @@
 
-using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using static UnityEngine.GraphicsBuffer;
 
 public class ProgressBar : MonoBehaviour
 {
-    [SerializeField] private Image fill;
-    [SerializeField, Range(0, 1)] private float speedMultiplier = 0.25f;
+    [SerializeField]
+    private Image fill;
+
+    [SerializeField, Range(0, 1)]
+    private float speedMultiplier = 0.25f;
 
     public float Progress = 0f;
 
@@ -25,9 +26,10 @@ public class ProgressBar : MonoBehaviour
             fill.fillAmount = 0.01f;
         }
     }
+
     void Update()
     {
-        if (fill.fillAmount > Progress)
+        if (fill.fillAmount >= Progress)
         {
             fill.fillAmount = Progress;
         }

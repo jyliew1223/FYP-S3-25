@@ -1,10 +1,10 @@
-using UnityEngine;
 using Firebase.Auth;
+using UnityEngine;
 
 public static class UserGlobalData
 {
-    private static bool isLoggedIn = false;
-    private static string idToken; 
+    public static bool isLoggedIn = false;
+    private static string idToken;
 
     public static string IDToken
     {
@@ -15,17 +15,19 @@ public static class UserGlobalData
             {
                 idToken = value;
                 isLoggedIn = true;
-                Debug.Log("User logged in, IDToken set.");
+                Debug.Log($"{nameof(UserGlobalData)}: User logged in, IDToken set.");
             }
             else
             {
-                Debug.LogWarning("IDToken is already set. Overwriting the existing token and signing out previous user.");
+                Debug.LogWarning(
+                    $"{nameof(UserGlobalData)}: IDToken is already set. Overwriting the existing token and signing out previous user."
+                );
 
                 // Sign out the previous Firebase user
                 if (FirebaseAuth.DefaultInstance.CurrentUser != null)
                 {
                     FirebaseAuth.DefaultInstance.SignOut();
-                    Debug.Log("Previous user signed out.");
+                    Debug.Log($"{nameof(UserGlobalData)}: Previous user signed out.");
                 }
 
                 // Set new token
@@ -44,7 +46,7 @@ public static class UserGlobalData
             }
             idToken = null;
             isLoggedIn = false;
-            Debug.Log("User signed out and IDToken cleared.");
+            Debug.Log($"{nameof(UserGlobalData)}: User signed out and IDToken cleared.");
         }
     }
 }
