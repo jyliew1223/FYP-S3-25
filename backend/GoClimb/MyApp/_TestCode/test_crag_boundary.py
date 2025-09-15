@@ -1,4 +1,4 @@
-# MyApp/_TestCode/test_crag_info_view.py
+# MyApp/_TestCode/test_crag_boundary_view.py
 import json
 
 from django.urls import reverse
@@ -13,7 +13,7 @@ from MyApp.Entity.user import User
 
 class CragInfoTests(TestCase):
     def setUp(self):
-        self.url = reverse("crag_info")
+        self.url = reverse("get_crag_info")
         self.crag_id = 1
         self.empty_crag_id = 999
         self.crag = Crag.objects.create(
@@ -28,8 +28,8 @@ class CragInfoTests(TestCase):
             ],
         )
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_info_view_unouthorize(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_crag_info_unouthorize(self, mock_appcheck):
 
         mock_appcheck.return_value = {"success": False}
 
@@ -42,8 +42,8 @@ class CragInfoTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertFalse(response_json.get("success"))
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_info_view_bad_request(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_crag_info_bad_request(self, mock_appcheck):
 
         mock_appcheck.return_value = {"success": True}
 
@@ -56,8 +56,8 @@ class CragInfoTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response_json.get("success"))
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_info_view_crag_not_found(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_crag_info_not_found(self, mock_appcheck):
 
         mock_appcheck.return_value = {"success": True}
 
@@ -70,8 +70,8 @@ class CragInfoTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertFalse(response_json.get("success"))
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_info_view_success(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_crag_info_success(self, mock_appcheck):
 
         mock_appcheck.return_value = {"success": True}
 
@@ -88,7 +88,7 @@ class CragInfoTests(TestCase):
 
 class CragMonthlyRankingTests(TestCase):
     def setUp(self):
-        self.url = reverse("crag_monthly_ranking")
+        self.url = reverse("get_crag_monthly_ranking")
         # Create a user
         self.user = User.objects.create(
             user_id="user-1",
@@ -142,8 +142,8 @@ class CragMonthlyRankingTests(TestCase):
             route_name="Route F",
         )
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_monthly_ranking_view_unauthorize(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_crag_monthly_ranking_unauthorize(self, mock_appcheck):
         mock_appcheck.return_value = {"success": False}
 
         response = self.client.get(f"{self.url}?count=2")
@@ -155,8 +155,8 @@ class CragMonthlyRankingTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertFalse(response_json.get("success"))
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_monthly_ranking_view_success(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_crag_monthly_ranking_success(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
         response = self.client.get(f"{self.url}?count=2")
@@ -169,8 +169,8 @@ class CragMonthlyRankingTests(TestCase):
         self.assertTrue(response_json.get("success"))
         self.assertEqual(len(response_json.get("data")), 2)
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_monthly_ranking_view_invalid_input(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_crag_monthly_ranking_bad_request(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
         response = self.client.get(f"{self.url}?count=-1")
@@ -185,7 +185,7 @@ class CragMonthlyRankingTests(TestCase):
 
 class CragTrendingTests(TestCase):
     def setUp(self):
-        self.url = reverse("crag_monthly_ranking")
+        self.url = reverse("get_trending_crags")
         # Create a user
         self.user = User.objects.create(
             user_id="user-1",
@@ -239,8 +239,8 @@ class CragTrendingTests(TestCase):
             route_name="Route F",
         )
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_trending_view_unauthorize(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_trending_crags_unauthorize(self, mock_appcheck):
         mock_appcheck.return_value = {"success": False}
 
         response = self.client.get(f"{self.url}?count=2")
@@ -252,8 +252,8 @@ class CragTrendingTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertFalse(response_json.get("success"))
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_trending_view_success(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_trending_crags_success(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
         response = self.client.get(f"{self.url}?count=2")
@@ -266,8 +266,8 @@ class CragTrendingTests(TestCase):
         self.assertTrue(response_json.get("success"))
         self.assertEqual(len(response_json.get("data")), 2)
 
-    @patch("MyApp.Boundary.crag_info.authenticate_app_check_token")
-    def test_crag_trending_view_invalid_input(self, mock_appcheck):
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_get_trending_crags_bad_request(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
         response = self.client.get(f"{self.url}?count=-1")

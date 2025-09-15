@@ -7,13 +7,15 @@ from unittest.mock import patch
 
 
 class AuthBoundaryTest(TestCase):
+    def setUp(self):
+        self.app_check_url = reverse("verify_app_check_token")
+        self.id_token_url = reverse("verify_id_token")
 
     @patch("MyApp.Boundary.auth_boundary.authenticate_app_check_token")
-    def test_verify_app_check_token_view_success(self, mock_auth):
+    def test_verify_app_check_token_success(self, mock_auth):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
 
-        url = reverse("Verify App Check Token")
-        response = self.client.get(url, data={}, format="json")
+        response = self.client.get(self.app_check_url, data={}, format="json")
 
         response_json = response.json()
         pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
@@ -24,14 +26,13 @@ class AuthBoundaryTest(TestCase):
         self.assertEqual(response_json.get("message"), "Mocked success")
 
     @patch("MyApp.Boundary.auth_boundary.authenticate_app_check_token")
-    def test_verify_app_check_token_view_fail(self, mock_auth):
+    def test_verify_app_check_token_fail(self, mock_auth):
         mock_auth.return_value = {
             "success": False,
             "message": "Missing App Check token",
         }
 
-        url = reverse("Verify App Check Token")
-        response = self.client.get(url, data={}, format="json")
+        response = self.client.get(self.app_check_url, data={}, format="json")
 
         response_json = response.json()
         pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
@@ -43,14 +44,13 @@ class AuthBoundaryTest(TestCase):
 
     @patch("MyApp.Boundary.auth_boundary.authenticate_app_check_token")
     @patch("MyApp.Boundary.auth_boundary.verify_id_token")
-    def test_verify_id_token_view_success(self, mock_verify_id, mock_auth):
+    def test_verify_id_token_success(self, mock_verify_id, mock_auth):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
         mock_verify_id.return_value = {"success": True, "message": "ID token verified"}
 
-        url = reverse("Verify ID Token")
         data = {"id_token": "valid-token"}
 
-        response = self.client.post(url, data=data, format="json")
+        response = self.client.post(self.id_token_url, data=data, format="json")
 
         response_json = response.json()
         pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
@@ -62,14 +62,13 @@ class AuthBoundaryTest(TestCase):
 
     @patch("MyApp.Boundary.auth_boundary.authenticate_app_check_token")
     @patch("MyApp.Boundary.auth_boundary.verify_id_token")
-    def test_verify_id_token_view_fail(self, mock_verify_id, mock_auth):
+    def test_verify_id_token_fail(self, mock_verify_id, mock_auth):
         mock_auth.return_value = {"success": True, "message": "Mocked success"}
         mock_verify_id.return_value = {"success": False, "message": "Invalid ID token"}
 
-        url = reverse("Verify ID Token")
         data = {"id_token": "bad-token"}
 
-        response = self.client.post(url, data=data, format="json")
+        response = self.client.post(self.id_token_url, data=data, format="json")
 
         response_json = response.json()
         pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)

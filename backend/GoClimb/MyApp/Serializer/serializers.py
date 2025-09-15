@@ -13,7 +13,6 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ["full_name", "email", "profile_picture", "role", "status"]
         extra_kwargs = {
-            "user_id": {"read_only": True},
             "status": {"read_only": True},
         }
 

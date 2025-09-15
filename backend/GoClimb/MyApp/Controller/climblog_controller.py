@@ -1,5 +1,8 @@
 from typing import Any, Dict, List, Optional, cast
 
+from django.utils.timezone import now
+from django.db.models import Count
+
 from firebase_admin import auth
 
 from MyApp.Entity.climblog import ClimbLog

@@ -3,15 +3,19 @@ from django.test import TestCase
 from rest_framework import status
 import uuid
 import json
+import datetime
+import random
 from unittest.mock import patch
 
 from MyApp.Entity.user import User
+from MyApp.Entity.crag import Crag
+from MyApp.Entity.climblog import ClimbLog
 
 
 class SignUpViewTest(TestCase):
 
     def setUp(self):
-        self.url = reverse("Sign Up User")
+        self.url = reverse("signup")
         self.id_token = "fake-id-token"
         self.user_id = "user-123"
         self.username = f"testuser{uuid.uuid4().hex[:6]}"
@@ -51,8 +55,8 @@ class SignUpViewTest(TestCase):
         self.assertFalse(response_json.get("success"))
 
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
-    def test_signup_serialize_failed(self, mock_id_token, mock_app_check):
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
+    def test_signup_bad_request_serializer_failed(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"uid": self.user_id}
 
@@ -71,8 +75,8 @@ class SignUpViewTest(TestCase):
         self.assertFalse(response_json.get("success"))
 
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
-    def test_signup_missing_field(self, mock_id_token, mock_app_check):
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
+    def test_signup_bad_request_missing_field(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"uid": self.user_id}
 
@@ -87,7 +91,7 @@ class SignUpViewTest(TestCase):
         self.assertFalse(response_json.get("success"))
 
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
     def test_signup_success(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"uid": self.user_id}
@@ -107,8 +111,8 @@ class SignUpViewTest(TestCase):
         self.assertTrue(response_json.get("success"))
 
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
-    def test_signup_user_already_exsits(self, mock_id_token, mock_app_check):
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
+    def test_signup_bad_request_user_already_exsits(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"uid": self.user_id}
 
@@ -127,8 +131,8 @@ class SignUpViewTest(TestCase):
         self.assertFalse(response_json.get("success"))
 
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
-    def test_signup_invalid_uid(self, mock_id_token, mock_app_check):
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
+    def test_signup_bad_request_invalid_uid(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"uid": None}
 
@@ -149,7 +153,7 @@ class SignUpViewTest(TestCase):
 
 class GetUserTests(TestCase):
     def setUp(self):
-        self.url = reverse("Get User")
+        self.url = reverse("get_user")
         self.user_id = "user-123"
         self.username = f"testuser{uuid.uuid4().hex[:6]}"
         self.user_email = f"test{uuid.uuid4().hex[:6]}@example"
@@ -163,7 +167,7 @@ class GetUserTests(TestCase):
         )
         
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
     def test_get_user_unauthorize(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": False}
         mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
@@ -181,7 +185,7 @@ class GetUserTests(TestCase):
         self.assertFalse(response_json.get("success"))
         
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
     def test_get_user_missing_id_token(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
@@ -199,7 +203,7 @@ class GetUserTests(TestCase):
         self.assertFalse(response_json.get("success"))
         
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
     def test_get_user_success(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"uid": self.user_id}
@@ -218,7 +222,7 @@ class GetUserTests(TestCase):
         self.assertIn("data", response_json)
         
     @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.user_control.auth.verify_id_token")
+    @patch("MyApp.Controller.user_controller.auth.verify_id_token")
     def test_get_user_not_found(self, mock_id_token, mock_app_check):
         mock_app_check.return_value = {"success": True}
         mock_id_token.return_value = {"uid": "nonexistent-user-id"}
@@ -235,3 +239,78 @@ class GetUserTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertFalse(response_json.get("success"))
     
+class GetMonthlyUserRankingTests(TestCase):
+    def setUp(self):
+        self.url = reverse("get_monthly_user_ranking")
+        
+        self.users = []
+        for _ in range(5):
+            user_id = uuid.uuid4().hex
+            username = f"testuser{uuid.uuid4().hex[:6]}"
+            user_email = f"test{uuid.uuid4().hex[:6]}@example"
+            user = User.objects.create(
+                user_id=user_id,
+                full_name=username,
+                email=user_email,
+                role="member",
+                status=True,
+            )
+            self.users.append(user)
+            
+        self.crag = Crag.objects.create(
+            name="Bukit Timah",
+            location_lat=1.3483,
+            location_lon=103.7795,
+            description="A popular climbing crag in Singapore.",
+            image_urls=[
+                "https://example.com/crag1.jpg",
+                "https://example.com/crag2.jpg",
+            ],
+        )
+           
+        self.climblogs = []
+        for _ in range(20):
+            user = random.choice(self.users)
+            climb_log = ClimbLog.objects.create(
+                user=user,
+                crag=self.crag,
+                route_name=f"Route {_}",
+                date_climbed=datetime.date.today(),
+                difficulty_grade="5.8",
+                notes="Test climb log",
+            )
+            self.climblogs.append(climb_log)
+            
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    def test_get_monthly_user_ranking_unauthorize(self, mock_app_check):
+        mock_app_check.return_value = {
+            "success": False,
+            "message": "Invalid App Check token.",
+        }
+
+        response = self.client.get(self.url, {"count": 3})
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(response_json.get("success"))
+        
+    @patch("MyApp.Boundary.user_boundary.authenticate_app_check_token")
+    def test_get_monthly_user_ranking_success(self, mock_app_check):
+        mock_app_check.return_value = {
+            "success": True,
+            "message": "Valid token.",
+        }
+
+        response = self.client.get(self.url, {"count": 3})
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response_json.get("success"))
+        self.assertIn("data", response_json)
+        self.assertNotIn("user_id", response_json.get("data")[0])

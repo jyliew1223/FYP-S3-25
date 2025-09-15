@@ -11,7 +11,7 @@ from MyApp.Serializer.serializers import CragSerializer
 # Utils
 from MyApp.Utils.helper import authenticate_app_check_token
 
-from MyApp.Controller.crag_control import (
+from MyApp.Controller.crag_controller import (
     get_crag_info,
     get_monthly_ranking,
     get_trending_crags,
@@ -19,7 +19,7 @@ from MyApp.Controller.crag_control import (
 
 
 @api_view(["GET"])
-def crag_info_view(request: Request) -> Response:
+def get_crag_info_view(request: Request) -> Response:
     """GET /crag_info?crag_id=str"""
     result: dict = authenticate_app_check_token(request)
     if not result.get("success"):
@@ -62,7 +62,7 @@ def crag_info_view(request: Request) -> Response:
 
 
 @api_view(["GET"])
-def crag_monthly_ranking_view(request: Request) -> Response:
+def get_crag_monthly_ranking_view(request: Request) -> Response:
     """GET /crag_monthly_ranking?count=int"""
     result: dict = authenticate_app_check_token(request)
     if not result.get("success"):
@@ -131,7 +131,7 @@ def crag_monthly_ranking_view(request: Request) -> Response:
 
 
 @api_view(["GET"])
-def crag_trending_view(request: Request) -> Response:
+def get_trending_crags_view(request: Request) -> Response:
     """GET /crag_trending?count=int"""
     result: dict = authenticate_app_check_token(request)
     if not result.get("success"):
@@ -152,22 +152,38 @@ def crag_trending_view(request: Request) -> Response:
 
     try:
         trending_list = get_trending_crags(count)
+        
+        if not trending_list:
+            return Response(
+                {
+                    "success": True,
+                    "message": "No trending crags found.",
+                    "data": [],
+                    "errors": {},
+                },
+                status=status.HTTP_200_OK,
+            )
+
         trending_list_json = []
 
         for item in trending_list:
             if item:
-                crag_obj = item[0]  # get the Crag instance
-                crag_data = CragSerializer(crag_obj).data
-                trending_list_json.append(crag_data)
+                crag_obj = item["crag"]  # Crag instance
+                crag_data = dict(CragSerializer(crag_obj).data)
 
-        for idx, item in enumerate(trending_list_json, 1):
-            item["ranking"] = idx
+                # Add the other values into the serialized dict
+                crag_data["current_count"] = item.get("current_count", 0)
+                crag_data["previous_count"] = item.get("previous_count", 0)
+                crag_data["growth"] = item.get("growth", 0)
+                crag_data["growth_rate"] = item.get("growth_rate", 0)
+
+                trending_list_json.append(crag_data)
 
         return Response(
             {
                 "success": True,
                 "message": "Trending crags fetched successfully.",
-                "data": trending_list,
+                "data": trending_list_json,
                 "errors": {},
             },
             status=status.HTTP_200_OK,

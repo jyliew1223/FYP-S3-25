@@ -22,7 +22,7 @@ def get_monthly_ranking(count: int) -> list:
     ranking = (
         ClimbLog.objects.filter(date_climbed__gte=period_start)
         .values("crag")
-        .annotate(total_climbs=Count("log_id")) 
+        .annotate(total_climbs=Count("log_id"))
         .order_by("-total_climbs")[:count]
     )
 
@@ -34,7 +34,7 @@ def get_monthly_ranking(count: int) -> list:
     return crag_list
 
 
-def get_trending_crags(count: int) -> list:
+def get_trending_crags(count: int) -> list[dict[str, Any]]:
     if count < 1:
         raise ValueError("count must be a positive integer")
 
@@ -46,7 +46,7 @@ def get_trending_crags(count: int) -> list:
     current_counts = (
         ClimbLog.objects.filter(date_climbed__gte=period_start)
         .values("crag")
-        .annotate(current_count=Count("id"))
+        .annotate(current_count=Count("crag"))
     )
 
     previous_counts = (
@@ -54,32 +54,38 @@ def get_trending_crags(count: int) -> list:
             date_climbed__gte=lastperiod_start, date_climbed__lt=period_start
         )
         .values("crag")
-        .annotate(total_climbs=Count("log_id")) 
+        .annotate(previous_count=Count("log_id"))
     )
 
     previous_lookup = {item["crag"]: item["previous_count"] for item in previous_counts}
 
-    trending_list = []
+    crag_ids = [item["crag"] for item in current_counts]
+    crags = {c.crag_id: c for c in Crag.objects.filter(crag_id__in=crag_ids)}
+
+    trending_list: list[dict[str, Any]] = []
+
     for current in current_counts:
         crag_id = current["crag"]
+        crag_obj = crags.get(crag_id)
+        if not crag_obj:
+            continue
+
         current_count = current["current_count"]
         previous_count = previous_lookup.get(crag_id, 0)
-
         growth = current_count - previous_count
-        growth_rate = (
-            (growth / previous_count)
-            if previous_count > 0
-            else (float("inf") if growth > 0 else 0)
-        )
+        growth_rate = (growth / previous_count) if previous_count > 0 else growth
 
         if growth > 0:
-            crag_obj = Crag.objects.filter(crag_id=crag_id).first()
-            if crag_obj:
-                trending_list.append(
-                    (crag_obj, current_count, previous_count, growth, growth_rate)
-                )
+            trending_list.append(
+                {
+                    "crag": crag_obj,
+                    "current_count": current_count,
+                    "previous_count": previous_count,
+                    "growth": growth,
+                    "growth_rate": growth_rate,
+                }
+            )
 
-    trending_list.sort(key=lambda x: x[4], reverse=True)
-    trending_list = trending_list[:count]
-
-    return trending_list
+    # Sort by growth_rate descending and limit to requested count
+    trending_list.sort(key=lambda x: x["growth_rate"], reverse=True)
+    return trending_list[:count]
