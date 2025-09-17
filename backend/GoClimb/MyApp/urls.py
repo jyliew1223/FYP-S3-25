@@ -20,7 +20,7 @@ from MyApp.Boundary.climblog_boundary import (
     get_user_climb_logs_view,
     get_user_climb_stats_view,
 )
-from MyApp.Boundary.post_boundary import get_post_view
+from MyApp.Boundary.post_boundary import get_post_view,get_random_post_view
 
 
 urlpatterns = [
@@ -58,6 +58,7 @@ urlpatterns = [
         "get_crag_monthly_ranking/", get_crag_monthly_ranking_view, name="get_crag_monthly_ranking"
     ),
     path("get_trending_crags/", get_trending_crags_view, name="get_trending_crags"),
+    path("get_random_post/", get_random_post_view, name="get_random_post"),
     # ==========================
     # ==========================
     # climb logs related

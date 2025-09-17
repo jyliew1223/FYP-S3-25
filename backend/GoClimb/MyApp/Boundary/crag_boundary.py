@@ -76,7 +76,7 @@ def get_crag_monthly_ranking_view(request: Request) -> Response:
             {
                 "success": False,
                 "message": "Invalid count value.",
-                "errors": {"count must be an integer."},
+                "errors": {"count":"count must be an integer."},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -114,7 +114,7 @@ def get_crag_monthly_ranking_view(request: Request) -> Response:
                 "success": False,
                 "message": f"Error: {str(ve)}",
                 "data": [],
-                "errors": {str(ve)},
+                "errors": {"exception": str(ve)},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -145,7 +145,7 @@ def get_trending_crags_view(request: Request) -> Response:
             {
                 "success": False,
                 "message": "Invalid count value.",
-                "errors": {"count must be an integer."},
+                "errors": {"count": "count must be an integer."},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -194,7 +194,7 @@ def get_trending_crags_view(request: Request) -> Response:
                 "success": False,
                 "message": f"Error: {str(ve)}",
                 "data": [],
-                "errors": {str(ve)},
+                "errors": {"exception": str(ve)},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )

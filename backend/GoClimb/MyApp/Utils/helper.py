@@ -91,3 +91,15 @@ def verify_id_token(id_token: str) -> Dict[str, Any]:
             "message": f"Failed to verify token: {str(e)}",
             "errors": {},
         }
+
+class PrefixedIDConverter:
+    def to_raw_id(self, prefixed_id: str) -> int:
+        if not prefixed_id or "-" not in prefixed_id:
+            raise ValueError(f"not - found Invalid ID format: {prefixed_id}")
+        parts = prefixed_id.split("-")
+        if len(parts) != 2:
+            raise ValueError(f"len of part !=2 Invalid ID format: {prefixed_id}")
+        try:
+            return int(parts[1])
+        except ValueError:
+            raise ValueError(f"Invalid numeric part in ID: {prefixed_id}")
