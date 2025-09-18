@@ -35,7 +35,8 @@ if not SECRET_KEY:
     raise ValueError("No SECRET_KEY set for Django application")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
+#DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
+DEBUG = False
 
 allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts.split(",") if host.strip()]
