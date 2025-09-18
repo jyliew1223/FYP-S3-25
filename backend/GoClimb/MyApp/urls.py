@@ -1,7 +1,6 @@
 from django.urls import path
 
 from . import views
-from MyApp.admin import admin_site  
 
 from MyApp.Boundary.user_boundary import (
     signup_view,
@@ -23,9 +22,13 @@ from MyApp.Boundary.climblog_boundary import (
 )
 from MyApp.Boundary.post_boundary import get_post_view,get_random_post_view
 
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin_site.urls),  # use custom admin
+    path('admin/', admin.site.urls),  # use custom admin
     # ==========================
     # html page
     # ==========================
@@ -75,4 +78,4 @@ urlpatterns = [
     # ==========================
     path("get_post/", get_post_view, name="get_post"),
     # ==========================
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
