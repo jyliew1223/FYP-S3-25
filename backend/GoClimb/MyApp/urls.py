@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from MyApp.admin import admin_site  
 
 from MyApp.Boundary.user_boundary import (
     signup_view,
@@ -24,6 +25,7 @@ from MyApp.Boundary.post_boundary import get_post_view,get_random_post_view
 
 
 urlpatterns = [
+    path('admin/', admin_site.urls),  # use custom admin
     # ==========================
     # html page
     # ==========================

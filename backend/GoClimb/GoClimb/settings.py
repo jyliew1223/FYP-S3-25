@@ -55,6 +55,9 @@ INSTALLED_APPS = [
     "MyApp",
 ]
 
+X_FRAME_OPTIONS = "SAMEORIGIN"              # allows you to use modals insated of popups
+SILENCED_SYSTEM_CHECKS = ["security.W019"]  # ignores redundant warning messages
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -142,14 +145,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "/static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]           # ✅ correct
+STATIC_ROOT = BASE_DIR / "staticfiles"            # use / instead of os.path.join
 
-# STATICFILES_DIRS = [
-#     BASE_DIR / "static",
-# ]
-
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # If BASE_DIR is a string
-
-# Enable WhiteNoise gzip compression & caching (optional)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
