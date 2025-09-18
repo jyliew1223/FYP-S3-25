@@ -58,7 +58,7 @@ urlpatterns = [
         "get_crag_monthly_ranking/", get_crag_monthly_ranking_view, name="get_crag_monthly_ranking"
     ),
     path("get_trending_crags/", get_trending_crags_view, name="get_trending_crags"),
-    path("get_random_post/", get_random_post_view, name="get_random_post"),
+    path("get_random_posts/", get_random_post_view, name="get_random_post"),
     # ==========================
     # ==========================
     # climb logs related

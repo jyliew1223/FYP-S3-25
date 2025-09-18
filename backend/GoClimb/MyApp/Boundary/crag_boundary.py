@@ -70,7 +70,7 @@ def get_crag_monthly_ranking_view(request: Request) -> Response:
 
     count_param = request.query_params.get("count")
     try:
-        count = int(count_param) if count_param is not None else 0  # default value
+        count = int(count_param) if count_param is not None else 0 
     except ValueError:
         return Response(
             {
@@ -86,18 +86,17 @@ def get_crag_monthly_ranking_view(request: Request) -> Response:
 
         serialized_data = []
         for idx, item in enumerate(crag_list, 1):
-            # Accept either a Crag model or a dict (as mocked in tests)
-            if hasattr(item, "_meta"):  # Django model
+            if hasattr(item, "_meta"):
                 crag_data = CragSerializer(item).data
-            elif isinstance(item, dict):  # mocked dict from tests
+            elif isinstance(item, dict):
                 crag_data = dict(item)
             else:
-                # Unknown type; skip safely
                 continue
 
-            if isinstance(crag_data, dict):
-                crag_data["ranking"] = idx
-            serialized_data.append(crag_data)
+            serialized_data.append({
+                "crag": crag_data, 
+                "ranking": idx    
+            })
 
         return Response(
             {
@@ -139,7 +138,7 @@ def get_trending_crags_view(request: Request) -> Response:
 
     count_param = request.query_params.get("count")
     try:
-        count = int(count_param) if count_param is not None else 0  # default value
+        count = int(count_param) if count_param is not None else 0 
     except ValueError:
         return Response(
             {
@@ -168,16 +167,16 @@ def get_trending_crags_view(request: Request) -> Response:
 
         for item in trending_list:
             if item:
-                crag_obj = item["crag"]  # Crag instance
+                crag_obj = item["crag"]
                 crag_data = dict(CragSerializer(crag_obj).data)
 
-                # Add the other values into the serialized dict
-                crag_data["current_count"] = item.get("current_count", 0)
-                crag_data["previous_count"] = item.get("previous_count", 0)
-                crag_data["growth"] = item.get("growth", 0)
-                crag_data["growth_rate"] = item.get("growth_rate", 0)
-
-                trending_list_json.append(crag_data)
+                trending_list_json.append({
+                    "crag": crag_data,
+                    "current_count": item.get("current_count", 0),
+                    "previous_count": item.get("previous_count", 0),
+                    "growth": item.get("growth", 0),
+                    "growth_rate": item.get("growth_rate", 0),
+                })
 
         return Response(
             {

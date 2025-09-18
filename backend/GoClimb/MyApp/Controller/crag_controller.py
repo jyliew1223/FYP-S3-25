@@ -5,8 +5,6 @@ from django.utils.timezone import now
 from MyApp.Entity.climblog import ClimbLog
 from django.db.models import Count
 
-
-# Rename functions to match test expectations
 def get_crag_info(crag_id: str) -> Optional[Crag]:
     """Fetch a single crag object"""
     return Crag.objects.filter(crag_id=crag_id).first()
@@ -36,7 +34,7 @@ def get_monthly_ranking(count: int) -> list:
 
 def get_trending_crags(count: int) -> list[dict[str, Any]]:
     if count < 1:
-        raise ValueError("count must be a positive integer")
+        raise ValueError(f"count must be a positive integer, count:{count}")
 
     days = 7
     today = now().date()

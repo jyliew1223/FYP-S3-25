@@ -10,9 +10,14 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 
 from MyApp.Serializer.serializers import UserSerializer
-from MyApp.Controller.user_controller import signup_user, get_user_by_id, get_monthly_user_ranking
+from MyApp.Controller.user_controller import (
+    signup_user,
+    get_user_by_id,
+    get_monthly_user_ranking,
+)
 from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
 from MyApp.Utils.helper import authenticate_app_check_token
+
 
 @api_view(["POST"])
 def signup_view(request: Request) -> Response:
@@ -168,8 +173,6 @@ def get_user_view(request: Request) -> Response:
 
         serializer = UserSerializer(user)
         user_data = serializer.data
-        if isinstance(user_data, dict) and "user_id" in user_data:
-            del user_data["user_id"]
 
         return Response(
             {
@@ -195,43 +198,44 @@ def get_user_view(request: Request) -> Response:
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+
 @api_view(["GET"])
 def get_monthly_user_ranking_view(request: Request) -> Response:
     """
-        Method: GET
+    Method: GET
 
-        INPUT: ?count=(int)
+    INPUT: ?count=(int)
 
-        OUTPUT:  
-            {
-        'success' : bool
-        'message' : str
-        'data' : [
-            { 
-                'ranking' : int
-                'user_id' : int
-                'user_name' : int
-                'route_attempt' : int
-            },
-            { 
-                # other entries
-            }
-            ]
-        'errors': dict[str, Any] # Only if success is False
+    OUTPUT:
+        {
+    'success' : bool
+    'message' : str
+    'data' : [
+        {
+            'ranking' : int
+            'user_id' : int
+            'user_name' : int
+            'route_attempt' : int
+        },
+        {
+            # other entries
         }
+        ]
+    'errors': dict[str, Any] # Only if success is False
+    }
     """
     auth_result: Dict[str, Any] = authenticate_app_check_token(request)
-    
+
     if not auth_result.get("success"):
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
-    
+
     count_str = request.query_params.get("count", "3")
     count = int(count_str) if count_str.isdigit() else 3
-    
+
     required_fields: Dict[str, Any] = {
         "count": count,
     }
-    
+
     if not all(required_fields.values()):
         return Response(
             {
@@ -245,10 +249,10 @@ def get_monthly_user_ranking_view(request: Request) -> Response:
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-        
+
     try:
-        ranking :list[dict[str, Any]]= get_monthly_user_ranking(count)
-        
+        ranking: list[dict[str, Any]] = get_monthly_user_ranking(count)
+
         if not ranking:
             return Response(
                 {
@@ -258,19 +262,22 @@ def get_monthly_user_ranking_view(request: Request) -> Response:
                 },
                 status=status.HTTP_200_OK,
             )
-        
+
         user_ranking: list[dict[str, Any]] = []
+
         for row in ranking:
             user = row.get("user")
             if user:
-                
                 serialized_user = dict(UserSerializer(user).data)
-                # Add extra fields inside the serialized user object
-                serialized_user["rank"] = row.get("ranking", 0)
-                serialized_user["total_routes"] = row.get("total_routes", 0)
 
-                user_ranking.append(serialized_user)
-        
+                ranking_entry = {
+                    "user": serialized_user, 
+                    "rank": row.get("ranking", 0),
+                    "total_routes": row.get("total_routes", 0),
+                }
+
+                user_ranking.append(ranking_entry)
+
         return Response(
             {
                 "success": True,
@@ -279,6 +286,7 @@ def get_monthly_user_ranking_view(request: Request) -> Response:
             },
             status=status.HTTP_200_OK,
         )
+
     except ValueError as e:
         return Response(
             {"success": False, "message": str(e)},

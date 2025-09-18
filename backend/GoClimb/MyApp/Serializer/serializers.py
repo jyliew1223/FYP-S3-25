@@ -59,7 +59,8 @@ class ClimbLogSerializer(serializers.ModelSerializer):
         return obj.formatted_id
 
 
-class PostSerializer(serializers.ModelSerializer):
+class PostSerializer(serializers.ModelSerializer):    
+    user = UserSerializer(read_only=True)
     post_id = (
         serializers.SerializerMethodField()
     )  # override post_id to show formatted_id

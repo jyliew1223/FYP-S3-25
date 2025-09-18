@@ -16,7 +16,7 @@ def get_user_climb_logs(id_token: str) -> List[ClimbLog]:
         raise InvalidUIDError("User ID is null or empty.")
 
     logs = ClimbLog.objects.filter(user=user_id).order_by("-date_climbed")
-    return list(logs)  # returns empty list if no logs
+    return list(logs)
 
 
 def get_user_climb_state(id_token: str) -> Optional[int]:
