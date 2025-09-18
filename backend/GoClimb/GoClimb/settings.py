@@ -146,7 +146,7 @@ STATIC_URL = "/static/"
 #     BASE_DIR / "static",
 # ]
 
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")  # If BASE_DIR is a string
 
 # Enable WhiteNoise gzip compression & caching (optional)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
