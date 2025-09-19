@@ -35,7 +35,8 @@ if not SECRET_KEY:
     raise ValueError("No SECRET_KEY set for Django application")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
+#DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
+DEBUG = False
 
 allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts.split(",") if host.strip()]
@@ -51,9 +52,11 @@ INSTALLED_APPS = [
     # APIs
     "rest_framework",
     # Your App
-    "GoClimbTest",
     "MyApp",
 ]
+
+X_FRAME_OPTIONS = "SAMEORIGIN"              # allows you to use modals insated of popups
+SILENCED_SYSTEM_CHECKS = ["security.W019"]  # ignores redundant warning messages
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -66,12 +69,14 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 ROOT_URLCONF = "GoClimb.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        "DIRS": [os.path.join(BASE_DIR, "templates")], 
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -140,14 +145,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "/static/"
+# STATICFILES_DIRS = [BASE_DIR / "static"]           # ✅ correct
+STATIC_ROOT = BASE_DIR / "staticfiles"            # use / instead of os.path.join
 
-# STATICFILES_DIRS = [
-#     BASE_DIR / "static",
-# ]
-
-STATIC_ROOT = BASE_DIR / "staticfiles"
-
-# Enable WhiteNoise gzip compression & caching (optional)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type

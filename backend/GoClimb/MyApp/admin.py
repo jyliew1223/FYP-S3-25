@@ -7,6 +7,7 @@ from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
 from MyApp.Entity.post import Post
 from MyApp.Entity.climblog import ClimbLog
+from django.contrib import admin
 
 admin.site.register(User)
 admin.site.register(Crag)

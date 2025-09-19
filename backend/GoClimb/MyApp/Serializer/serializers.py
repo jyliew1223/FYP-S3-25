@@ -11,7 +11,7 @@ from MyApp.Entity.category import Category
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["full_name", "email", "profile_picture", "role", "status"]
+        fields = ["user_id", "full_name", "email", "profile_picture", "role", "status"]
         extra_kwargs = {
             "status": {"read_only": True},
         }
@@ -38,6 +38,7 @@ class CragSerializer(serializers.ModelSerializer):
 class ClimbLogSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     crag = CragSerializer(read_only=True)
+
     log_id = serializers.SerializerMethodField()  # override to return formatted_id
 
     class Meta:
@@ -59,11 +60,9 @@ class ClimbLogSerializer(serializers.ModelSerializer):
         return obj.formatted_id
 
 
-class PostSerializer(serializers.ModelSerializer):    
+class PostSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
-    post_id = (
-        serializers.SerializerMethodField()
-    )  # override post_id to show formatted_id
+    post_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Post

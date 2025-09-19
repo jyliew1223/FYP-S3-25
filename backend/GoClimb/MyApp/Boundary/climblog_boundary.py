@@ -63,17 +63,7 @@ def get_user_climb_logs_view(request: Request) -> Response:
         list = get_user_climb_logs(id_token)
 
         serializer = ClimbLogSerializer(list, many=True)
-        items: List[Dict[str, Any]] = [
-            {
-                "log_id": row["log_id"],
-                "crag_id": row["crag"],
-                "user_id": row["user"],
-                "route_name": row["route_name"],
-                "date_climbed": row["date_climbed"],
-                "difficulty_grade": row["difficulty_grade"],
-            }
-            for row in serializer.data
-        ]
+        items = serializer.data
 
         # 6) Always 200 on success, even if list is empty
         return Response(

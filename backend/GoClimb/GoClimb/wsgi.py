@@ -10,7 +10,10 @@ https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
 import os
 
 from django.core.wsgi import get_wsgi_application
+from whitenoise import WhiteNoise
+
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "GoClimb.settings")
 
 application = get_wsgi_application()
+application = WhiteNoise(application, root='/opt/render/project/src/backend/GoClimb/staticfiles', prefix='static/')
