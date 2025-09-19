@@ -20,7 +20,11 @@ from MyApp.Boundary.climblog_boundary import (
     get_user_climb_logs_view,
     get_user_climb_stats_view,
 )
-from MyApp.Boundary.post_boundary import get_post_view,get_random_post_view
+from MyApp.Boundary.post_boundary import (
+    get_post_view,
+    get_random_post_view,
+    get_post_by_user_id_view,
+)
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -28,7 +32,7 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
-    path('admin/', admin.site.urls),  # use custom admin
+    path("admin/", admin.site.urls),  # use custom admin
     # ==========================
     # html page
     # ==========================
@@ -60,7 +64,9 @@ urlpatterns = [
     # ==========================
     path("get_crag_info/", get_crag_info_view, name="get_crag_info"),
     path(
-        "get_crag_monthly_ranking/", get_crag_monthly_ranking_view, name="get_crag_monthly_ranking"
+        "get_crag_monthly_ranking/",
+        get_crag_monthly_ranking_view,
+        name="get_crag_monthly_ranking",
     ),
     path("get_trending_crags/", get_trending_crags_view, name="get_trending_crags"),
     path("get_random_posts/", get_random_post_view, name="get_random_post"),
@@ -77,5 +83,6 @@ urlpatterns = [
     # post related
     # ==========================
     path("get_post/", get_post_view, name="get_post"),
+    path("get_post_by_user_id/", get_post_by_user_id_view, name="get_post_by_user_id"),
     # ==========================
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -232,3 +232,57 @@ class GetRandomPostTestCase(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(response_json.get("success"))
+
+
+class GetPostByUserIdTestCase(TestCase):
+    def setUp(self):
+        self.url = reverse("get_post_by_user_id")
+        self.user_id = str(uuid.uuid4())
+        self.post_array = []
+        self.user = User.objects.create(
+            user_id=self.user_id,
+            full_name=f"user",
+            email=f"user@example.com",
+            profile_picture="https://example.com/avatar.png",
+            role="member",
+            status=True,
+        )
+
+        for i in range(50):
+            post = Post.objects.create(
+                user=self.user,
+                content="My first post from the shell!",
+                tags=["django", "orm", "example"],  # optional
+                image_urls=["https://example.com/image1.png"],  # optional
+                status="active",
+            )
+            self.post_array.append(post)
+
+    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Controller.post_controller.auth.verify_id_token")
+    def test_get_post_by_user_id_success(self, mock_verify_id, mock_appcheck):
+        mock_appcheck.return_value = {
+            "success": True,
+            "message": "Valid token.",
+        }
+        mock_verify_id.return_value = {
+            "success": True,
+            "uid": self.user_id,
+        }
+        response = self.client.post(
+            self.url,
+            {
+                "id_token": "fake_token",
+                "count": 5,
+                "blacklist": [],
+            },  # <- pass the list directly
+            content_type="application/json",  # ensure proper parsing
+        )
+
+        response_json = response.json()
+        pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
+        print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response_json.get("success"))
+        self.assertEqual(len(response_json.get("data", [])), 5)
