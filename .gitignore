@@ -43,3 +43,5 @@ htmlcov/
 
 # PyCharm project files (optional)
 *.iml
+
+Unity_Project/*
