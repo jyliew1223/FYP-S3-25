@@ -11,7 +11,7 @@ class ClimbLog(models.Model):
         managed = True
 
     # Maybe can use AutoField for primary key incrementation
-    log_id = models.CharField(max_length=128, primary_key=True, editable=False)
+    log_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="climb_logs")
     crag = models.ForeignKey(
         Crag,
@@ -28,3 +28,8 @@ class ClimbLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.route_name} | {self.user} | {self.date_climbed}"
+    
+    @property
+    def formatted_id(self) -> str:
+        """Return id with prefix."""
+        return f"CLIMBLOG-{self.log_id}"

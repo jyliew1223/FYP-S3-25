@@ -10,7 +10,7 @@ class Category(models.Model):
         managed = True
 
     # Or we can use AutoField for primary key incrementation
-    category_id = models.CharField(max_length=128, primary_key=True, editable=False)
+    category_id = models.AutoField(primary_key=True)  # auto-increment integer
     name = models.CharField(max_length=100, unique=True)
     # Why do we need this field?
     email = models.EmailField(max_length=255, unique=True)
@@ -21,3 +21,8 @@ class Category(models.Model):
 
     def __str__(self) -> str:
         return f"{self.name} | {self.category_id}"
+    
+    @property
+    def formatted_id(self) -> str:
+        """Return id with prefix."""
+        return f"CAT-{self.category_id}"
