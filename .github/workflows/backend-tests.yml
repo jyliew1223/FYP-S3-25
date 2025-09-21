@@ -83,3 +83,23 @@ jobs:
         with:
           name: backend-test-results
           path: Backend/GoClimb/test_results.txt
+
+      - name: Deploy to Render
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        run: |
+          echo "🚀 Triggering Render deployment..."
+          echo "Branch: ${{ github.ref }}"
+          echo "Event: ${{ github.event_name }}"
+          
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
+            echo "❌ RENDER_DEPLOY_HOOK_URL secret not set"
+            echo "Please add your Render Deploy Hook URL to GitHub Secrets"
+            exit 1
+          fi
+          
+          response=$(curl -s -w "%{http_code}" -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          http_code="${response: -3}"
+          
+          if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
+            echo "✅ Deployment triggered successfully! (HTTP $http_code)"
+            echo "🔗 Check deployment status at: https://dashboard.render.com

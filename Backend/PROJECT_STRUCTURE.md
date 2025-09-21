@@ -35,3 +35,16 @@ python Backend/GoClimb/manage.py migrate
 ## Development
 
 All Django development should be done within the `Backend/GoClimb/` directory.
+
+## Deployment
+
+The project includes automatic deployment to Render after successful tests:
+
+- **Automatic**: Deploys to Render when tests pass on `main`/`master` branch
+- **Setup**: See `RENDER_DEPLOYMENT.md` for configuration instructions
+- **Testing**: Use `test_deploy_hook.sh` to test your deploy hook locally
+
+## Files
+
+- `RENDER_DEPLOYMENT.md` - Render deployment setup guide
+- `test_deploy_hook.sh` - Script to test deploy hook locally
