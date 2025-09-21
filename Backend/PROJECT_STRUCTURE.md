@@ -36,6 +36,8 @@ python Backend/GoClimb/manage.py migrate
 
 All Django development should be done within the `Backend/GoClimb/` directory.
 
+<!-- Trigger workflow test -->
+
 ## Deployment
 
 The project includes automatic deployment to Render after successful tests:
