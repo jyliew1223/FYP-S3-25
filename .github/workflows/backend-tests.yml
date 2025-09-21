@@ -12,11 +12,25 @@ jobs:
   backend-tests:
     runs-on: ubuntu-latest
     
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_ci_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
     env:
       SECRET_KEY: 'test-secret-key-for-github-actions-only-not-for-production'
       DEBUG: 'True'
       ALLOWED_HOSTS: 'localhost,127.0.0.1'
-      DATABASE_URL: 'sqlite:///test_db.sqlite3'
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test_ci_db'
       CI: 'true'
     
     steps:
@@ -34,6 +48,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r Backend/GoClimb/requirements.txt
           echo "✅ Dependencies installed!"
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "⏳ Waiting for PostgreSQL to be ready..."
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "PostgreSQL is unavailable - sleeping"
+            sleep 1
+          done
+          echo "✅ PostgreSQL is ready!"
 
       - name: Run Django system check
         run: |

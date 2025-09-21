@@ -105,8 +105,11 @@ import dj_database_url
 
 DATABASES = {
     "default": dj_database_url.config(default=os.getenv("DATABASE_URL")),
-    "OPTIONS": {"options": "-c search_path=go_climb,public"},
 }
+
+# Add PostgreSQL-specific options only for non-CI environments
+if os.getenv("CI") != "true":
+    DATABASES["default"]["OPTIONS"] = {"options": "-c search_path=go_climb,public"}
 
 
 # Password validation
