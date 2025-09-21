@@ -1,0 +1,48 @@
+name: Backend Tests
+run-name: Testing Backend Django Application 🐍
+on:
+  push:
+    paths:
+      - 'Backend/**'
+  pull_request:
+    paths:
+      - 'Backend/**'
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          echo "📦 Installing Backend dependencies..."
+          python -m pip install --upgrade pip
+          pip install -r Backend/GoClimb/requirements.txt
+          echo "✅ Dependencies installed!"
+
+      - name: Run Django system check
+        run: |
+          echo "🔍 Running Django system check..."
+          cd Backend/GoClimb
+          python manage.py check
+
+      - name: Run Django unit tests
+        run: |
+          echo "🧪 Running Django unit tests..."
+          cd Backend/GoClimb
+          python manage.py test MyApp --verbosity=2
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: Backend/GoClimb/test_results.txt
