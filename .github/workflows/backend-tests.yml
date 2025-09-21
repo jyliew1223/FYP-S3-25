@@ -121,4 +121,9 @@ jobs:
           
           if [ "$http_code" -eq 200 ] || [ "$http_code" -eq 201 ]; then
             echo "✅ Deployment triggered successfully! (HTTP $http_code)"
-            echo "🔗 Check deployment status at: https://dashboard.render.com
+            echo "🔗 Check deployment status at: https://dashboard.render.com/"
+          else
+            echo "❌ Deployment trigger failed (HTTP $http_code)"
+            echo "Response: ${response%???}"
+            exit 1
+          fi
