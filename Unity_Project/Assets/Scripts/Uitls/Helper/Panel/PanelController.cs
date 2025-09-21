@@ -11,7 +11,7 @@ public class PanelController : MonoBehaviour
 
     private static PanelController instance;
 
-    public static PanelController Instnace
+    public static PanelController Instance
     {
         get
         {

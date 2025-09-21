@@ -1,11 +1,11 @@
 class GlobalSetting
 {
+    // public const string BaseUrl = "http://127.0.0.1:8000/";
     public const string BaseUrl = "https://goclimb-web.onrender.com/";
-#if UNITY_EDITOR
+#if DEVELOPMENT_BUILD
     public const string TestUserEmail = "testuser001@gmail.com";
     public const string TestUserPassword = "testuser001";
     // public const string BaseUrl = "http://127.0.0.1:8000/";
-#else
 #endif
 
     public const float msgCountdown = .5f;
