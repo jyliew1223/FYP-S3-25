@@ -35,7 +35,7 @@ The GitHub Actions workflow will:
 
 The deployment will **only** trigger when:
 - All tests pass successfully
-- The push is to `main` or `master` branch
+- The push is to `main`, `master`, or `Backend_Sub` branch
 - It's a push event (not a pull request)
 
 ## Manual Deployment
@@ -50,8 +50,9 @@ curl -X POST "YOUR_RENDER_DEPLOY_HOOK_URL"
 
 ### Deployment not triggering?
 - Check that the secret `RENDER_DEPLOY_HOOK_URL` is set correctly
-- Verify you're pushing to `main` or `master` branch
+- Verify you're pushing to `main`, `master`, or `Backend_Sub` branch
 - Ensure all tests are passing
+- Check the "Check deployment conditions" step in GitHub Actions for debugging info
 
 ### Render deployment failing?
 - Check Render deployment logs in your Render dashboard

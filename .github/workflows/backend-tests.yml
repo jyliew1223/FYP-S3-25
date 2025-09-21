@@ -84,12 +84,31 @@ jobs:
           name: backend-test-results
           path: Backend/GoClimb/test_results.txt
 
+      - name: Check deployment conditions
+        run: |
+          echo "🔍 Checking deployment conditions..."
+          echo "Event type: ${{ github.event_name }}"
+          echo "Branch ref: ${{ github.ref }}"
+          echo "Is push event: ${{ github.event_name == 'push' }}"
+          echo "Is main branch: ${{ github.ref == 'refs/heads/main' }}"
+          echo "Is master branch: ${{ github.ref == 'refs/heads/master' }}"
+          echo "Is Backend_Sub branch: ${{ github.ref == 'refs/heads/Backend_Sub' }}"
+          
+          if [[ "${{ github.event_name }}" == "push" && ("${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/master" || "${{ github.ref }}" == "refs/heads/Backend_Sub") ]]; then
+            echo "✅ Deployment conditions met!"
+          else
+            echo "❌ Deployment conditions not met"
+            echo "   - Must be a push event to main, master, or Backend_Sub branch"
+          fi
+
       - name: Deploy to Render
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/Backend_Sub')
         run: |
           echo "🚀 Triggering Render deployment..."
           echo "Branch: ${{ github.ref }}"
           echo "Event: ${{ github.event_name }}"
+          echo "Repository: ${{ github.repository }}"
+          echo "Commit: ${{ github.sha }}"
           
           if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" ]; then
             echo "❌ RENDER_DEPLOY_HOOK_URL secret not set"
