@@ -159,12 +159,21 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 import firebase_admin
 from firebase_admin import credentials
 
-path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+# Skip Firebase initialization in CI environments
+if os.getenv("CI") != "true":
+    path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 
-if not path or not os.path.exists(path):
-    raise FileNotFoundError(
-        "Firebase credentials file not found in any configured path."
-    )
+    if not path or not os.path.exists(path):
+        raise FileNotFoundError(
+            "Firebase credentials file not found in any configured path."
+        )
 
-cred = credentials.Certificate(path)
-firebase_admin.initialize_app(cred)
+    cred = credentials.Certificate(path)
+    firebase_admin.initialize_app(cred)
+else:
+    # Initialize a mock Firebase app for CI
+    try:
+        firebase_admin.initialize_app(options={'projectId': 'test-project-ci'})
+    except ValueError:
+        # App already initialized, skip
+        pass
