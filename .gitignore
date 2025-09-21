@@ -11,8 +11,8 @@ android/app/build/
 android/.gradle/
 android/build/
 android/app/*.iml
-android/local.properties
-**/gradle-wrapper.jar
+# android/local.properties  # May be needed for Unity integration
+# **/gradle-wrapper.jar     # Essential for Gradle wrapper - DO NOT IGNORE
 .gradle/
 captures/
 .externalNativeBuild/
@@ -44,7 +44,9 @@ DerivedData/
 *.sublime-project
 
 # Unity (if integrating Unity)
-UnityLibrary/
+# UnityLibrary/              # DO NOT IGNORE - Unity source code is needed
+android/unityLibrary/build/  # Only ignore Unity build artifacts
+android/unityLibrary/.cxx/   # Only ignore Unity native build cache
 *.meta
 *.unitypackage
 
