@@ -28,8 +28,8 @@ def unityStreamingAssets = file("$projectDir/src/main/Unity/StreamingAssets")
 
 android {
     namespace "com.unity3d.player"
-    ndkPath "C:/#Personal/Software/Unity/6000.1.3f1/Editor/Data/PlaybackEngines/AndroidPlayer/NDK"
-    ndkVersion "27.2.12479018"
+    ndkPath System.getenv("ANDROID_NDK_HOME") ?: System.getenv("NDK_HOME")
+    ndkVersion System.getenv("ANDROID_NDK_VERSION") ?: "27.2.12479018"
 
     compileSdk rootProject.ext.compileSdkVersion
     buildToolsVersion = "34.0.0"
