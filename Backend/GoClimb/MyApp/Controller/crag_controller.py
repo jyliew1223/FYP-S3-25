@@ -19,14 +19,14 @@ def get_monthly_ranking(count: int) -> list:
     period_start = today - timedelta(days=30)
     ranking = (
         ClimbLog.objects.filter(date_climbed__gte=period_start)
-        .values("crag")
+        .values("route__crag")
         .annotate(total_climbs=Count("log_id"))
         .order_by("-total_climbs")[:count]
     )
 
     crag_list = []
     for item in ranking:
-        crag_obj = Crag.objects.filter(crag_id=item["crag"]).first()
+        crag_obj = Crag.objects.filter(crag_id=item["route__crag"]).first()
         if crag_obj:
             crag_list.append(crag_obj)
     return crag_list
@@ -43,27 +43,27 @@ def get_trending_crags(count: int) -> list[dict[str, Any]]:
 
     current_counts = (
         ClimbLog.objects.filter(date_climbed__gte=period_start)
-        .values("crag")
-        .annotate(current_count=Count("crag"))
+        .values("route__crag")
+        .annotate(current_count=Count("route__crag"))
     )
 
     previous_counts = (
         ClimbLog.objects.filter(
             date_climbed__gte=lastperiod_start, date_climbed__lt=period_start
         )
-        .values("crag")
+        .values("route__crag")
         .annotate(previous_count=Count("log_id"))
     )
 
-    previous_lookup = {item["crag"]: item["previous_count"] for item in previous_counts}
+    previous_lookup = {item["route__crag"]: item["previous_count"] for item in previous_counts}
 
-    crag_ids = [item["crag"] for item in current_counts]
+    crag_ids = [item["route__crag"] for item in current_counts]
     crags = {c.crag_id: c for c in Crag.objects.filter(crag_id__in=crag_ids)}
 
     trending_list: list[dict[str, Any]] = []
 
     for current in current_counts:
-        crag_id = current["crag"]
+        crag_id = current["route__crag"]
         crag_obj = crags.get(crag_id)
         if not crag_obj:
             continue
