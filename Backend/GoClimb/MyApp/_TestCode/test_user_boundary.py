@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
+from MyApp.Entity.route import Route
 from MyApp.Entity.climblog import ClimbLog
 
 
@@ -267,16 +268,26 @@ class GetMonthlyUserRankingTests(TestCase):
                 "https://example.com/crag2.jpg",
             ],
         )
+        
+        # Create routes for the crag
+        self.routes = []
+        for i in range(20):
+            route = Route.objects.create(
+                route_name=f"Route {i}",
+                route_grade=8,  # Corresponds to 5.8 difficulty
+                route_type=Route.SPORT,
+                crag=self.crag,
+            )
+            self.routes.append(route)
            
         self.climblogs = []
-        for _ in range(20):
+        for i in range(20):
             user = random.choice(self.users)
+            route = self.routes[i]  # Use the corresponding route
             climb_log = ClimbLog.objects.create(
                 user=user,
-                crag=self.crag,
-                route_name=f"Route {_}",
+                route=route,
                 date_climbed=datetime.date.today(),
-                difficulty_grade="5.8",
                 notes="Test climb log",
             )
             self.climblogs.append(climb_log)

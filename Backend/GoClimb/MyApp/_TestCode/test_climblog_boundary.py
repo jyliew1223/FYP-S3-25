@@ -8,6 +8,7 @@ from django.test import TestCase
 from rest_framework import status
 from MyApp.Entity.climblog import ClimbLog
 from MyApp.Entity.crag import Crag
+from MyApp.Entity.route import Route
 from MyApp.Entity.user import User
 from datetime import date
 
@@ -33,13 +34,16 @@ class GetUserClimbLogsTests(TestCase):
                 "https://example.com/takun2.jpg",
             ],
         )
-        ClimbLog.objects.create(
-            log_id="0001",
-            user=self.user,
-            crag=self.crag,
+        self.route = Route.objects.create(
             route_name="Skyline Traverse",
+            route_grade=10,  # Corresponds to 6a difficulty
+            route_type=Route.SPORT,
+            crag=self.crag,
+        )
+        ClimbLog.objects.create(
+            user=self.user,
+            route=self.route,
             date_climbed=date.today(),
-            difficulty_grade="6a",
             notes="Felt good, tricky crux at the middle.",
         )
 
@@ -118,13 +122,19 @@ class GetUserClimbStatsTests(TestCase):
             ],
         )
 
+        # Create a route
+        self.route = Route.objects.create(
+            route_name="Easy Route",
+            route_grade=8,  # Corresponds to 5.8 difficulty
+            route_type=Route.SPORT,
+            crag=self.crag,
+        )
+
         # Create a climb log
         self.climb_log = ClimbLog.objects.create(
             user=self.user,
-            crag=self.crag,
-            route_name="Easy Route",
+            route=self.route,
             date_climbed=datetime.date.today(),
-            difficulty_grade="5.8",
             notes="Test climb log",
         )
 

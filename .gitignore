@@ -1,45 +1,83 @@
-# Temp ignore
+# ===== SENSITIVE DATA =====
+# Environment variables and secrets
+*.env
+.env*
+!.env.example
 
-# Secret data
-/etc
+# Firebase credentials
+firebase_credential.json
+**/firebase_credential*.json
+service-account-key.json
 
+# API keys and tokens
+*.key
+*.pem
+*.p12
+*.pfx
+
+# ===== DJANGO PROJECT =====
+# Django environment and database files
+Backend/GoClimb/.env
+Backend/GoClimb/db.sqlite3
+Backend/GoClimb/media/
+Backend/GoClimb/staticfiles/
+
+# Django logs
+*.log
+
+# ===== PYTHON =====
 # Python cache and compiled files
 **/__pycache__/
 *.pyc
+*.py[cod]
+*$py.class
 
-# Python virtual environment folders
+# Virtual environments
 env/
 venv/
 ENV/
 .venv/
 
-# Django migration files (optional - sometimes you want to commit these)
-# If you prefer to ignore them:
-*/migrations/*.py
-!*/migrations/__init__.py
+# Python packages
+*.egg-info/
+.eggs/
+build/
+dist/
 
-# Logs and databases
-*.log
+# ===== DATABASES =====
+# SQLite databases
 *.sqlite3
+*.db
 
-# Editor folders/files
+# ===== DEVELOPMENT TOOLS =====
+# IDEs and editors
 .vscode/
 .idea/
+*.sublime-workspace
+*.sublime-project
+*.iml
 
 # OS generated files
 .DS_Store
 Thumbs.db
 
-# Python coverage reports
+# ===== TESTING & COVERAGE =====
+# Coverage reports
 htmlcov/
 .coverage
+coverage.xml
+.pytest_cache/
 
-# Python egg files
-*.egg-info/
-.eggs/
+# Test results
+test_results.txt
+testresult.txt
 
-# Pipenv files (optional, if you use pipenv)
+# ===== MIGRATIONS =====
+# Migration files are committed by default
+# Uncomment the lines below if you prefer not to commit them:
+# */migrations/*.py
+# !*/migrations/__init__.py
+
+# Package managers
 /Pipfile.lock
-
-# PyCharm project files (optional)
-*.iml
+node_modules/

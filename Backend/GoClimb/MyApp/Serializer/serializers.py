@@ -6,7 +6,7 @@ from MyApp.Entity.crag import Crag
 from MyApp.Entity.climblog import ClimbLog
 from MyApp.Entity.post import Post
 from MyApp.Entity.category import Category
-
+from MyApp.Entity.route import Route
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,10 +35,28 @@ class CragSerializer(serializers.ModelSerializer):
         return obj.formatted_id
 
 
-class ClimbLogSerializer(serializers.ModelSerializer):
-    user = UserSerializer(read_only=True)
+class RouteSerializer(serializers.ModelSerializer):
+    route_id = serializers.ReadOnlyField()  # Include your property
     crag = CragSerializer(read_only=True)
 
+    class Meta:
+        model = Route
+        fields = [
+            "route_id",
+            "formatted_id",
+            "route_name",
+            "route_grade",
+            "route_type",
+            "crag",
+        ]
+    
+    def get_route_id(self, obj):
+        return obj.formatted_id
+
+
+class ClimbLogSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    route = RouteSerializer(read_only=True)
     log_id = serializers.SerializerMethodField()  # override to return formatted_id
 
     class Meta:
@@ -46,10 +64,8 @@ class ClimbLogSerializer(serializers.ModelSerializer):
         fields = [
             "log_id",
             "user",
-            "crag",
-            "route_name",
+            "route",
             "date_climbed",
-            "difficulty_grade",
             "notes",
         ]
         extra_kwargs = {
