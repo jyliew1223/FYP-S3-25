@@ -4,6 +4,11 @@ from MyApp.Entity.crag import Crag
 
 
 class Route(models.Model):
+    
+    class Meta:
+        db_table = "route"
+        managed = True
+        
     BOULDER = "Boulder"
     SPORT = "Sport"
     ROUTE_TYPE_CHOICES = [
