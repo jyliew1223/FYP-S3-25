@@ -1,6 +1,6 @@
-//utils/apimodels.js
+//utils/ApiModels.js
 
-import { BaseApiModel } from './apihelper.js';
+import { BaseApiModel } from './ApiHelper.js';
 
 class UserData extends BaseApiModel {
     static get fieldMapping() {

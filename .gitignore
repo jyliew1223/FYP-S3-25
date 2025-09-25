@@ -44,10 +44,11 @@ DerivedData/
 *.sublime-project
 
 # Unity (if integrating Unity)
-# UnityLibrary/              # DO NOT IGNORE - Unity source code is needed
-android/unityLibrary/build/  # Only ignore Unity build artifacts
-android/unityLibrary/.cxx/   # Only ignore Unity native build cache
+android/unityLibrary/
 *.meta
 *.unitypackage
 
 /.venv
+
+/google-services.json
+/GoogleService-Info.plist"/android/unityLibrary/" 

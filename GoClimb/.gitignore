@@ -119,16 +119,7 @@ ehthumbs.db
 Thumbs.db
 
 # Unity specific
-android/unityLibrary/build/
-android/unityLibrary/.cxx/
-android/unityLibrary/symbols/
-*.unity3d
-*.ress
-*.resource
-*.obb
-*.unityexp
-il2cpp_*
-*.traceevents
+/android/unityLibrary/*
 
 # Android build artifacts
 android/app/build/

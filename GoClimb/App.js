@@ -4,9 +4,7 @@
  *
  * @format
  */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useState} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -18,7 +16,7 @@ import {
   Button,
   NativeModules,
 } from 'react-native';
-
+import {FirebaseCheck} from './src/services/firebase/FirebaseCheck.js'; // <- import firebase
 import {
   Colors,
   DebugInstructions,
@@ -27,31 +25,23 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
-
 const {UnityModule} = NativeModules;
 
-function Section({children, title}: SectionProps): JSX.Element {
+function Section({children, title}) {
   const isDarkMode = useColorScheme() === 'dark';
   return (
     <View style={styles.sectionContainer}>
       <Text
         style={[
           styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
+          {color: isDarkMode ? Colors.white : Colors.black},
         ]}>
         {title}
       </Text>
       <Text
         style={[
           styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
+          {color: isDarkMode ? Colors.light : Colors.dark},
         ]}>
         {children}
       </Text>
@@ -59,11 +49,16 @@ function Section({children, title}: SectionProps): JSX.Element {
   );
 }
 
-function App(): JSX.Element {
+export default function App() {
   const isDarkMode = useColorScheme() === 'dark';
-
   const backgroundStyle = {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  };
+
+  const [showCheck, setShowCheck] = useState(false);
+
+  const handleCheck = result => {
+    setShowCheck(result); // show Firebase check
   };
 
   return (
@@ -77,20 +72,34 @@ function App(): JSX.Element {
         style={backgroundStyle}>
         <Header />
         <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
+          style={{backgroundColor: isDarkMode ? Colors.black : Colors.white}}>
           <View
             style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
             <Button
               title="Open Unity"
               onPress={() => {
-                UnityModule.openUnity(); // Calls your Unity activity
+                UnityModule.openUnity();
               }}
             />
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginTop: 16,
+              }}>
+              <Button title="Check Firebase" onPress={handleCheck} />
+
+              {showCheck && (
+                <View style={{marginTop: 20}}>
+                  <FirebaseCheck />
+                </View>
+              )}
+            </View>
           </View>
+
           <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
+            Edit <Text style={styles.highlight}>App.js</Text> to change this
             screen and then come back to see your edits.
           </Section>
           <Section title="See Your Changes">
@@ -127,5 +136,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-
-export default App;

@@ -1,6 +1,6 @@
 
 // Example: UnityPackage.java
-package com.goclimb;
+package com.SIMFYPS330.GoClimb;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

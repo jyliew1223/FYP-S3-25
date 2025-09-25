@@ -1,4 +1,4 @@
-package com.goclimb;
+package com.SIMFYPS330.GoClimb;
 
 import com.facebook.react.ReactActivity;
 import com.facebook.react.ReactActivityDelegate;

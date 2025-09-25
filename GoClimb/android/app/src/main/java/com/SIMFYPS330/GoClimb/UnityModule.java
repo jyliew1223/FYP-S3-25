@@ -1,6 +1,6 @@
 
 // Example: UnityModule.java
-package com.goclimb;
+package com.SIMFYPS330.GoClimb;
 
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
