@@ -119,7 +119,7 @@ async function testUserClimbLogs() {
     console.log("Crag info:", request.response.data[0]?.route?.crag);
   }
   
-  console.log(request.logResponse({ status: 200 }, UserClimbLogResponse));
+  console.log(request.logResponse(UserClimbLogResponse));
 }
 
 testUserClimbLogs().catch(console.error);

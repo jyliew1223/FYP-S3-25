@@ -4,6 +4,9 @@
  *
  * @format
  */
+import { getApps } from '@react-native-firebase/app';
+console.log('Firebase apps:', getApps());
+
 import React, {useState} from 'react';
 import {
   SafeAreaView,

@@ -1,5 +1,7 @@
 //utils/ApiHelper.js
 
+import appCheck from '@react-native-firebase/app-check';
+
 /**
  * Base API payload class - extend as needed
  */
@@ -63,6 +65,19 @@ class BaseApiResponse {
    * Field mapping configuration for JSON deserialization
    * Override this in subclasses to change JSON key mappings
    */
+  #status;
+
+  set status(value) {
+    if (this.#status !== undefined) {
+      throw new Error('Status can only be set once');
+    }
+    this.#status = value;
+  }
+
+  get status() {
+    return this.#status;
+  }
+
   static get fieldMapping() {
     return {
       success: 'success',
@@ -165,22 +180,15 @@ class CustomApiRequest {
     let options = {method: this.#method, headers: {}};
 
     if (this.#method === 'GET' && this.#payload) {
-      url += this.toQueryString(this.#payload);
+      url += this.#toQueryString(this.#payload);
     } else if (this.#method !== 'GET' && this.#method !== 'DELETE') {
       options.headers['Content-Type'] = 'application/json';
       options.body = this.#payload ? JSON.stringify(this.#payload) : '';
     }
 
     if (this.#attachAppCheckToken) {
-      const tokenResult = await appCheck().getToken(); // Get App Check token
-
-      const response = await axios.post(
-        'https://your-backend.com/api/endpoint',
-        {data: 'payload'},
-        {headers: {'X-Firebase-AppCheck': tokenResult.token}},
-      );
-
-      console.log(response.data);
+      const tokenResult = await appCheck().getToken();
+      options.headers['X-Firebase-AppCheck'] = tokenResult.token;
     }
 
     try {
@@ -198,6 +206,7 @@ class CustomApiRequest {
       }
 
       this.#response = ResponseClass.fromJson(json);
+      this.#response.status = res.status;
 
       if (res.ok) {
         return true;
@@ -224,22 +233,21 @@ class CustomApiRequest {
    * @returns {string} - Formatted log string
    */
   logResponse(
-    res,
     _ResponseClass = BaseApiResponse,
     prefix = this.constructor.name,
   ) {
     if (!this.#response) return `${prefix}: Response is null.`;
 
     let log = `${prefix}: Response:\n`;
-    log += `\t${'StatusCode'.padEnd(12)}: ${res.status}\n`;
+    log += `\t${'StatusCode'.padEnd(12)}: ${this.#response.status}\n`;
     log += `\t${'Success'.padEnd(12)}: ${
       this.#response.success || 'Success not stated'
     }\n`;
     log += `\t${'Message'.padEnd(12)}: ${
       this.#response.message || 'No message'
     }\n`;
-    log += this.logChildProperties(this.#response);
-    log += `\t${'Errors'.padEnd(12)}: ${this.formatErrors(
+    log += this.#logChildProperties(this.#response);
+    log += `\t${'Errors'.padEnd(12)}: ${this.#formatErrors(
       this.#response.errors,
     )}\n`;
 
@@ -251,7 +259,7 @@ class CustomApiRequest {
    * @param {Object} obj - Object to convert to query string
    * @returns {string} - Query string (including leading '?' if not empty)
    */
-  toQueryString(obj) {
+  #toQueryString(obj) {
     if (!obj) return '';
     const parts = [];
     for (const [key, value] of Object.entries(obj)) {
@@ -268,7 +276,7 @@ class CustomApiRequest {
    * @returns {string} - Formatted error string
    * @private
    */
-  formatErrors(errors) {
+  #formatErrors(errors) {
     if (!errors) return 'No errors';
     if (typeof errors === 'string') {
       return errors;
@@ -286,7 +294,7 @@ class CustomApiRequest {
    * @returns {string} - Formatted string of child properties
    * @private
    */
-  logChildProperties(response) {
+  #logChildProperties(response) {
     let log = '';
     const baseProps = Object.getOwnPropertyNames(new BaseApiResponse({}));
     const allProps = Object.keys(response);
@@ -294,7 +302,7 @@ class CustomApiRequest {
 
     for (const prop of childProps) {
       const value = response[prop];
-      const formattedValue = this.formatPropertyValue(value);
+      const formattedValue = this.#formatPropertyValue(value);
       log += `\t${prop.padEnd(12)}: ${formattedValue}\n`;
     }
 
@@ -307,7 +315,7 @@ class CustomApiRequest {
    * @returns {string} Formatted value string
    * @private
    */
-  formatPropertyValue(value) {
+  #formatPropertyValue(value) {
     if (value === null) {
       return 'null';
     } else if (value === undefined) {

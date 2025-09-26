@@ -1,5 +1,6 @@
-apply plugin: "com.android.application"
-apply plugin: "com.facebook.react"
+/* groovylint-disable CompileStatic, DuplicateStringLiteral, LineLength, NoDef, VariableTypeRequired */
+apply plugin: 'com.android.application'
+apply plugin: 'com.facebook.react'
 apply plugin: 'com.google.gms.google-services'
 
 /**
@@ -44,11 +45,11 @@ react {
     // extraPackagerArgs = []
 
     /* Hermes Commands */
-    //   The hermes compiler command to run. By default it is 'hermesc'
-    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
-    //
-    //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
-    // hermesFlags = ["-O", "-output-source-map"]
+//   The hermes compiler command to run. By default it is 'hermesc'
+// hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
+//
+//   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
+// hermesFlags = ["-O", "-output-source-map"]
 }
 
 /**
@@ -74,13 +75,13 @@ android {
 
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    namespace "com.SIMFYPS330.GoClimb"
+    namespace 'com.SIMFYPS330.GoClimb'
     defaultConfig {
-        applicationId "com.SIMFYPS330.GoClimb"
+        applicationId 'com.SIMFYPS330.GoClimb'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName '1.0'
     }
     signingConfigs {
         debug {
@@ -99,7 +100,7 @@ android {
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
     buildFeatures {
@@ -109,7 +110,7 @@ android {
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
-    implementation("com.facebook.react:react-android")
+    implementation('com.facebook.react:react-android')
 
     debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
     debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {
@@ -118,15 +119,16 @@ dependencies {
 
     debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${FLIPPER_VERSION}")
     if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android")
+        implementation('com.facebook.react:hermes-android')
     } else {
         implementation jscFlavor
     }
-    
+
     // add aar files
-    implementation fileTree(dir: "libs", include: ["*.aar"])
+    implementation fileTree(dir: 'libs', include: ['*.aar'])
     // add unityLibrary
     implementation project(':unityLibrary')
+    implementation 'com.google.firebase:firebase-analytics' // optional but usually needed
 }
 
-apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
+apply from: file('../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle'); applyNativeModulesAppBuildGradle(project)
