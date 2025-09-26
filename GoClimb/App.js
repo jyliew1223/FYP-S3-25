@@ -4,8 +4,6 @@
  *
  * @format
  */
-import { getApps } from '@react-native-firebase/app';
-console.log('Firebase apps:', getApps());
 
 import React, {useState} from 'react';
 import {
@@ -19,7 +17,8 @@ import {
   Button,
   NativeModules,
 } from 'react-native';
-import {FirebaseCheck} from './src/services/firebase/FirebaseCheck.js'; // <- import firebase
+import {FirebaseStatusCheck} from './src/services/firebase/FirebaseStatusCheck';
+import {FirebaseAppCheckStatusCheck} from './src/services/firebase/AppCheckStatusCheck'; // <- import firebase
 import {
   Colors,
   DebugInstructions,
@@ -58,10 +57,11 @@ export default function App() {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  const [showCheck, setShowCheck] = useState(false);
+  const [isAppCheckInit, setIsAppCheckInit] = useState(false);
 
-  const handleCheck = result => {
-    setShowCheck(result); // show Firebase check
+  const handleAppcheckButtonClick = async () => {
+    const ok = await initFirebaseAppCheck();
+    setIsAppCheckInit(ok);
   };
 
   return (
@@ -91,13 +91,16 @@ export default function App() {
                 alignItems: 'center',
                 marginTop: 16,
               }}>
-              <Button title="Check Firebase" onPress={handleCheck} />
-
-              {showCheck && (
-                <View style={{marginTop: 20}}>
-                  <FirebaseCheck />
-                </View>
-              )}
+              <FirebaseStatusCheck />
+            </View>
+            <View
+              style={{
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginTop: 16,
+              }}>
+              <FirebaseAppCheckStatusCheck />
             </View>
           </View>
 

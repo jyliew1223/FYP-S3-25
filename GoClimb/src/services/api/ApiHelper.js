@@ -187,7 +187,7 @@ class CustomApiRequest {
     }
 
     if (this.#attachAppCheckToken) {
-      const tokenResult = await appCheck().getToken();
+      const tokenResult = await appCheck().getToken({forceRefresh: true});
       options.headers['X-Firebase-AppCheck'] = tokenResult.token;
     }
 
@@ -228,14 +228,10 @@ class CustomApiRequest {
   /**
    * Logs the response details in a formatted way
    * @param {Response} res - Fetch Response object
-   * @param {Function} [_ResponseClass=BaseApiResponse] - Response class used for parsing
    * @param {string} [prefix=this.constructor.name] - Prefix for log messages
    * @returns {string} - Formatted log string
    */
-  logResponse(
-    _ResponseClass = BaseApiResponse,
-    prefix = this.constructor.name,
-  ) {
+  logResponse(prefix = this.constructor.name) {
     if (!this.#response) return `${prefix}: Response is null.`;
 
     let log = `${prefix}: Response:\n`;
