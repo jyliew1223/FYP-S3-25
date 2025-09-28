@@ -32,7 +32,7 @@ jobs:
       SECRET_KEY: 'test-secret-key-for-github-actions-only-not-for-production'
       DEBUG: 'True'
       ALLOWED_HOSTS: 'localhost,127.0.0.1'
-      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test_ci_db?options=-csearch_path=go_climb,public'
+      DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test_ci_db'
       CI: 'true'
     
     steps:
@@ -60,10 +60,6 @@ jobs:
           done
           echo "✅ PostgreSQL is ready!"
 
-      - name: Create go_climb schema
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d test_ci_db -c "CREATE SCHEMA IF NOT EXISTS go_climb;"
-
       - name: Run Django system check
         run: |
           echo "🔍 Running Django system check..."
@@ -77,10 +73,6 @@ jobs:
           python manage.py migrate
           echo "✅ Migrations completed!"
 
-      - name: Create go_climb schema in test DB
-        run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d test_test_ci_db -c "CREATE SCHEMA IF NOT EXISTS go_climb;"
-          
       - name: Run Django unit tests
         run: |
           echo "🧪 Running Django unit tests..."

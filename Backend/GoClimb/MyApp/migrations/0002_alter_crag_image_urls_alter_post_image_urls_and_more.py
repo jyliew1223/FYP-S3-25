@@ -10,14 +10,14 @@ class Migration(migrations.Migration):
         # Convert existing arrays to JSON first (with schema)
         migrations.RunSQL(
             """
-            ALTER TABLE "go_climb"."crag"
+            ALTER TABLE "crag"
             ALTER COLUMN "image_urls" TYPE jsonb
             USING array_to_json("image_urls");
             """
         ),
         migrations.RunSQL(
             """
-            ALTER TABLE "go_climb"."post"
+            ALTER TABLE "post"
             ALTER COLUMN "image_urls" TYPE jsonb
             USING array_to_json("image_urls");
             """
