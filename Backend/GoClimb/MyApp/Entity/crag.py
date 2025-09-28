@@ -14,11 +14,11 @@ class Crag(models.Model):
     location_lat = models.FloatField()
     location_lon = models.FloatField()
     description = models.TextField(blank=True, null=True)
-    image_urls = ArrayField(models.URLField(max_length=2083), blank=True, null=True)
+    image_urls = models.JSONField(default=list, blank=True)
 
     def __str__(self) -> str:
-        return f"{self.name} | {self.crag_id}"    
-    
+        return f"{self.name} | {self.crag_id}"
+
     @property
     def formatted_id(self) -> str:
         """Return id with prefix."""

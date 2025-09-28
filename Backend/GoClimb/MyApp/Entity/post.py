@@ -19,7 +19,7 @@ class Post(models.Model):
     # Because it breaks rules of normalization with containing > 1 values
 
     tags = ArrayField(models.CharField(max_length=50), blank=True, null=True)
-    image_urls = ArrayField(models.URLField(max_length=2083), blank=True, null=True)
+    image_urls = models.JSONField(default=list, blank=True)
 
     # Actually we can just delete the post instead of marking it as deleted
     # Unless we want to keep the post for historical purposes

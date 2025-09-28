@@ -11,7 +11,7 @@ class User(models.Model):
     user_id = models.CharField(max_length=128, primary_key=True, editable=False)
     full_name = models.CharField(max_length=100)
     email = models.EmailField(max_length=255, unique=True)
-    profile_picture = models.URLField(max_length=2083, blank=True, null=True)
+    profile_picture = models.CharField(max_length=500, null=True)
     role = models.CharField(
         max_length=10,
         choices=[("admin", "Admin"), ("member", "Member")],
