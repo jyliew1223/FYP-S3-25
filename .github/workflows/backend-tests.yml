@@ -77,6 +77,10 @@ jobs:
           python manage.py migrate
           echo "✅ Migrations completed!"
 
+      - name: Create go_climb schema in test DB
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d test_test_ci_db -c "CREATE SCHEMA IF NOT EXISTS go_climb;"
+          
       - name: Run Django unit tests
         run: |
           echo "🧪 Running Django unit tests..."
