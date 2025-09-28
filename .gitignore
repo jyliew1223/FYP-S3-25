@@ -69,8 +69,6 @@ coverage.xml
 .pytest_cache/
 
 # Test results
-test_results.txt
-testresult.txt
 
 # ===== MIGRATIONS =====
 # Migration files are committed by default
