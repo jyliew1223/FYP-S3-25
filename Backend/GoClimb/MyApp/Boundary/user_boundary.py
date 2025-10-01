@@ -11,109 +11,11 @@ from rest_framework import status
 
 from MyApp.Serializer.serializers import UserSerializer
 from MyApp.Controller.user_controller import (
-    signup_user,
     get_user_by_id,
     get_monthly_user_ranking,
 )
-from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
+from MyApp.Exceptions.exceptions import InvalidUIDError
 from MyApp.Utils.helper import authenticate_app_check_token
-
-
-@api_view(["POST"])
-def signup_view(request: Request) -> Response:
-    """
-    INPUT:{
-        "id_token": str,
-        "full_name": str,
-        "email": str
-    }
-    OUTPUT:{
-        "success": bool,
-        "message": str
-        "errors": dict[str, Any]  # Only if success is False
-    }
-    """
-    result: dict = authenticate_app_check_token(request)
-
-    if not result.get("success"):
-        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
-
-    data: dict[str, Any] = request.data if isinstance(request.data, dict) else {}
-
-    allowed_fields: list = ["full_name", "email"]
-    filtered_data: dict = {k: v for k, v in data.items() if k in allowed_fields}
-
-    serializer = UserSerializer(data=filtered_data)
-
-    if not serializer.is_valid():
-        return Response(
-            {
-                "success": False,
-                "message": "Invalid input.",
-                "errors": serializer.errors,
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    validated_data: dict = cast(dict[str, Any], serializer.validated_data)
-
-    id_token: str = str(data.get("id_token", ""))
-    full_name = str(validated_data.get("full_name", ""))
-    email = str(validated_data.get("email", ""))
-
-    required_fields: dict = {
-        "id_token": id_token,
-        "full_name": full_name,
-        "email": email,
-    }
-
-    for field_name, value in required_fields.items():
-        if not value:
-            return Response(
-                {
-                    "success": False,
-                    "message": f"{field_name} is required.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-    try:
-        signup_result = signup_user(id_token, full_name, email)
-        if signup_result:
-            return Response(
-                {
-                    "success": True,
-                    "message": "User created successfully.",
-                },
-                status=status.HTTP_201_CREATED,
-            )
-        return Response(
-            {
-                "success": False,
-                "message": "Failed to create user.",
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-    except UserAlreadyExistsError as e:
-        return Response(
-            {"success": False, "message": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except InvalidUIDError as e:
-        return Response(
-            {"success": False, "message": str(e)},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except auth.InvalidIdTokenError:
-        return Response(
-            {"success": False, "message": "Invalid Firebase ID token."},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-    except Exception as e:
-        return Response(
-            {"success": False, "message": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
 
 
 @api_view(["POST"])
@@ -271,7 +173,7 @@ def get_monthly_user_ranking_view(request: Request) -> Response:
                 serialized_user = dict(UserSerializer(user).data)
 
                 ranking_entry = {
-                    "user": serialized_user, 
+                    "user": serialized_user,
                     "rank": row.get("ranking", 0),
                     "total_routes": row.get("total_routes", 0),
                 }

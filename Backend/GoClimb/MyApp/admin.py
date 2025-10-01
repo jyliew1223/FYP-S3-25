@@ -7,9 +7,11 @@ from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
 from MyApp.Entity.post import Post
 from MyApp.Entity.climblog import ClimbLog
+from MyApp.Entity.route import Route
 from django.contrib import admin
 
 admin.site.register(User)
 admin.site.register(Crag)
 admin.site.register(Post)
 admin.site.register(ClimbLog)
+admin.site.register(Route)
