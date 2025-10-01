@@ -1,4 +1,3 @@
-
 // constants/api.js
 export const API_ENDPOINTS = {
   BASE_URL: 'https://goclimb-web.onrender.com',
@@ -8,7 +7,9 @@ export const API_ENDPOINTS = {
     VERIFY_ID_TOKEN: 'auth/verify_id_token/',
   },
   USER: {
-    PROFILE: '/user/profile',
-    UPDATE: '/user/update',
+    GET_USER: '/user/get_user',
+  },
+  POST: {
+    GET_POST_BY_USER_ID: '/post/get_post_by_user_id/',
   },
 };
