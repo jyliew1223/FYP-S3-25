@@ -13,6 +13,7 @@ import {
   View,
   Button,
   NativeModules,
+  ScrollView
 } from 'react-native';
 import {
   SafeAreaProvider,
@@ -22,6 +23,7 @@ import {
 import FirebaseStatusCheck from './src/services/firebase/FirebaseStatusCheck';
 import AppCheckStatusCheck from './src/services/firebase/AppCheckStatusCheck';
 import InitFirebaseApps from './src/services/firebase/InitFirebaseApps';
+import ApiHelperExample from './src/services/api/ApiHelperExample';
 
 // Main component, functionally identical to the TypeScript version
 function App() {
@@ -44,7 +46,7 @@ function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       <Button
         title="Open Unity"
         onPress={() => {
@@ -60,11 +62,15 @@ function AppContent() {
         <Button title="Init Firebase" onPress={InitFirebaseApps} />
       </View>
 
+      <View style={{ padding: 20 }}>
+        <Button title="Api Test" onPress={ApiHelperExample} />
+      </View>
+
       <NewAppScreen
         templateFileName="App.js" // Updated file name reference
         safeAreaInsets={safeAreaInsets}
       />
-    </View>
+    </ScrollView>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { BaseApiModel } from './ApiHelper.js';
 
-class UserData extends BaseApiModel {
+class UserModel extends BaseApiModel {
     static get fieldMapping() {
         return {
             userId: 'user_id',
@@ -34,7 +34,7 @@ class UserData extends BaseApiModel {
     }
 }
 
-class CragData extends BaseApiModel {
+class CragModel extends BaseApiModel {
     static get fieldMapping() {
         return {
             cragId: 'crag_id',
@@ -66,7 +66,7 @@ class CragData extends BaseApiModel {
     }
 }
 
-class PostData extends BaseApiModel {
+class PostModel extends BaseApiModel {
     static get fieldMapping() {
         return {
             postId: 'post_id',
@@ -82,7 +82,7 @@ class PostData extends BaseApiModel {
     /**
      * @param {Object} options
      * @param {string} [options.postId]
-     * @param {UserData|Object} [options.user]
+     * @param {UserModel|Object} [options.user]
      * @param {string} [options.content]
      * @param {string[]} [options.tags]
      * @param {string[]} [options.imageUrls]
@@ -93,11 +93,11 @@ class PostData extends BaseApiModel {
         super();
         this.postId = postId ?? null;
 
-        // Handle nested UserData object
-        if (user instanceof UserData) {
+        // Handle nested UserModel object
+        if (user instanceof UserModel) {
             this.user = user;
         } else if (user && typeof user === 'object') {
-            this.user = new UserData(user);
+            this.user = new UserModel(user);
         } else {
             this.user = null;
         }
@@ -129,23 +129,23 @@ class PostData extends BaseApiModel {
     }
 
     /**
-     * Override fromJson to handle nested UserData deserialization
+     * Override fromJson to handle nested UserModel deserialization
      * @param {Object} jsonData - JSON data to map to instance
-     * @returns {PostData} - New instance with mapped data
+     * @returns {PostModel} - New instance with mapped data
      */
     static fromJson(jsonData = {}) {
         const instance = super.fromJson(jsonData);
 
         // Handle nested user object
         if (jsonData.user && typeof jsonData.user === 'object') {
-            instance.user = UserData.fromJson(jsonData.user);
+            instance.user = UserModel.fromJson(jsonData.user);
         }
 
         return instance;
     }
 }
 
-class RouteData extends BaseApiModel {
+class RouteModel extends BaseApiModel {
     static get fieldMapping() {
         return {
             routeId: 'route_id',
@@ -164,7 +164,7 @@ class RouteData extends BaseApiModel {
      * @param {string} [options.routeName]
      * @param {number} [options.routeGrade]
      * @param {string} [options.routeType]
-     * @param {CragData|Object} [options.crag]
+     * @param {CragModel|Object} [options.crag]
      */
     constructor({ routeId, formattedId, routeName, routeGrade, routeType, crag } = {}) {
         super();
@@ -174,11 +174,11 @@ class RouteData extends BaseApiModel {
         this.routeGrade = routeGrade ?? null;
         this.routeType = routeType ?? null;
 
-        // Handle nested CragData object
-        if (crag instanceof CragData) {
+        // Handle nested CragModel object
+        if (crag instanceof CragModel) {
             this.crag = crag;
         } else if (crag && typeof crag === 'object') {
-            this.crag = new CragData(crag);
+            this.crag = new CragModel(crag);
         } else {
             this.crag = null;
         }
@@ -187,21 +187,21 @@ class RouteData extends BaseApiModel {
     /**
      * Override fromJson to handle nested crag deserialization
      * @param {Object} jsonData - JSON data to map to instance
-     * @returns {RouteData} - New instance with mapped data
+     * @returns {RouteModel} - New instance with mapped data
      */
     static fromJson(jsonData = {}) {
         const instance = super.fromJson(jsonData);
 
         // Handle nested crag object
         if (jsonData.crag && typeof jsonData.crag === 'object') {
-            instance.crag = CragData.fromJson(jsonData.crag);
+            instance.crag = CragModel.fromJson(jsonData.crag);
         }
 
         return instance;
     }
 }
 
-class ClimbLogData extends BaseApiModel {
+class ClimbLogModel extends BaseApiModel {
     static get fieldMapping() {
         return {
             logId: 'log_id',
@@ -215,8 +215,8 @@ class ClimbLogData extends BaseApiModel {
     /**
      * @param {Object} options
      * @param {string} [options.logId]
-     * @param {UserData|Object} [options.user]
-     * @param {RouteData|Object} [options.route]
+     * @param {UserModel|Object} [options.user]
+     * @param {RouteModel|Object} [options.route]
      * @param {Date|string} [options.dateClimbed]
      * @param {string} [options.notes]
      */
@@ -224,20 +224,20 @@ class ClimbLogData extends BaseApiModel {
         super();
         this.logId = logId ?? null;
 
-        // Handle nested UserData object
-        if (user instanceof UserData) {
+        // Handle nested UserModel object
+        if (user instanceof UserModel) {
             this.user = user;
         } else if (user && typeof user === 'object') {
-            this.user = new UserData(user);
+            this.user = new UserModel(user);
         } else {
             this.user = null;
         }
 
-        // Handle nested RouteData object
-        if (route instanceof RouteData) {
+        // Handle nested RouteModel object
+        if (route instanceof RouteModel) {
             this.route = route;
         } else if (route && typeof route === 'object') {
-            this.route = new RouteData(route);
+            this.route = new RouteModel(route);
         } else {
             this.route = null;
         }
@@ -266,23 +266,23 @@ class ClimbLogData extends BaseApiModel {
     /**
      * Override fromJson to handle nested object deserialization
      * @param {Object} jsonData - JSON data to map to instance
-     * @returns {ClimbLogData} - New instance with mapped data
+     * @returns {ClimbLogModel} - New instance with mapped data
      */
     static fromJson(jsonData = {}) {
         const instance = super.fromJson(jsonData);
 
         // Handle nested user object
         if (jsonData.user && typeof jsonData.user === 'object') {
-            instance.user = UserData.fromJson(jsonData.user);
+            instance.user = UserModel.fromJson(jsonData.user);
         }
 
         // Handle nested route object
         if (jsonData.route && typeof jsonData.route === 'object') {
-            instance.route = RouteData.fromJson(jsonData.route);
+            instance.route = RouteModel.fromJson(jsonData.route);
         }
 
         return instance;
     }
 }
 
-export { CragData, UserData, PostData, RouteData, ClimbLogData };
+export { CragModel, UserModel, PostModel, RouteModel, ClimbLogModel };
