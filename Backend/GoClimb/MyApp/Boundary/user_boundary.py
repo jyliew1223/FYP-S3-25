@@ -302,3 +302,100 @@ def get_monthly_user_ranking_view(request: Request) -> Response:
             {"success": False, "message": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+    
+# -----------------
+# ADMIN - 3 (start)
+# -----------------
+from typing import Any, Dict, Optional
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+from MyApp.Utils.helper import authenticate_app_check_token
+from MyApp.Controller.user_controller import delete_profile
+
+def _parse_profile_id(raw: Any) -> Optional[str]:
+    """
+    Accepts:
+      - integer like: 55
+      - numeric string: "55"
+      - prefixed string: "USER-55" -> "55"
+      - any other non-empty string -> returned as-is (covers real user_id values)
+    Returns normalized string user_id, or None if invalid.
+    """
+    if raw is None:
+        return None
+
+    # direct int -> string
+    if isinstance(raw, int):
+        return str(raw)
+
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s:
+            return None
+        if s.upper().startswith("USER-"):
+            s = s[5:].strip()
+        # If it looks like an int, normalize to that string; otherwise allow raw (for UUID-like keys)
+        return s if s else None
+
+    return None
+
+
+@api_view(["DELETE"])
+def delete_profile_view(request) -> Response:
+    """
+    INPUT:
+      { "profile_id": 55 }  // can be int, "55", or "USER-55"; also supports real string user_id
+
+    OUTPUT (Success): 200
+      {
+        "success": true,
+        "data": {},
+        "message": "Profile permanently deleted",
+        "errors": []
+      }
+
+    OUTPUT (Failure): 400
+      {
+        "success": false,
+        "message": "...",
+        "errors": { "profile_id": " ..." }
+      }
+
+    401 when app check fails.
+    """
+    # 1) App Check
+    result: Dict[str, Any] = authenticate_app_check_token(request)
+    if not result.get("success"):
+        return Response(
+            {
+                "success": False,
+                "message": result.get("message", "Unauthorized."),
+                "errors": result.get("errors", {}),
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 2) Validate input
+    raw_id = request.data.get("profile_id")
+    profile_id = _parse_profile_id(raw_id)
+    if profile_id is None:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid profile_id.",
+                "errors": {"profile_id": "This field is required and must be a valid identifier."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 3) Delete via controller
+    outcome = delete_profile(profile_id)
+    if outcome.get("success"):
+        return Response(outcome, status=status.HTTP_200_OK)
+    else:
+        return Response(outcome, status=status.HTTP_400_BAD_REQUEST)
+# ---------------
+# ADMIN - 3 (end)
+# ---------------
