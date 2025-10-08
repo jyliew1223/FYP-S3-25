@@ -455,3 +455,163 @@ class ViewMemberPostsTestCase(TestCase):
 # ---------------
 # ADMIN - 4 (end)
 # ---------------
+
+# ------------------
+# MEMBER - 2 (start)
+# ------------------
+from unittest.mock import patch
+from django.urls import reverse
+from django.test import TestCase
+from rest_framework import status
+import uuid
+import json
+
+from MyApp.Entity.user import User
+from MyApp.Entity.post import Post
+from MyApp.Entity.post_likes import PostLike
+
+
+class LikePostViewTestCase(TestCase):
+    def setUp(self):
+        # Endpoints by name (make sure you added these in post_url.py)
+        self.like_url = reverse("like_post")
+        self.unlike_url = reverse("unlike_post")
+        self.count_url = reverse("post_likes_count")
+        self.users_url = reverse("post_likes_users")
+
+        # Create a user that will LIKE the post
+        self.liker_id = str(uuid.uuid4())
+        self.liker = User.objects.create(
+            user_id=self.liker_id,
+            full_name="Liker",
+            email="liker@example.com",
+            profile_picture=None,
+            role="member",
+            status=True,
+        )
+
+        # Create a different author + post
+        self.author_id = str(uuid.uuid4())
+        self.author = User.objects.create(
+            user_id=self.author_id,
+            full_name="Author",
+            email="author@example.com",
+            profile_picture=None,
+            role="member",
+            status=True,
+        )
+        self.post = Post.objects.create(
+            user=self.author,
+            content="Hello world",
+            tags=["test"],
+            image_urls=[],
+            status="active",
+        )
+
+    # Helpers
+    def _pretty(self, resp):
+        try:
+            print(json.dumps(resp.json(), indent=2))
+        except Exception:
+            print("(non-JSON response)", getattr(resp, "content", b"")[:200])
+
+    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    def test_like_unauthorized(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": False, "message": "Invalid token."}
+        resp = self.client.post(
+            self.like_url,
+            {"id_token": "x", "post_id": self.post.formatted_id},
+            content_type="application/json",
+        )
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    def test_like_missing_id_token(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        resp = self.client.post(
+            self.like_url, {"post_id": self.post.formatted_id}, content_type="application/json"
+        )
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(resp.json().get("success"))
+
+    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_boundary.verify_id_token")
+    def test_like_invalid_post_id(self, mock_verify, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        mock_verify.return_value = {"success": True, "uid": self.liker_id}
+
+        resp = self.client.post(
+            self.like_url, {"id_token": "ok", "post_id": "BAD-ID"}, content_type="application/json"
+        )
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(resp.json().get("success"))
+
+    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_boundary.verify_id_token")
+    def test_like_success_with_prefixed_id(self, mock_verify, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        mock_verify.return_value = {"success": True, "uid": self.liker_id}
+
+        resp = self.client.post(
+            self.like_url, {"id_token": "ok", "post_id": self.post.formatted_id}, content_type="application/json"
+        )
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.json().get("success"))
+        self.assertTrue(PostLike.objects.filter(post=self.post, user=self.liker).exists())
+
+    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_boundary.verify_id_token")
+    def test_like_and_count_and_users(self, mock_verify, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        mock_verify.return_value = {"success": True, "uid": self.liker_id}
+
+        # Like using plain int id this time
+        resp_like = self.client.post(
+            self.like_url, {"id_token": "ok", "post_id": self.post.post_id}, content_type="application/json"
+        )
+        self._pretty(resp_like)
+        self.assertEqual(resp_like.status_code, status.HTTP_200_OK)
+
+        # Count
+        resp_count = self.client.get(self.count_url, {"post_id": self.post.formatted_id})
+        self._pretty(resp_count)
+        self.assertEqual(resp_count.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_count.json()["data"]["count"], 1)
+
+        # Users (default page/page_size)
+        resp_users = self.client.get(self.users_url, {"post_id": self.post.post_id})
+        self._pretty(resp_users)
+        self.assertEqual(resp_users.status_code, status.HTTP_200_OK)
+        users = resp_users.json()["data"]["users"]
+        self.assertEqual(len(users), 1)
+        self.assertEqual(users[0]["user_id"], self.liker_id)
+
+    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_boundary.verify_id_token")
+    def test_unlike_then_count_zero(self, mock_verify, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        mock_verify.return_value = {"success": True, "uid": self.liker_id}
+
+        # Seed a like
+        PostLike.objects.get_or_create(post=self.post, user=self.liker)
+
+        # Unlike
+        resp_unlike = self.client.post(
+            self.unlike_url, {"id_token": "ok", "post_id": self.post.formatted_id}, content_type="application/json"
+        )
+        self._pretty(resp_unlike)
+        self.assertEqual(resp_unlike.status_code, status.HTTP_200_OK)
+        self.assertFalse(PostLike.objects.filter(post=self.post, user=self.liker).exists())
+
+        # Count = 0
+        resp_count = self.client.get(self.count_url, {"post_id": self.post.post_id})
+        self._pretty(resp_count)
+        self.assertEqual(resp_count.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp_count.json()["data"]["count"], 0)
+# ----------------
+# MEMBER - 2 (end)
+# ----------------

@@ -1,6 +1,6 @@
 # MyApp/Boundary/post_boundary.py
 
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, Tuple
 
 from rest_framework.response import Response
 from rest_framework.request import Request
@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 
 from MyApp.Controller import post_controller
-from MyApp.Utils.helper import authenticate_app_check_token
+from MyApp.Utils.helper import authenticate_app_check_token, verify_id_token
 from MyApp.Serializer.serializers import PostSerializer
 
 
@@ -483,3 +483,138 @@ def get_member_posts_view(request) -> Response:
 # ---------------
 # ADMIN - 4 (end)
 # ---------------
+
+# ------------------
+# MEMBER - 2 (start)
+# ------------------
+from MyApp.Controller.post_controller import (
+    _parse_post_id_to_int,
+    like_post,
+    unlike_post,
+    get_likes_count,
+    get_likes_users,
+)
+
+def _require_appcheck(request: Request) -> Tuple[bool, Response]:
+    result: Dict[str, Any] = authenticate_app_check_token(request)
+    if not result.get("success"):
+        return False, Response(
+            {"success": False, "message": result.get("message", "Unauthorized.")},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    return True, None  # type: ignore
+
+def _require_uid_from_id_token(request: Request) -> Tuple[bool, str | None, Response | None]:
+    ok, resp = _require_appcheck(request)
+    if not ok:
+        return False, None, resp
+
+    id_token = request.data.get("id_token")
+    if not isinstance(id_token, str) or not id_token.strip():
+        return False, None, Response(
+            {
+                "success": False,
+                "message": "Invalid or missing id_token.",
+                "errors": {"id_token": "This field is required and must be a non-empty string."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    verified = verify_id_token(id_token)
+    if not verified or not verified.get("success") or not verified.get("uid"):
+        return False, None, Response(
+            {"success": False, "message": (verified or {}).get("message", "Failed to verify id_token.")},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    return True, verified["uid"], None
+
+@api_view(["POST"])
+def like_post_view(request: Request) -> Response:
+    ok, uid, error_resp = _require_uid_from_id_token(request)
+    if not ok:
+        return error_resp  # type: ignore
+
+    post_id_val = request.data.get("post_id")
+    ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
+    if not ok:
+        return Response(
+            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    result = like_post(uid, post_id_int)  # type: ignore[arg-type]
+    return Response(
+        result,
+        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+    )
+
+@api_view(["POST"])
+def unlike_post_view(request: Request) -> Response:
+    ok, uid, error_resp = _require_uid_from_id_token(request)
+    if not ok:
+        return error_resp  # type: ignore
+
+    post_id_val = request.data.get("post_id")
+    ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
+    if not ok:
+        return Response(
+            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    result = unlike_post(uid, post_id_int)  # type: ignore[arg-type]
+    return Response(
+        result,
+        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+    )
+
+@api_view(["GET"])
+def post_likes_count_view(request: Request) -> Response:
+    ok, error_resp = _require_appcheck(request)
+    if not ok:
+        return error_resp  # type: ignore
+
+    post_id_val = request.query_params.get("post_id")
+    ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
+    if not ok:
+        return Response(
+            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    result = get_likes_count(post_id_int)  # type: ignore[arg-type]
+    return Response(
+        result,
+        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+    )
+
+@api_view(["GET"])
+def post_likes_users_view(request: Request) -> Response:
+    ok, error_resp = _require_appcheck(request)
+    if not ok:
+        return error_resp  # type: ignore
+
+    post_id_val = request.query_params.get("post_id")
+    ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
+    if not ok:
+        return Response(
+            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    def _to_int(val, default):
+        try:
+            return int(val)
+        except Exception:
+            return default
+
+    page = _to_int(request.query_params.get("page", 1), 1)
+    page_size = _to_int(request.query_params.get("page_size", 50), 50)
+
+    result = get_likes_users(post_id_int, page=page, page_size=page_size)  # type: ignore[arg-type]
+    return Response(
+        result,
+        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+    )
+# ----------------
+# MEMBER - 2 (end)
+# ----------------

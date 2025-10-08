@@ -16,7 +16,8 @@ urlpatterns = [
     path("user/", include("MyApp.Url.user_url")),
     path("crag/", include("MyApp.Url.crag_url")),
     path("climb_log/", include("MyApp.Url.climb_log_url")),
-    path("post/", include("MyApp.Url.post_url")),
+    path("post/", include("MyApp.Url.post_url")), 
+    path("api/admin/", include("MyApp.Url.admin_urls")),   # ADMIN - 2
 ]
 
 # Static (development only)

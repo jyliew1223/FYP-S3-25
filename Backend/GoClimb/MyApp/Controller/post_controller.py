@@ -148,3 +148,100 @@ def get_posts_by_member(member_id: str, limit: Optional[int] = None) -> Dict[str
 # ---------------
 # ADMIN - 4 (end)
 # ---------------
+
+# ------------------
+# MEMBER - 2 (start)
+# ------------------
+from typing import Dict, Any, List, Tuple, Optional
+from django.db import transaction
+from django.core.paginator import Paginator
+
+from MyApp.Entity.post import Post
+from MyApp.Entity.user import User
+from MyApp.Entity.post_likes import PostLike
+
+
+def _parse_post_id_to_int(post_id_val) -> Tuple[bool, Optional[int], str]:
+    """
+    Accepts either an int or a 'POST-<int>' string. Returns (ok, int_id, error_msg).
+    """
+    if isinstance(post_id_val, int):
+        return True, post_id_val, ""
+    if isinstance(post_id_val, str):
+        s = post_id_val.strip()
+        if s.upper().startswith("POST-"):
+            s = s[5:]
+        if s.isdigit():
+            return True, int(s), ""
+    return False, None, "Must be an integer or 'POST-<int>'."
+
+@transaction.atomic
+def like_post(uid: str, post_id: int) -> Dict[str, Any]:
+    # Ensure user & post exist
+    try:
+        user = User.objects.get(pk=uid)
+    except User.DoesNotExist:
+        return {"success": False, "message": "User not found.", "errors": {"uid": "Invalid."}}
+
+    try:
+        post = Post.objects.get(pk=post_id, status="active")
+    except Post.DoesNotExist:
+        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+
+    # Create if not exists (unique_together on (post, user) prevents dupes)
+    _, _created = PostLike.objects.get_or_create(post=post, user=user)
+    return {"success": True, "message": "Post liked", "data": {}}
+
+@transaction.atomic
+def unlike_post(uid: str, post_id: int) -> Dict[str, Any]:
+    try:
+        user = User.objects.get(pk=uid)
+    except User.DoesNotExist:
+        return {"success": False, "message": "User not found.", "errors": {"uid": "Invalid."}}
+
+    try:
+        post = Post.objects.get(pk=post_id)
+    except Post.DoesNotExist:
+        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+
+    PostLike.objects.filter(post=post, user=user).delete()
+    return {"success": True, "message": "Post unliked", "data": {}}
+
+def get_likes_count(post_id: int) -> Dict[str, Any]:
+    exists = Post.objects.filter(pk=post_id).exists()
+    if not exists:
+        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+    count = PostLike.objects.filter(post_id=post_id).count()
+    return {"success": True, "message": "Likes count fetched", "data": {"count": count}}
+
+def get_likes_users(post_id: int, page: int = 1, page_size: int = 50) -> Dict[str, Any]:
+    if not Post.objects.filter(pk=post_id).exists():
+        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+
+    qs = PostLike.objects.select_related("user").filter(post_id=post_id).order_by("-created_at")
+    paginator = Paginator(qs, page_size)
+    page_obj = paginator.get_page(page)
+
+    users = [
+        {
+            "user_id": pl.user.user_id,
+            "full_name": pl.user.full_name,
+            "email": pl.user.email,
+            "profile_picture": pl.user.profile_picture,
+        }
+        for pl in page_obj.object_list
+    ]
+
+    return {
+        "success": True,
+        "message": "Likes users fetched",
+        "data": {
+            "users": users,
+            "page": page_obj.number,
+            "pages": paginator.num_pages,
+            "total": paginator.count,
+        },
+    }
+# ----------------
+# MEMBER - 2 (end)
+# ----------------
