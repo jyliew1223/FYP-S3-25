@@ -1,0 +1,230 @@
+import React from 'react';
+import {
+  SafeAreaView,
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+} from 'react-native';
+import { Colors } from '../constants/Colors.js'; // import your color constants
+
+const defaultStats = {
+  bouldersSent: 34,
+  sportRoutesSent: 8,
+  onsightGradeSport: '6b+',
+  redpointGradeSport: '7b',
+  avgGradeBouldering: '6C',
+  avgAttemptsBouldering: 19,
+};
+
+export default function ProfileScreen({
+  username = 'username',
+  avatarUrl = null,
+  stats = {},
+  onEditProfile,
+}) {
+  const merged = { ...defaultStats, ...stats };
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {/* Profile header */}
+        <View style={styles.card}>
+          <View style={styles.headerRow}>
+            <View style={styles.avatarWrapper}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarInitial}>
+                    {username?.charAt(0)?.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.headerRight}>
+              <Text style={styles.username}>{username}</Text>
+
+              <View style={styles.chipsRow}>
+                <StatChip label="Boulders" value={merged.bouldersSent} />
+                <StatChip label="Sport" value={merged.sportRoutesSent} />
+                <TouchableOpacity
+                  style={styles.editBtn}
+                  activeOpacity={0.8}
+                  onPress={onEditProfile}
+                >
+                  <Text style={styles.editBtnText}>Edit Profile</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Sport section */}
+        <View style={styles.card}>
+          <SectionTitle title="Sport" />
+          <View style={styles.twoColRow}>
+            <TwoLineStat label="Onsight" value={merged.onsightGradeSport} />
+            <TwoLineStat label="Redpoint" value={merged.redpointGradeSport} />
+          </View>
+
+          <View style={styles.sectionDivider} />
+
+          <SectionTitle title="Bouldering" />
+          <View style={styles.twoColRow}>
+            <TwoLineStat label="Avg. Grade" value={merged.avgGradeBouldering} />
+            <TwoLineStat
+              label="Avg. Attempts"
+              value={String(merged.avgAttemptsBouldering)}
+            />
+          </View>
+        </View>
+
+        {/* Logged activities placeholder */}
+        <View style={[styles.card, styles.activitiesCard]}>
+          <Text style={styles.activitiesPlaceholder}>
+            {'<logged activities here>'}
+          </Text>
+        </View>
+
+        {/* bottom spacer */}
+        <View style={{ height: 24 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function SectionTitle({ title }) {
+  return <Text style={styles.sectionTitle}>{title}</Text>;
+}
+
+function TwoLineStat({ label, value }) {
+  return (
+    <View style={styles.twoLineStat}>
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
+  );
+}
+
+function StatChip({ label, value }) {
+  return (
+    <View style={styles.chip}>
+      <Text style={styles.chipLabel}>{label}</Text>
+      <Text style={styles.chipValue}>{String(value)}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: Colors.background },
+  scroll: { flex: 1 },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB', // optional, could also add to Colors if needed
+  },
+
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  avatarWrapper: { marginRight: 12 },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: { fontSize: 28, fontWeight: '700', color: Colors.text },
+
+  headerRight: { flex: 1 },
+  username: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: Colors.background,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chipLabel: { color: Colors.textSecondary, fontSize: 12 },
+  chipValue: { color: Colors.text, fontSize: 13, fontWeight: '600' },
+
+  editBtn: {
+    marginLeft: 'auto',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderColor: '#E5E7EB',
+    borderWidth: 1,
+    backgroundColor: Colors.surface,
+  },
+  editBtnText: { color: Colors.text, fontSize: 12, fontWeight: '600' },
+
+  sectionTitle: {
+    alignSelf: 'center',
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+    marginBottom: 12,
+    marginTop: 4,
+    letterSpacing: 0.3,
+  },
+  twoColRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  twoLineStat: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  statLabel: { fontSize: 13, color: Colors.textSecondary, marginBottom: 4 },
+  statValue: { fontSize: 20, color: Colors.text, fontWeight: '700' },
+
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+
+  activitiesCard: {
+    height: 260,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activitiesPlaceholder: {
+    color: Colors.primary,
+    fontSize: 14,
+  },
+});
