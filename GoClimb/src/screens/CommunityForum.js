@@ -1,206 +1,184 @@
-import React, { useState } from 'react';
-import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import {
+  View,
+  Text,
+  Image,
+  FlatList,
+  TouchableOpacity,
+  SafeAreaView,
+  StyleSheet,
+  StatusBar,
+} from 'react-native';
+import { Heart, MessageCircle, Share2 } from 'lucide-react-native';
 
-export default function CommunityForumPage() {
-  const [posts, setPosts] = useState(createSamplePosts());
+// NOTE: In some sandboxed environments local require('../assets/...') may fail.
+// Use remote image URIs (Unsplash) which are accessible from the emulator.
+const posts = [
+  {
+    id: '1',
+    user: 'Aishwarya R.',
+    location: 'Batu Caves, Malaysia',
+    image: {
+      uri: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1200&q=60',
+    },
+    caption: 'Finally conquered the overhang route today! 💪',
+    comments: ['Congrats!', 'That looks so hard!'],
+    likes: 230,
+  },
+  {
+    id: '2',
+    user: 'Javier T.',
+    location: 'Railay Beach, Thailand',
+    image: {
+      uri: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=60',
+    },
+    caption: 'Sunset climbs are the best. 🌅',
+    comments: ['Amazing view!', 'This is goals!'],
+    likes: 158,
+  },
+];
 
-  const toggleLike = (id) => {
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              likedByUser: !p.likedByUser,
-              likes: p.likedByUser ? p.likes - 1 : p.likes + 1,
-            }
-          : p
-      )
-    );
-  };
-
-  const handleShare = (post) => {
-    Alert.alert('Share', `Share link: https://goclimb.app/post/${post.id}`);
-  };
-
-  const handleAddPost = () => {
-    Alert.alert('Coming soon!', 'Create a new post feature coming soon!');
-  };
-
-  const renderPost = ({ item }) => (
-    <View style={styles.postCard}>
-      <View style={styles.userRow}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        <View>
-          <Text style={styles.username}>@{item.user}</Text>
-          <Text style={styles.time}>{new Date(item.createdAt).toLocaleTimeString()}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.caption}>{item.title}</Text>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {item.images.map((img, idx) => (
-          <TouchableOpacity key={idx} onPress={() => Alert.alert('Image', 'Open full view')}>
-            <Image source={{ uri: img }} style={styles.postImage} />
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity onPress={() => toggleLike(item.id)} style={styles.iconButton}>
-          <Ionicons
-            name={item.likedByUser ? 'heart' : 'heart-outline'}
-            size={22}
-            color={item.likedByUser ? '#00C853' : '#fff'}
-          />
-          <Text style={styles.likeText}>{item.likes}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => handleShare(item)} style={styles.iconButton}>
-          <Ionicons name="share-outline" size={22} color="#fff" />
-        </TouchableOpacity>
+const PostHeader = ({ user, location }) => (
+  <View style={styles.postHeaderRow}>
+    <View style={styles.userInfo}>
+      <View style={styles.userAvatarPlaceholder} />
+      <View>
+        <Text style={styles.userName}>{user}</Text>
+        <Text style={styles.userLocation}>{location}</Text>
       </View>
     </View>
-  );
+  </View>
+);
 
+const PostActions = ({ likes }) => (
+  <View style={styles.postActionsRow}>
+    <View style={styles.leftActions}>
+      <Heart color="#00C853" size={20} />
+      <MessageCircle color="#ccc" size={20} style={styles.actionIconSpacing} />
+      <Share2 color="#ccc" size={20} style={styles.actionIconSpacing} />
+    </View>
+    <Text style={styles.likesText}>{likes} likes</Text>
+  </View>
+);
+
+const PostCard = ({ post }) => (
+  <View style={styles.postCard}>
+    <PostHeader user={post.user} location={post.location} />
+
+    <Image source={post.image} style={styles.postImage} resizeMode="cover" />
+
+    <Text style={styles.caption}>{post.caption}</Text>
+
+    <PostActions likes={post.likes} />
+
+    {post.comments?.length > 0 && (
+      <View style={styles.commentsBlock}>
+        {post.comments.map((c, i) => (
+          <Text key={i} style={styles.commentText}>
+            {c}
+          </Text>
+        ))}
+      </View>
+    )}
+  </View>
+);
+
+export default function FeedScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Community Forum</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1c1c1c" />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>GoClimb • Community</Text>
+      </View>
+
       <FlatList
         data={posts}
-        renderItem={renderPost}
         keyExtractor={(item) => item.id}
+        renderItem={({ item }) => <PostCard post={item} />}
+        contentContainerStyle={styles.feedList}
         showsVerticalScrollIndicator={false}
       />
 
-      <TouchableOpacity style={styles.addButton} onPress={handleAddPost}>
-        <Ionicons name="add" size={32} color="#fff" />
+      <TouchableOpacity style={styles.fab} onPress={() => alert('Add post (not implemented)')}>
+        <Text style={styles.fabPlus}>+</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
-
-/* ---------- Helper Data ---------- */
-
-function createSamplePosts() {
-  return [
-    {
-      id: '1',
-      user: 'mossyFeet',
-      title: 'Perfect day at Red River Gorge! ☀️',
-      likes: 23,
-      likedByUser: false,
-      createdAt: Date.now() - 1000 * 60 * 30,
-      avatar: 'https://i.pravatar.cc/150?img=5',
-      images: [
-        unsplash('rock climb mountain 1'),
-        unsplash('climbing red river gorge'),
-        unsplash('crag wall climb'),
-      ],
-    },
-    {
-      id: '2',
-      user: 'graniteGoat',
-      title: 'Yosemite granite never disappoints 🧗‍♂️💚',
-      likes: 41,
-      likedByUser: true,
-      createdAt: Date.now() - 1000 * 60 * 90,
-      avatar: 'https://i.pravatar.cc/150?img=12',
-      images: [
-        unsplash('yosemite granite climbing'),
-        unsplash('trad gear yosemite'),
-        unsplash('mountain climb sunset'),
-      ],
-    },
-  ];
-}
-
-function unsplash(query) {
-  const q = encodeURIComponent(query);
-  return `https://source.unsplash.com/600x400/?${q}`;
-}
-
-/* ---------- Styles sheet ---------- */
-
+//stylesheet
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0b0b0b',
-    paddingHorizontal: 10,
-    paddingTop: 50,
+    backgroundColor: '#2a2a2a', // dark grey app background as requested
   },
   header: {
+    height: 64,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#202020',
+  },
+  headerTitle: {
     color: '#00C853',
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 15,
+  },
+  feedList: {
+    padding: 12,
+    paddingBottom: 120,
   },
   postCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#1f1f1f',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
-  userRow: {
+  postHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#333',
     marginRight: 10,
   },
-  username: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  time: {
-    color: '#999',
-    fontSize: 12,
-  },
-  caption: {
-    color: '#fff',
-    fontSize: 15,
-    marginBottom: 8,
-  },
-  postImage: {
-    width: 240,
-    height: 200,
-    borderRadius: 10,
-    marginRight: 8,
-  },
-  actionRow: {
+  userName: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  userLocation: { color: '#bdbdbd', fontSize: 12 },
+  postImage: { width: '100%', height: 220, borderRadius: 10, marginTop: 6 },
+  caption: { color: '#e6e6e6', marginTop: 10, fontSize: 15 },
+  postActionsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 10,
-    gap: 15,
   },
-  iconButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  likeText: {
-    color: '#fff',
-    marginLeft: 6,
-    fontWeight: '600',
-  },
-  addButton: {
+  leftActions: { flexDirection: 'row', alignItems: 'center' },
+  actionIconSpacing: { marginLeft: 16 },
+  likesText: { color: '#bdbdbd', fontWeight: '600' },
+  commentsBlock: { marginTop: 8 },
+  commentText: { color: '#9e9e9e', fontSize: 13, marginTop: 4 },
+  fab: {
     position: 'absolute',
-    right: 20,
-    bottom: 40,
+    right: 18,
+    bottom: 30,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#00C853',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 8,
     shadowColor: '#00C853',
-    shadowOpacity: 0.6,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
   },
+  fabPlus: { color: '#fff', fontSize: 34, lineHeight: 36, fontWeight: '700' },
 });
