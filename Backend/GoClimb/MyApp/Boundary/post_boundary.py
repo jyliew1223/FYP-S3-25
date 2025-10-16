@@ -529,6 +529,12 @@ def _require_uid_from_id_token(request: Request) -> Tuple[bool, str | None, Resp
 
 @api_view(["POST"])
 def like_post_view(request: Request) -> Response:
+    #App Check (authorization/authentication gate)
+    result: Dict[str, Any] = authenticate_app_check_token(request)
+    if not result.get("success"):
+        # let helper's message/errors pass through
+        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+    
     ok, uid, error_resp = _require_uid_from_id_token(request)
     if not ok:
         return error_resp  # type: ignore
@@ -548,7 +554,13 @@ def like_post_view(request: Request) -> Response:
     )
 
 @api_view(["POST"])
-def unlike_post_view(request: Request) -> Response:
+def unlike_post_view(request: Request) -> Response:    
+    #App Check (authorization/authentication gate)
+    result: Dict[str, Any] = authenticate_app_check_token(request)
+    if not result.get("success"):
+        # let helper's message/errors pass through
+        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+    
     ok, uid, error_resp = _require_uid_from_id_token(request)
     if not ok:
         return error_resp  # type: ignore

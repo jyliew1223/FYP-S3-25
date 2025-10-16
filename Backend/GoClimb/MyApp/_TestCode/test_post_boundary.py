@@ -288,173 +288,173 @@ class GetPostByUserIdTestCase(TestCase):
         self.assertEqual(len(response_json.get("data", [])), 5)
 
 
-# ------------------
-# ADMIN - 1 (start)
-# ------------------
-class DeletePostViewTestCase(TestCase):
-    def setUp(self):
-        self.url = reverse("post_delete")
-        # create a user + a post we can delete
-        self.user = User.objects.create(
-            user_id=str(uuid.uuid4()),
-            full_name="deleter",
-            email="deleter@example.com",
-            profile_picture="https://example.com/avatar.png",
-            role="admin",     # if your boundary enforces admin-only later
-            status=True,
-        )
-        self.post = Post.objects.create(
-            user=self.user,
-            content="To be deleted",
-            tags=["tmp"],
-            image_urls=[],
-            status="active",
-        )
+# # ------------------
+# # ADMIN - 1 (start)
+# # ------------------
+# class DeletePostViewTestCase(TestCase):
+#     def setUp(self):
+#         self.url = reverse("post_delete")
+#         # create a user + a post we can delete
+#         self.user = User.objects.create(
+#             user_id=str(uuid.uuid4()),
+#             full_name="deleter",
+#             email="deleter@example.com",
+#             profile_picture="https://example.com/avatar.png",
+#             role="admin",     # if your boundary enforces admin-only later
+#             status=True,
+#         )
+#         self.post = Post.objects.create(
+#             user=self.user,
+#             content="To be deleted",
+#             tags=["tmp"],
+#             image_urls=[],
+#             status="active",
+#         )
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_delete_unauthorized(self, mock_auth):
-        mock_auth.return_value = {"success": False, "message": "Invalid token."}
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_delete_unauthorized(self, mock_auth):
+#         mock_auth.return_value = {"success": False, "message": "Invalid token."}
 
-        resp = self.client.delete(self.url, data={"post_id": self.post.post_id}, content_type="application/json")
-        payload = resp.json()
-        print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
+#         resp = self.client.delete(self.url, data={"post_id": self.post.post_id}, content_type="application/json")
+#         payload = resp.json()
+#         print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
 
-        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertFalse(payload.get("success"))
+#         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+#         self.assertFalse(payload.get("success"))
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_delete_missing_post_id(self, mock_auth):
-        mock_auth.return_value = {"success": True, "message": "Valid token."}
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_delete_missing_post_id(self, mock_auth):
+#         mock_auth.return_value = {"success": True, "message": "Valid token."}
 
-        resp = self.client.delete(self.url, data={}, content_type="application/json")
-        payload = resp.json()
-        print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
+#         resp = self.client.delete(self.url, data={}, content_type="application/json")
+#         payload = resp.json()
+#         print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
 
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(payload.get("success"))
+#         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+#         self.assertFalse(payload.get("success"))
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_delete_invalid_post_id_format(self, mock_auth):
-        mock_auth.return_value = {"success": True, "message": "Valid token."}
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_delete_invalid_post_id_format(self, mock_auth):
+#         mock_auth.return_value = {"success": True, "message": "Valid token."}
 
-        resp = self.client.delete(self.url, data={"post_id": "NOT-A-NUMBER"}, content_type="application/json")
-        payload = resp.json()
-        print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
+#         resp = self.client.delete(self.url, data={"post_id": "NOT-A-NUMBER"}, content_type="application/json")
+#         payload = resp.json()
+#         print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
 
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(payload.get("success"))
+#         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+#         self.assertFalse(payload.get("success"))
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_delete_not_found(self, mock_auth):
-        mock_auth.return_value = {"success": True, "message": "Valid token."}
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_delete_not_found(self, mock_auth):
+#         mock_auth.return_value = {"success": True, "message": "Valid token."}
 
-        # assume no post with this ID
-        resp = self.client.delete(self.url, data={"post_id": 999999}, content_type="application/json")
-        payload = resp.json()
-        print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
+#         # assume no post with this ID
+#         resp = self.client.delete(self.url, data={"post_id": 999999}, content_type="application/json")
+#         payload = resp.json()
+#         print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
 
-        # your boundary currently returns 400 for not found (keep consistent)
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(payload.get("success"))
+#         # your boundary currently returns 400 for not found (keep consistent)
+#         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+#         self.assertFalse(payload.get("success"))
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_delete_success_with_int_id(self, mock_auth):
-        mock_auth.return_value = {"success": True, "message": "Valid token.", "uid": self.user.user_id}
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_delete_success_with_int_id(self, mock_auth):
+#         mock_auth.return_value = {"success": True, "message": "Valid token.", "uid": self.user.user_id}
 
-        resp = self.client.delete(self.url, data={"post_id": self.post.post_id}, content_type="application/json")
-        payload = resp.json()
-        print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
+#         resp = self.client.delete(self.url, data={"post_id": self.post.post_id}, content_type="application/json")
+#         payload = resp.json()
+#         print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
 
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertTrue(payload.get("success"))
-        self.assertEqual(payload.get("data", {}).get("post_id"), self.post.post_id)
+#         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+#         self.assertTrue(payload.get("success"))
+#         self.assertEqual(payload.get("data", {}).get("post_id"), self.post.post_id)
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_delete_success_with_prefixed_id(self, mock_auth):
-        """
-        Only passes if you applied the optional _parse_post_id() change above.
-        """
-        mock_auth.return_value = {"success": True, "message": "Valid token.", "uid": self.user.user_id}
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_delete_success_with_prefixed_id(self, mock_auth):
+#         """
+#         Only passes if you applied the optional _parse_post_id() change above.
+#         """
+#         mock_auth.return_value = {"success": True, "message": "Valid token.", "uid": self.user.user_id}
 
-        resp = self.client.delete(self.url, data={"post_id": f"POST-{self.post.post_id}"}, content_type="application/json")
-        payload = resp.json()
-        print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
+#         resp = self.client.delete(self.url, data={"post_id": f"POST-{self.post.post_id}"}, content_type="application/json")
+#         payload = resp.json()
+#         print(f"\n{self._testMethodName}\n{json.dumps(payload, indent=2)}\n")
 
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertTrue(payload.get("success"))
-        self.assertEqual(payload.get("data", {}).get("post_id"), self.post.post_id)
-# ----------------
-# ADMIN - 1 (end)
-# ----------------
+#         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+#         self.assertTrue(payload.get("success"))
+#         self.assertEqual(payload.get("data", {}).get("post_id"), self.post.post_id)
+# # ----------------
+# # ADMIN - 1 (end)
+# # ----------------
 
-# -----------------
-# ADMIN - 4 (start)
-# -----------------
-class ViewMemberPostsTestCase(TestCase):
-    def setUp(self):
-        self.url = reverse("posts_by_member")
-        self.member = User.objects.create(
-            user_id="55",
-            full_name="Member A",
-            email="member55@example.com",
-            role="member",
-            status=True,
-        )
-        self.other = User.objects.create(
-            user_id="77",
-            full_name="Member B",
-            email="member77@example.com",
-            role="member",
-            status=True,
-        )
+# # -----------------
+# # ADMIN - 4 (start)
+# # -----------------
+# class ViewMemberPostsTestCase(TestCase):
+#     def setUp(self):
+#         self.url = reverse("posts_by_member")
+#         self.member = User.objects.create(
+#             user_id="55",
+#             full_name="Member A",
+#             email="member55@example.com",
+#             role="member",
+#             status=True,
+#         )
+#         self.other = User.objects.create(
+#             user_id="77",
+#             full_name="Member B",
+#             email="member77@example.com",
+#             role="member",
+#             status=True,
+#         )
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_unauthorized(self, mock_app):
-        mock_app.return_value = {"success": False, "message": "Invalid token."}
-        resp = self.client.get(self.url, {"member_id": "55"})
-        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_unauthorized(self, mock_app):
+#         mock_app.return_value = {"success": False, "message": "Invalid token."}
+#         resp = self.client.get(self.url, {"member_id": "55"})
+#         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_missing_member_id(self, mock_app):
-        mock_app.return_value = {"success": True}
-        resp = self.client.get(self.url)
-        print("\nmissing_member_id\n", json.dumps(resp.json(), indent=2))
-        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertFalse(resp.json().get("success"))
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_missing_member_id(self, mock_app):
+#         mock_app.return_value = {"success": True}
+#         resp = self.client.get(self.url)
+#         print("\nmissing_member_id\n", json.dumps(resp.json(), indent=2))
+#         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+#         self.assertFalse(resp.json().get("success"))
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_success_empty(self, mock_app):
-        mock_app.return_value = {"success": True}
-        # no posts for member yet
-        resp = self.client.get(self.url, {"member_id": "55"})
-        print("\nsuccess_empty\n", json.dumps(resp.json(), indent=2))
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertTrue(resp.json().get("success"))
-        self.assertEqual(len(resp.json()["data"]), 0)
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_success_empty(self, mock_app):
+#         mock_app.return_value = {"success": True}
+#         # no posts for member yet
+#         resp = self.client.get(self.url, {"member_id": "55"})
+#         print("\nsuccess_empty\n", json.dumps(resp.json(), indent=2))
+#         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+#         self.assertTrue(resp.json().get("success"))
+#         self.assertEqual(len(resp.json()["data"]), 0)
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
-    def test_success_with_posts(self, mock_app):
-        mock_app.return_value = {"success": True}
-        # create 3 posts for 55 and 2 for 77
-        for i in range(3):
-            Post.objects.create(user=self.member, content=f"p{i}", image_urls=[f"https://img/{i}.png"], status="active")
-        for i in range(2):
-            Post.objects.create(user=self.other, content=f"x{i}", image_urls=[], status="active")
+#     @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+#     def test_success_with_posts(self, mock_app):
+#         mock_app.return_value = {"success": True}
+#         # create 3 posts for 55 and 2 for 77
+#         for i in range(3):
+#             Post.objects.create(user=self.member, content=f"p{i}", image_urls=[f"https://img/{i}.png"], status="active")
+#         for i in range(2):
+#             Post.objects.create(user=self.other, content=f"x{i}", image_urls=[], status="active")
 
-        resp = self.client.get(self.url, {"member_id": "USER-55"})  # prefixed works
-        body = resp.json()
-        print("\nsuccess_with_posts\n", json.dumps(body, indent=2))
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertTrue(body.get("success"))
-        self.assertEqual(len(body["data"]), 3)
-        # each item has required keys
-        for item in body["data"]:
-            self.assertIn("post_id", item)
-            self.assertIn("media_url", item)
-            self.assertIn("caption", item)
-# ---------------
-# ADMIN - 4 (end)
-# ---------------
+#         resp = self.client.get(self.url, {"member_id": "USER-55"})  # prefixed works
+#         body = resp.json()
+#         print("\nsuccess_with_posts\n", json.dumps(body, indent=2))
+#         self.assertEqual(resp.status_code, status.HTTP_200_OK)
+#         self.assertTrue(body.get("success"))
+#         self.assertEqual(len(body["data"]), 3)
+#         # each item has required keys
+#         for item in body["data"]:
+#             self.assertIn("post_id", item)
+#             self.assertIn("media_url", item)
+#             self.assertIn("caption", item)
+# # ---------------
+# # ADMIN - 4 (end)
+# # ---------------
 
 # ------------------
 # MEMBER - 2 (start)

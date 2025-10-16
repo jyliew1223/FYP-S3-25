@@ -93,7 +93,8 @@ def verify_id_token(id_token: str) -> Dict[str, Any]:
         }
 
 class PrefixedIDConverter:
-    def to_raw_id(self, prefixed_id: str) -> int:
+    @staticmethod
+    def to_raw_id(prefixed_id: str) -> int:
         if not prefixed_id or "-" not in prefixed_id:
             raise ValueError(f"not - found Invalid ID format: {prefixed_id}")
         parts = prefixed_id.split("-")
