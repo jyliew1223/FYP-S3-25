@@ -204,7 +204,9 @@ def get_monthly_user_ranking_view(request: Request) -> Response:
             {"success": False, "message": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-    
+
+
+'''
 # -----------------
 # ADMIN - 3 (start)
 # -----------------
@@ -301,3 +303,4 @@ def delete_profile_view(request) -> Response:
 # ---------------
 # ADMIN - 3 (end)
 # ---------------
+'''

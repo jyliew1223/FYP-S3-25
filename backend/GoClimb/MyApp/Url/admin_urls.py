@@ -1,3 +1,4 @@
+'''
 #Url/admin_urls.py
 from django.urls import path
 from MyApp.Boundary.user_admin import suspend_profile_view
@@ -7,5 +8,6 @@ from MyApp.Boundary.user_admin import (
 )
 
 urlpatterns = [
-    path("suspend_profile/", suspend_profile_view, name="suspend_profile"),   # ADMIN - 2
+   path("suspend_profile/", suspend_profile_view, name="suspend_profile"),   # ADMIN - 2
 ]
+'''

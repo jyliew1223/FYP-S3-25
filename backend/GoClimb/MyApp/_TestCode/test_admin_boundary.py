@@ -1,3 +1,5 @@
+'''
+
 # MyApp/_TestCode/test_admin_boundary.py
 import json
 import uuid
@@ -143,3 +145,5 @@ class DeleteProfileViewTestCase(TestCase):
 # ---------------
 # ADMIN - 3 (end)
 # ---------------
+
+'''
