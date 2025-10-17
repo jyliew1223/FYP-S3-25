@@ -12,6 +12,7 @@ from MyApp.Boundary.post_boundary import (
     unlike_post_view,
     post_likes_count_view,
     post_likes_users_view,
+    create_post_view,
 )
 
 urlpatterns = [
@@ -28,4 +29,5 @@ urlpatterns = [
     path("unlike/", unlike_post_view, name="unlike_post"),   # MEMBER - 2
     path("likes/count/", post_likes_count_view, name="post_likes_count"),   # MEMBER - 2
     path("likes/users/", post_likes_users_view, name="post_likes_users"),   # MEMBER - 2
+    path("create_post/", create_post_view, name="create_post"),
 ]

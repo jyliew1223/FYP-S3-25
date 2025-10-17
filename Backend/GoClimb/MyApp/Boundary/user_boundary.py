@@ -30,7 +30,7 @@ def get_user_view(request: Request) -> Response:
     {
     'success' : bool
     'message' : str
-    'data' : { user details except user_id in JSON}
+    'data' : {}
     "errors": dict[str, Any] # Only if success is False
     }
 

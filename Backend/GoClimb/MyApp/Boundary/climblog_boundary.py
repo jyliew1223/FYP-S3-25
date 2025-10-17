@@ -17,7 +17,7 @@ from MyApp.Exceptions.exceptions import InvalidUIDError
 def get_user_climb_logs_view(request: Request) -> Response:
     """
     POST /climb_logs
-    Body: {"id_token": str}
+    Body: {"user_id": str}
 
     Returns:
     {
@@ -45,9 +45,9 @@ def get_user_climb_logs_view(request: Request) -> Response:
 
     data = request.data if isinstance(request.data, dict) else {}
 
-    id_token = data.get("id_token", "")
+    user_id = data.get("user_id", "")
 
-    required_fields = {"id_token": id_token}
+    required_fields = {"user_id": user_id}
 
     for field_name, value in required_fields.items():
         if not value:
@@ -60,7 +60,7 @@ def get_user_climb_logs_view(request: Request) -> Response:
             )
 
     try:
-        list = get_user_climb_logs(id_token)
+        list = get_user_climb_logs(user_id)
 
         serializer = ClimbLogSerializer(list, many=True)
         items = serializer.data
@@ -103,7 +103,7 @@ def get_user_climb_logs_view(request: Request) -> Response:
 def get_user_climb_stats_view(request: Request) -> Response:
     """
     POST /climb_stats
-    Body: {"id_token": str}
+    Body: {"user_id": str}
 
     Returns:
     {
@@ -129,9 +129,9 @@ def get_user_climb_stats_view(request: Request) -> Response:
 
     data = request.data if isinstance(request.data, dict) else {}
 
-    id_token = data.get("id_token", "")
+    user_id = data.get("user_id", "")
 
-    required_fields = {"id_token": id_token}
+    required_fields = {"user_id": user_id}
 
     for field_name, value in required_fields.items():
         if not value:
@@ -144,7 +144,7 @@ def get_user_climb_stats_view(request: Request) -> Response:
             )
 
     try:
-        route_count = get_user_climb_state(id_token)
+        route_count = get_user_climb_state(user_id)
 
         if isinstance(route_count, int):
             return Response(

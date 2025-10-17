@@ -9,19 +9,15 @@ from MyApp.Entity.climblog import ClimbLog
 from MyApp.Exceptions.exceptions import InvalidUIDError
 
 
-def get_user_climb_logs(id_token: str) -> List[ClimbLog]:
-    decoded_token = auth.verify_id_token(id_token)
-    user_id = decoded_token.get("uid")
+def get_user_climb_logs(user_id: str) -> List[ClimbLog]:
     if not user_id:
         raise InvalidUIDError("User ID is null or empty.")
-
+    
     logs = ClimbLog.objects.filter(user=user_id).order_by("-date_climbed")
     return list(logs)
 
 
-def get_user_climb_state(id_token: str) -> Optional[int]:
-    decoded_token = auth.verify_id_token(id_token)
-    user_id = decoded_token.get("uid")
+def get_user_climb_state(user_id: str) -> Optional[int]:
     if not user_id:
         raise InvalidUIDError("User ID is null or empty.")
 

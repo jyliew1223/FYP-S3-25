@@ -12,12 +12,12 @@ from MyApp.Entity.route import Route
 from MyApp.Entity.user import User
 from datetime import date
 
+
 class GetUserClimbLogsTests(TestCase):
     def setUp(self):
         self.url = reverse("get_user_climb_logs")
         self.uid = "user-123"
         self.empty_log_user_uid = "user-456"
-        self.id_token = "token"
         self.user = User.objects.create(
             user_id=self.uid, full_name="Test User01", email="Email01"
         )
@@ -48,10 +48,8 @@ class GetUserClimbLogsTests(TestCase):
         )
 
     @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.climblog_controller.auth.verify_id_token")
-    def test_get_user_climb_logs_unauthorized(self, mock_verify, mock_appcheck):
-        mock_appcheck.return_value = {"success": True}
-        mock_verify.return_value = {"success": False, "message": "Missing ID token"}
+    def test_get_user_climb_logs_unauthorized(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": False}
 
         response = self.client.post(self.url, data={}, format="json")
 
@@ -59,18 +57,14 @@ class GetUserClimbLogsTests(TestCase):
         pretty_json = json.dumps(response_json, indent=2, ensure_ascii=False)
         print(f"\n{self._testMethodName} ->\n{pretty_json}\n")
 
-        self.assertEqual(
-            response.status_code, status.HTTP_400_BAD_REQUEST
-        )  # missing field[7]
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.climblog_controller.auth.verify_id_token")
-    def test_get_user_climb_logs_empty_list(self, mock_verify, mock_appcheck):
+    def test_get_user_climb_logs_empty_list(self,  mock_appcheck):
         mock_appcheck.return_value = {"success": True}
-        mock_verify.return_value = {"success": True, "uid": self.empty_log_user_uid}
 
         response = self.client.post(
-            self.url, data={"id_token": self.id_token}, format="json"
+            self.url, data={"user_id": self.empty_log_user_uid}, format="json"
         )
 
         response_json = response.json()
@@ -82,13 +76,11 @@ class GetUserClimbLogsTests(TestCase):
         self.assertEqual(response_json.get("data"), [])
 
     @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.climblog_controller.auth.verify_id_token")
-    def test_get_user_climb_logs_success(self, mock_verify, mock_appcheck):
+    def test_get_user_climb_logs_success(self,  mock_appcheck):
         mock_appcheck.return_value = {"success": True}
-        mock_verify.return_value = {"success": True, "uid": self.uid}
 
         response = self.client.post(
-            self.url, data={"id_token": self.id_token}, format="json"
+            self.url, data={"user_id": self.uid}, format="json"
         )
 
         response_json = response.json()
@@ -99,11 +91,11 @@ class GetUserClimbLogsTests(TestCase):
         self.assertTrue(response_json.get("success"))
         self.assertNotEqual(response_json.get("data"), [])
 
+
 class GetUserClimbStatsTests(TestCase):
     def setUp(self):
         self.url = reverse("get_user_climb_stats")
         self.user_id = "user-123"
-        self.id_token = "fake-id-token"
 
         # Create a user
         self.user = User.objects.create(
@@ -139,13 +131,11 @@ class GetUserClimbStatsTests(TestCase):
         )
 
     @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.climblog_controller.auth.verify_id_token")
-    def test_get_user_climb_stats_unauthorize(self, mock_id_token, mock_app_check):
+    def test_get_user_climb_stats_unauthorize(self,  mock_app_check):
         mock_app_check.return_value = {"success": False}
-        mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
 
         payload = {
-            "id_token": self.id,
+            "user_id": self.user_id,
         }
         response = self.client.post(self.url, payload, format="json")
 
@@ -157,15 +147,11 @@ class GetUserClimbStatsTests(TestCase):
         self.assertFalse(response_json.get("success"))
 
     @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.climblog_controller.auth.verify_id_token")
-    def test_get_user_climb_stats_bad_request(
-        self, mock_id_token, mock_app_check
-    ):
+    def test_get_user_climb_stats_bad_request(self, mock_app_check):
         mock_app_check.return_value = {"success": True}
-        mock_id_token.return_value = {"success": False, "message": "Missing ID token"}
 
         payload = {
-            "id_token": self.id,
+            "user_id": "",
         }
         response = self.client.post(self.url, payload, format="json")
 
@@ -177,13 +163,11 @@ class GetUserClimbStatsTests(TestCase):
         self.assertFalse(response_json.get("success"))
 
     @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
-    @patch("MyApp.Controller.climblog_controller.auth.verify_id_token")
-    def test_get_user_climb_stats_success(self, mock_id_token, mock_app_check):
+    def test_get_user_climb_stats_success(self,  mock_app_check):
         mock_app_check.return_value = {"success": True}
-        mock_id_token.return_value = {"uid": self.user_id}
 
         payload = {
-            "id_token": self.id,
+            "user_id": self.user_id,
         }
         response = self.client.post(self.url, payload, format="json")
 

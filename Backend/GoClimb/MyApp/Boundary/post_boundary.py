@@ -12,7 +12,6 @@ from MyApp.Utils.helper import authenticate_app_check_token, verify_id_token
 from MyApp.Serializer.serializers import PostSerializer
 
 
-
 @api_view(["GET"])
 def get_post_view(request: Request) -> Response:
     """
@@ -194,7 +193,7 @@ def get_post_by_user_id_view(request: Request) -> Response:
 
         INPUT:
         {
-        id_token:str
+        user_id:str
         count: int,
         blacklist:[list of post_id]
         }
@@ -231,13 +230,13 @@ def get_post_by_user_id_view(request: Request) -> Response:
 
     data: dict[str, Any] = request.data if isinstance(request.data, dict) else {}
 
-    id_token: str = data.get("id_token","")
+    user_id: str = data.get("user_id", "")
     count_str: int = data.get("count", 10)
     count: int = int(count_str)
     blacklist: list[str] = data.get("blacklist", [])
 
     required_fields: dict = {
-        "id_token": id_token,
+        "user_id": user_id,
         "count": count,
     }
 
@@ -253,7 +252,7 @@ def get_post_by_user_id_view(request: Request) -> Response:
             )
 
     try:
-        post_list = post_controller.get_post_by_user_id(id_token, count, blacklist)
+        post_list = post_controller.get_post_by_user_id(user_id, count, blacklist)
         serializer = PostSerializer(post_list, many=True)
         serialized_data = serializer.data if isinstance(serializer.data, list) else []
 
@@ -303,6 +302,7 @@ def get_post_by_user_id_view(request: Request) -> Response:
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+
 # -----------------
 # ADMIN - 1 (start)
 # -----------------
@@ -315,6 +315,7 @@ from rest_framework import status
 from MyApp.Utils.helper import authenticate_app_check_token
 from MyApp.Controller.post_controller import delete_post
 
+
 def _parse_post_id(raw) -> int:
     """
     Accepts an int-like value or a string like 'POST-123'.
@@ -323,6 +324,7 @@ def _parse_post_id(raw) -> int:
     if isinstance(raw, str) and raw.startswith("POST-"):
         raw = raw.split("POST-", 1)[1]
     return int(raw)
+
 
 @api_view(["DELETE"])
 def delete_post_view(request: Request) -> Response:
@@ -356,7 +358,7 @@ def delete_post_view(request: Request) -> Response:
         # let helper's message/errors pass through
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
 
-    '''
+    """
     # 2) get post_id (accept from JSON body or ?post_id=)
     raw_id = request.data.get("post_id", None)
     if raw_id is None:
@@ -374,7 +376,7 @@ def delete_post_view(request: Request) -> Response:
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-    '''
+    """
 
     raw_id = request.data.get("post_id", None)
     if raw_id is None:
@@ -391,13 +393,17 @@ def delete_post_view(request: Request) -> Response:
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-        
+
     # 3) delegate to controller
     response = delete_post(post_id)
 
     # 4) map to HTTP status
-    http_status = status.HTTP_200_OK if response.get("success") else status.HTTP_400_BAD_REQUEST
+    http_status = (
+        status.HTTP_200_OK if response.get("success") else status.HTTP_400_BAD_REQUEST
+    )
     return Response(response, status=http_status)
+
+
 # ----------------
 # ADMIN - 1 (end)
 # ----------------
@@ -406,6 +412,7 @@ def delete_post_view(request: Request) -> Response:
 # ADMIN - 4 (start)
 # -----------------
 from MyApp.Controller.post_controller import get_posts_by_member
+
 
 def _normalize_member_id(raw: Any) -> Optional[str]:
     """
@@ -444,7 +451,11 @@ def get_member_posts_view(request) -> Response:
     result: Dict[str, Any] = authenticate_app_check_token(request)
     if not result.get("success"):
         return Response(
-            {"success": False, "message": result.get("message", "Unauthorized."), "errors": result.get("errors", {})},
+            {
+                "success": False,
+                "message": result.get("message", "Unauthorized."),
+                "errors": result.get("errors", {}),
+            },
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
@@ -455,7 +466,9 @@ def get_member_posts_view(request) -> Response:
             {
                 "success": False,
                 "message": "Invalid member_id.",
-                "errors": {"member_id": "This query param is required and must be a valid identifier."},
+                "errors": {
+                    "member_id": "This query param is required and must be a valid identifier."
+                },
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -480,6 +493,8 @@ def get_member_posts_view(request) -> Response:
     # 3) Fetch
     payload = get_posts_by_member(member_id, limit=limit_val)
     return Response(payload, status=status.HTTP_200_OK)
+
+
 # ---------------
 # ADMIN - 4 (end)
 # ---------------
@@ -495,6 +510,7 @@ from MyApp.Controller.post_controller import (
     get_likes_users,
 )
 
+
 def _require_appcheck(request: Request) -> Tuple[bool, Response]:
     result: Dict[str, Any] = authenticate_app_check_token(request)
     if not result.get("success"):
@@ -504,80 +520,109 @@ def _require_appcheck(request: Request) -> Tuple[bool, Response]:
         )
     return True, None  # type: ignore
 
-def _require_uid_from_id_token(request: Request) -> Tuple[bool, str | None, Response | None]:
+
+def _require_uid_from_id_token(
+    request: Request,
+) -> Tuple[bool, str | None, Response | None]:
     ok, resp = _require_appcheck(request)
     if not ok:
         return False, None, resp
 
     id_token = request.data.get("id_token")
     if not isinstance(id_token, str) or not id_token.strip():
-        return False, None, Response(
-            {
-                "success": False,
-                "message": "Invalid or missing id_token.",
-                "errors": {"id_token": "This field is required and must be a non-empty string."},
-            },
-            status=status.HTTP_400_BAD_REQUEST,
+        return (
+            False,
+            None,
+            Response(
+                {
+                    "success": False,
+                    "message": "Invalid or missing id_token.",
+                    "errors": {
+                        "id_token": "This field is required and must be a non-empty string."
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            ),
         )
     verified = verify_id_token(id_token)
     if not verified or not verified.get("success") or not verified.get("uid"):
-        return False, None, Response(
-            {"success": False, "message": (verified or {}).get("message", "Failed to verify id_token.")},
-            status=status.HTTP_401_UNAUTHORIZED,
+        return (
+            False,
+            None,
+            Response(
+                {
+                    "success": False,
+                    "message": (verified or {}).get(
+                        "message", "Failed to verify id_token."
+                    ),
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            ),
         )
     return True, verified["uid"], None
 
+
 @api_view(["POST"])
 def like_post_view(request: Request) -> Response:
-    #App Check (authorization/authentication gate)
+    # App Check (authorization/authentication gate)
     result: Dict[str, Any] = authenticate_app_check_token(request)
     if not result.get("success"):
         # let helper's message/errors pass through
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
-    
-    ok, uid, error_resp = _require_uid_from_id_token(request)
-    if not ok:
-        return error_resp  # type: ignore
+
+    uid = request.data.get("user_id", "")
 
     post_id_val = request.data.get("post_id")
     ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
     if not ok:
         return Response(
-            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            {
+                "success": False,
+                "message": "Invalid post_id.",
+                "errors": {"post_id": err},
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     result = like_post(uid, post_id_int)  # type: ignore[arg-type]
     return Response(
         result,
-        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+        status=(
+            status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST
+        ),
     )
 
+
 @api_view(["POST"])
-def unlike_post_view(request: Request) -> Response:    
-    #App Check (authorization/authentication gate)
+def unlike_post_view(request: Request) -> Response:
+    # App Check (authorization/authentication gate)
     result: Dict[str, Any] = authenticate_app_check_token(request)
     if not result.get("success"):
         # let helper's message/errors pass through
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
-    
-    ok, uid, error_resp = _require_uid_from_id_token(request)
-    if not ok:
-        return error_resp  # type: ignore
+
+    uid = request.data.get("user_id", "")
 
     post_id_val = request.data.get("post_id")
     ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
     if not ok:
         return Response(
-            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            {
+                "success": False,
+                "message": "Invalid post_id.",
+                "errors": {"post_id": err},
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     result = unlike_post(uid, post_id_int)  # type: ignore[arg-type]
     return Response(
         result,
-        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+        status=(
+            status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST
+        ),
     )
+
 
 @api_view(["GET"])
 def post_likes_count_view(request: Request) -> Response:
@@ -589,15 +634,22 @@ def post_likes_count_view(request: Request) -> Response:
     ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
     if not ok:
         return Response(
-            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            {
+                "success": False,
+                "message": "Invalid post_id.",
+                "errors": {"post_id": err},
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     result = get_likes_count(post_id_int)  # type: ignore[arg-type]
     return Response(
         result,
-        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+        status=(
+            status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST
+        ),
     )
+
 
 @api_view(["GET"])
 def post_likes_users_view(request: Request) -> Response:
@@ -609,7 +661,11 @@ def post_likes_users_view(request: Request) -> Response:
     ok, post_id_int, err = _parse_post_id_to_int(post_id_val)
     if not ok:
         return Response(
-            {"success": False, "message": "Invalid post_id.", "errors": {"post_id": err}},
+            {
+                "success": False,
+                "message": "Invalid post_id.",
+                "errors": {"post_id": err},
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -625,8 +681,99 @@ def post_likes_users_view(request: Request) -> Response:
     result = get_likes_users(post_id_int, page=page, page_size=page_size)  # type: ignore[arg-type]
     return Response(
         result,
-        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+        status=(
+            status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST
+        ),
     )
+
+
 # ----------------
 # MEMBER - 2 (end)
 # ----------------
+
+from MyApp.Entity.user import User
+from MyApp.Controller.post_controller import create_post
+
+
+@api_view(["POST"])
+def create_post_view(request):
+    """
+    Create a new post by specifying a user ID in request data.
+    input:
+    {
+        "user_id":,
+        "content": ,
+        "tags": [],
+        "image_urls": []
+    }
+    output:
+    {
+        "success": bool,
+        "message": str,
+        "data": {
+            "post_id": int,
+            "media_url": str,
+            "caption": str
+        },
+        "errors": dict[str, Any]   # present only when success is False
+    }
+    """
+
+    result: dict = authenticate_app_check_token(request)
+
+    if not result.get("success"):
+        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+
+    user_id = request.data.get("user_id", "")
+
+    required_fields: dict = {
+        "user_id": user_id,
+        "content": request.data.get("content"),
+    }
+
+    if not all(required_fields.values()):
+        return Response(
+            {
+                "success": False,
+                "message": "Missing required fields.",
+                "errors": {
+                    k: "This field is required."
+                    for k, v in required_fields.items()
+                    if not v
+                },
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        success: bool = create_post(user_id, request.data)
+
+        if success:
+            return Response(
+                {
+                    "success": True,
+                    "message": "Post created successfully.",
+                    "data": result,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        return (
+            Response(
+                {
+                    "success": False,
+                    "message": "Post creation failed.",
+                    "data": None,
+                }
+            ),
+        )
+    except User.DoesNotExist as e:
+        return Response(
+            {"success": False, "message": str(e)},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"success": False, "message": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

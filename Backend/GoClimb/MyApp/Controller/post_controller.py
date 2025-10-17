@@ -37,10 +37,8 @@ def get_random_post(count: int = 10, blacklist: list[str] | None = None):
 
 
 def get_post_by_user_id(
-    id_token: str, count: int = 10, blacklist: list[str] | None = None
+    user_id: str, count: int = 10, blacklist: list[str] | None = None
 ):
-    decoded_token = auth.verify_id_token(id_token)
-    user_id = decoded_token.get("uid")
     if not user_id:
         raise InvalidUIDError("User ID is null or empty.")
 
@@ -50,11 +48,10 @@ def get_post_by_user_id(
     if blacklist is None:
         blacklist = []
 
-    converter = PrefixedIDConverter()
     blacklist_int: list[int] = []
 
     for item in blacklist:
-        data: int = converter.to_raw_id(item)
+        data: int = PrefixedIDConverter.to_raw_id(item)
         blacklist_int.append(data)
 
     posts = (
@@ -64,11 +61,13 @@ def get_post_by_user_id(
     )
     return posts
 
+
 # ------------------
 # ADMIN - 1 (Start)
 # ------------------
 from typing import Any, Dict
 from django.db import transaction
+
 
 def delete_post(post_id: int) -> Dict[str, Any]:
     """
@@ -110,6 +109,8 @@ def delete_post(post_id: int) -> Dict[str, Any]:
             "message": "Error processing deletion.",
             "errors": {"exception": str(e)},
         }
+
+
 # ----------------
 # ADMIN - 1 (End)
 # ----------------
@@ -119,6 +120,7 @@ def delete_post(post_id: int) -> Dict[str, Any]:
 # -----------------
 from typing import Any, Dict, List, Optional
 from MyApp.Entity.post import Post
+
 
 def get_posts_by_member(member_id: str, limit: Optional[int] = None) -> Dict[str, Any]:
     """
@@ -131,13 +133,15 @@ def get_posts_by_member(member_id: str, limit: Optional[int] = None) -> Dict[str
 
     data: List[Dict[str, Any]] = []
     for p in qs:
-        first_media = (p.image_urls or [])
+        first_media = p.image_urls or []
         media_url = first_media[0] if first_media else ""
-        data.append({
-            "post_id": p.post_id,          # keep raw PK (you can prefix if you like)
-            "media_url": media_url,
-            "caption": p.content or "",
-        })
+        data.append(
+            {
+                "post_id": p.post_id,  # keep raw PK (you can prefix if you like)
+                "media_url": media_url,
+                "caption": p.content or "",
+            }
+        )
 
     return {
         "success": True,
@@ -145,6 +149,8 @@ def get_posts_by_member(member_id: str, limit: Optional[int] = None) -> Dict[str
         "data": data,
         "errors": [],
     }
+
+
 # ---------------
 # ADMIN - 4 (end)
 # ---------------
@@ -175,50 +181,82 @@ def _parse_post_id_to_int(post_id_val) -> Tuple[bool, Optional[int], str]:
             return True, int(s), ""
     return False, None, "Must be an integer or 'POST-<int>'."
 
+
 @transaction.atomic
 def like_post(uid: str, post_id: int) -> Dict[str, Any]:
     # Ensure user & post exist
     try:
         user = User.objects.get(pk=uid)
     except User.DoesNotExist:
-        return {"success": False, "message": "User not found.", "errors": {"uid": "Invalid."}}
+        return {
+            "success": False,
+            "message": "User not found.",
+            "errors": {"uid": "Invalid."},
+        }
 
     try:
         post = Post.objects.get(pk=post_id, status="active")
     except Post.DoesNotExist:
-        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+        return {
+            "success": False,
+            "message": "Post not found.",
+            "errors": {"post_id": "Invalid."},
+        }
 
     # Create if not exists (unique_together on (post, user) prevents dupes)
     _, _created = PostLike.objects.get_or_create(post=post, user=user)
     return {"success": True, "message": "Post liked", "data": {}}
+
 
 @transaction.atomic
 def unlike_post(uid: str, post_id: int) -> Dict[str, Any]:
     try:
         user = User.objects.get(pk=uid)
     except User.DoesNotExist:
-        return {"success": False, "message": "User not found.", "errors": {"uid": "Invalid."}}
+        return {
+            "success": False,
+            "message": "User not found.",
+            "errors": {"uid": "Invalid."},
+        }
 
     try:
         post = Post.objects.get(pk=post_id)
     except Post.DoesNotExist:
-        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+        return {
+            "success": False,
+            "message": "Post not found.",
+            "errors": {"post_id": "Invalid."},
+        }
 
     PostLike.objects.filter(post=post, user=user).delete()
     return {"success": True, "message": "Post unliked", "data": {}}
 
+
 def get_likes_count(post_id: int) -> Dict[str, Any]:
     exists = Post.objects.filter(pk=post_id).exists()
     if not exists:
-        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+        return {
+            "success": False,
+            "message": "Post not found.",
+            "errors": {"post_id": "Invalid."},
+        }
     count = PostLike.objects.filter(post_id=post_id).count()
     return {"success": True, "message": "Likes count fetched", "data": {"count": count}}
 
+
 def get_likes_users(post_id: int, page: int = 1, page_size: int = 50) -> Dict[str, Any]:
     if not Post.objects.filter(pk=post_id).exists():
-        return {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid."}}
+        return {
+            "success": False,
+            "message": "Post not found.",
+            "errors": {"post_id": "Invalid."},
+        }
 
-    qs = PostLike.objects.select_related("user").filter(post_id=post_id).order_by("-created_at")
+    qs = (
+        PostLike.objects.select_related("user")
+        .filter(post_id=post_id)
+        .order_by("-created_at")
+    )
     paginator = Paginator(qs, page_size)
     page_obj = paginator.get_page(page)
 
@@ -242,6 +280,19 @@ def get_likes_users(post_id: int, page: int = 1, page_size: int = 50) -> Dict[st
             "total": paginator.count,
         },
     }
+
+
 # ----------------
 # MEMBER - 2 (end)
 # ----------------
+from MyApp.Serializer.serializers import PostSerializer
+
+def create_post(user_id: str, data):
+    user = User.objects.get(pk=user_id)
+    
+    serializer = PostSerializer(data=data)
+    if serializer.is_valid():
+        serializer.save(user=user)
+        return True
+    
+    return False
