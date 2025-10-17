@@ -302,7 +302,7 @@ def get_post_by_user_id_view(request: Request) -> Response:
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-
+'''
 # -----------------
 # ADMIN - 1 (start)
 # -----------------
@@ -358,26 +358,7 @@ def delete_post_view(request: Request) -> Response:
         # let helper's message/errors pass through
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
 
-    """
     # 2) get post_id (accept from JSON body or ?post_id=)
-    raw_id = request.data.get("post_id", None)
-    if raw_id is None:
-        raw_id = request.query_params.get("post_id", None)
-
-    # validate to int
-    try:
-        post_id = int(raw_id)
-    except (TypeError, ValueError):
-        return Response(
-            {
-                "success": False,
-                "message": "Invalid post_id.",
-                "errors": {"post_id": "This field is required and must be an integer."},
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    """
-
     raw_id = request.data.get("post_id", None)
     if raw_id is None:
         raw_id = request.query_params.get("post_id", None)
@@ -498,6 +479,9 @@ def get_member_posts_view(request) -> Response:
 # ---------------
 # ADMIN - 4 (end)
 # ---------------
+'''
+
+
 
 # ------------------
 # MEMBER - 2 (start)

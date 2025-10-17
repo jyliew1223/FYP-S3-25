@@ -79,6 +79,7 @@ def get_monthly_user_ranking(count: int) -> list[dict[str, Any]]:
 
     return user_ranking
 
+'''
 # -----------------
 # ADMIN - 2 (start)
 # -----------------
@@ -151,3 +152,4 @@ def delete_profile(profile_id: str) -> Dict[str, Any]:
 # ----------------
 # ADMIN - 3 (end)
 # ----------------
+'''

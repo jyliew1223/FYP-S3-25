@@ -39,3 +39,29 @@ def verify_app_check_token(app_check_token) -> dict[str, Any]:
         return {"success": False, "message": f"Firebase error: {str(e)}"}
     except Exception as e:
         return {"success": False, "message": f"Unexpected error: {str(e)}"}
+    
+    
+# ------------------------
+# ADMIN 1, 2, 3, 4 (start)
+# ------------------------
+from typing import Optional
+
+def parse_prefixed_int(value, prefix: str) -> Optional[int]:
+    """
+    Accepts plain int (123) or 'PREFIX-123' (case-sensitive).
+    Returns int or None if invalid.
+    """
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        value = value.strip()
+        if value.isdigit():
+            return int(value)
+        if value.startswith(f"{prefix}-"):
+            tail = value[len(prefix) + 1 :]
+            if tail.isdigit():
+                return int(tail)
+    return None
+# ----------------------
+# ADMIN 1, 2, 3, 4 (end)
+# ----------------------

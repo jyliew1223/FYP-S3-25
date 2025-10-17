@@ -61,7 +61,7 @@ def get_post_by_user_id(
     )
     return posts
 
-
+'''
 # ------------------
 # ADMIN - 1 (Start)
 # ------------------
@@ -154,6 +154,7 @@ def get_posts_by_member(member_id: str, limit: Optional[int] = None) -> Dict[str
 # ---------------
 # ADMIN - 4 (end)
 # ---------------
+'''
 
 # ------------------
 # MEMBER - 2 (start)
