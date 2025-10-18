@@ -1,4 +1,4 @@
-//utils/ApiModels.js
+// src/services/api/ApiModels.js
 
 import { BaseApiModel } from './ApiHelper.js';
 
