@@ -1,3 +1,4 @@
+// src/services/firebase/FirebaseStatusCheck.js
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button } from 'react-native';
 import { firebase } from '@react-native-firebase/app';
