@@ -1,4 +1,4 @@
-//serivce/firebase/InitFirebasse.js
+// src/services/firebase/InitFirebaseApps.js
 
 import { getApp } from '@react-native-firebase/app';
 import {
