@@ -1,4 +1,4 @@
-// src/services/api/ApiHelper.js
+//utils/ApiHelper.js
 
 import { getApp } from '@react-native-firebase/app';
 import appCheck, { getToken } from '@react-native-firebase/app-check';

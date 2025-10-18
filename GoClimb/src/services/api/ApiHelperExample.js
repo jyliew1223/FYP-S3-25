@@ -1,5 +1,3 @@
-// src/services/api/ApiHelperExample.js
-
 // How to use CustomApiModel
 
 // ------------------------------

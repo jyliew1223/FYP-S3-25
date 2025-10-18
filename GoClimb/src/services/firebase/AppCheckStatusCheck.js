@@ -1,4 +1,4 @@
-// src/service/firebase/AppCheckStatusCheck.js
+//service/firebase/FirebaseAppCheckStatusCheck.js
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, Button } from 'react-native';
