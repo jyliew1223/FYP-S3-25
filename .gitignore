@@ -80,3 +80,4 @@ coverage.xml
 /Pipfile.lock
 node_modules/
 test_results.txt
+/Backend/GoClimb/MyApp/management

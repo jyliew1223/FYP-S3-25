@@ -4,10 +4,13 @@ from datetime import timedelta
 from django.utils.timezone import now
 from MyApp.Entity.climblog import ClimbLog
 from django.db.models import Count
+from MyApp.Utils.helper import PrefixedIDConverter
+
 
 def get_crag_info(crag_id: str) -> Optional[Crag]:
     """Fetch a single crag object"""
-    return Crag.objects.filter(crag_id=crag_id).first()
+    raw_id = PrefixedIDConverter.to_raw_id(crag_id)
+    return Crag.objects.filter(crag_id=raw_id).first()
 
 
 def get_monthly_ranking(count: int) -> list:
@@ -55,7 +58,9 @@ def get_trending_crags(count: int) -> list[dict[str, Any]]:
         .annotate(previous_count=Count("log_id"))
     )
 
-    previous_lookup = {item["route__crag"]: item["previous_count"] for item in previous_counts}
+    previous_lookup = {
+        item["route__crag"]: item["previous_count"] for item in previous_counts
+    }
 
     crag_ids = [item["route__crag"] for item in current_counts]
     crags = {c.crag_id: c for c in Crag.objects.filter(crag_id__in=crag_ids)}
