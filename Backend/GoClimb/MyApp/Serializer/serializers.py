@@ -36,14 +36,13 @@ class CragSerializer(serializers.ModelSerializer):
 
 
 class RouteSerializer(serializers.ModelSerializer):
-    route_id = serializers.ReadOnlyField()  # Include your property
+    route_id = serializers.SerializerMethodField()  # Include your property
     crag = CragSerializer(read_only=True)
 
     class Meta:
         model = Route
         fields = [
             "route_id",
-            "formatted_id",
             "route_name",
             "route_grade",
             "crag",
