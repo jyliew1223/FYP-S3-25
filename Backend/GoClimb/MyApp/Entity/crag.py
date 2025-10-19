@@ -22,4 +22,4 @@ class Crag(models.Model):
     @property
     def formatted_id(self) -> str:
         """Return id with prefix."""
-        return f"CRAG-{self.crag_id}"
+        return f"CRAG-{self.crag_id:06d}"

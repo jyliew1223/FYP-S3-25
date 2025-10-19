@@ -5,8 +5,8 @@ from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
 from MyApp.Entity.climblog import ClimbLog
 from MyApp.Entity.post import Post
-from MyApp.Entity.category import Category
 from MyApp.Entity.route import Route
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -46,10 +46,9 @@ class RouteSerializer(serializers.ModelSerializer):
             "formatted_id",
             "route_name",
             "route_grade",
-            "route_type",
             "crag",
         ]
-    
+
     def get_route_id(self, obj):
         return obj.formatted_id
 
@@ -93,15 +92,4 @@ class PostSerializer(serializers.ModelSerializer):
         ]
 
     def get_post_id(self, obj):
-        return obj.formatted_id
-
-
-class CategorySerializer(serializers.ModelSerializer):
-    category_id = serializers.SerializerMethodField()  # show formatted_id
-
-    class Meta:
-        model = Category
-        fields = ["category_id", "name", "email", "description", "created_by"]
-
-    def get_category_id(self, obj):
         return obj.formatted_id

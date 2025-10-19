@@ -135,7 +135,6 @@ class GetMonthlyUserRankingTests(TestCase):
             route = Route.objects.create(
                 route_name=f"Route {i}",
                 route_grade=8,  # Corresponds to 5.8 difficulty
-                route_type=Route.SPORT,
                 crag=self.crag,
             )
             self.routes.append(route)

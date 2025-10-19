@@ -37,7 +37,6 @@ class GetUserClimbLogsTests(TestCase):
         self.route = Route.objects.create(
             route_name="Skyline Traverse",
             route_grade=10,  # Corresponds to 6a difficulty
-            route_type=Route.SPORT,
             crag=self.crag,
         )
         ClimbLog.objects.create(
@@ -118,7 +117,6 @@ class GetUserClimbStatsTests(TestCase):
         self.route = Route.objects.create(
             route_name="Easy Route",
             route_grade=8,  # Corresponds to 5.8 difficulty
-            route_type=Route.SPORT,
             crag=self.crag,
         )
 

@@ -37,4 +37,4 @@ class Post(models.Model):
     @property
     def formatted_id(self) -> str:
         """Return id with prefix."""
-        return f"POST-{self.post_id}"
+        return f"POST-{self.post_id:06d}"

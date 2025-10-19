@@ -84,7 +84,9 @@ class CragInfoTests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response_json.get("success"))
-        self.assertEqual(response_json.get("data")["crag_id"], f"CRAG-{self.crag_id}")
+        self.assertEqual(
+            response_json.get("data")["crag_id"], f"CRAG-{self.crag_id:06d}"
+        )
 
 
 class CragMonthlyRankingTests(TestCase):
@@ -109,22 +111,22 @@ class CragMonthlyRankingTests(TestCase):
 
         # Create routes for the crags
         self.route_a = Route.objects.create(
-            route_name="Route A", route_grade=8, route_type=Route.SPORT, crag=self.crag1
+            route_name="Route A", route_grade=8, crag=self.crag1
         )
         self.route_b = Route.objects.create(
-            route_name="Route B", route_grade=8, route_type=Route.SPORT, crag=self.crag1
+            route_name="Route B", route_grade=8, crag=self.crag1
         )
         self.route_c = Route.objects.create(
-            route_name="Route C", route_grade=8, route_type=Route.SPORT, crag=self.crag1
+            route_name="Route C", route_grade=8, crag=self.crag1
         )
         self.route_d = Route.objects.create(
-            route_name="Route D", route_grade=8, route_type=Route.SPORT, crag=self.crag2
+            route_name="Route D", route_grade=8, crag=self.crag2
         )
         self.route_e = Route.objects.create(
-            route_name="Route E", route_grade=8, route_type=Route.SPORT, crag=self.crag2
+            route_name="Route E", route_grade=8, crag=self.crag2
         )
         self.route_f = Route.objects.create(
-            route_name="Route F", route_grade=8, route_type=Route.SPORT, crag=self.crag2
+            route_name="Route F", route_grade=8, crag=self.crag2
         )
 
         # Create climb logs
@@ -133,20 +135,14 @@ class CragMonthlyRankingTests(TestCase):
         two_weeks_ago = today - timedelta(days=14)
 
         # Crag1 logs: 2 this week, 1 last week
-        ClimbLog.objects.create(
-            user=self.user, route=self.route_a, date_climbed=today
-        )
-        ClimbLog.objects.create(
-            user=self.user, route=self.route_b, date_climbed=today
-        )
+        ClimbLog.objects.create(user=self.user, route=self.route_a, date_climbed=today)
+        ClimbLog.objects.create(user=self.user, route=self.route_b, date_climbed=today)
         ClimbLog.objects.create(
             user=self.user, route=self.route_c, date_climbed=last_week
         )
 
         # Crag2 logs: 1 this week, 2 last week
-        ClimbLog.objects.create(
-            user=self.user, route=self.route_d, date_climbed=today
-        )
+        ClimbLog.objects.create(user=self.user, route=self.route_d, date_climbed=today)
         ClimbLog.objects.create(
             user=self.user, route=self.route_e, date_climbed=last_week
         )
@@ -217,22 +213,22 @@ class CragTrendingTests(TestCase):
 
         # Create routes for the crags
         self.route_a2 = Route.objects.create(
-            route_name="Route A", route_grade=8, route_type=Route.SPORT, crag=self.crag1
+            route_name="Route A", route_grade=8, crag=self.crag1
         )
         self.route_b2 = Route.objects.create(
-            route_name="Route B", route_grade=8, route_type=Route.SPORT, crag=self.crag1
+            route_name="Route B", route_grade=8, crag=self.crag1
         )
         self.route_c2 = Route.objects.create(
-            route_name="Route C", route_grade=8, route_type=Route.SPORT, crag=self.crag1
+            route_name="Route C", route_grade=8, crag=self.crag1
         )
         self.route_d2 = Route.objects.create(
-            route_name="Route D", route_grade=8, route_type=Route.SPORT, crag=self.crag2
+            route_name="Route D", route_grade=8, crag=self.crag2
         )
         self.route_e2 = Route.objects.create(
-            route_name="Route E", route_grade=8, route_type=Route.SPORT, crag=self.crag2
+            route_name="Route E", route_grade=8, crag=self.crag2
         )
         self.route_f2 = Route.objects.create(
-            route_name="Route F", route_grade=8, route_type=Route.SPORT, crag=self.crag2
+            route_name="Route F", route_grade=8, crag=self.crag2
         )
 
         # Create climb logs
@@ -241,20 +237,14 @@ class CragTrendingTests(TestCase):
         two_weeks_ago = today - timedelta(days=14)
 
         # Crag1 logs: 2 this week, 1 last week
-        ClimbLog.objects.create(
-            user=self.user, route=self.route_a2, date_climbed=today
-        )
-        ClimbLog.objects.create(
-            user=self.user, route=self.route_b2, date_climbed=today
-        )
+        ClimbLog.objects.create(user=self.user, route=self.route_a2, date_climbed=today)
+        ClimbLog.objects.create(user=self.user, route=self.route_b2, date_climbed=today)
         ClimbLog.objects.create(
             user=self.user, route=self.route_c2, date_climbed=last_week
         )
 
         # Crag2 logs: 1 this week, 2 last week
-        ClimbLog.objects.create(
-            user=self.user, route=self.route_d2, date_climbed=today
-        )
+        ClimbLog.objects.create(user=self.user, route=self.route_d2, date_climbed=today)
         ClimbLog.objects.create(
             user=self.user, route=self.route_e2, date_climbed=last_week
         )
