@@ -44,6 +44,7 @@ def verify_app_check_token(app_check_token) -> dict[str, Any]:
 # ------------------------
 # ADMIN 1, 2, 3, 4 (start)
 # ------------------------
+
 from typing import Optional
 
 def parse_prefixed_int(value, prefix: str) -> Optional[int]:
@@ -62,6 +63,7 @@ def parse_prefixed_int(value, prefix: str) -> Optional[int]:
             if tail.isdigit():
                 return int(tail)
     return None
+
 # ----------------------
 # ADMIN 1, 2, 3, 4 (end)
 # ----------------------
