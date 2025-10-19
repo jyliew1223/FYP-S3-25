@@ -172,7 +172,9 @@ if os.getenv("CI") != "true":
         )
 
     cred = credentials.Certificate(path)
-    firebase_admin.initialize_app(cred)
+    firebase_admin.initialize_app(cred,{
+        'storageBucket': os.getenv("FIREBASE_STORAGE_BUCKET")
+    })
 else:
     # Initialize a mock Firebase app for CI
     try:
