@@ -1,358 +1,154 @@
 // GoClimb/src/services/firebase/FirebaseStorageHelper.js
 
-import { getApp } from '@react-native-firebase/app';
-import {
-  getStorage,
-  ref,
-  getDownloadURL,
-  listAll,
-  getMetadata,
-} from '@react-native-firebase/storage';
+/**
+ * this file will contain functions for uplaoding file to firebase storage
+ * each function is warpped with a namespace
+ *  -> FirebaseStorageHelper
+ * to avoid confusion
+ *
+ * when u need to use the funtion, import the namespace
+ *  -> import FirebaseStorageHelper from 'relative/path/to/this/file'
+ *
+ * this namespace currently provides 2 function:
+ *
+ * -> FirebaseStorageHelper.uploadFileToFirebase(bucketDir, bucketFilename, filePath)
+ *    -> bucketDir - a bucket is a root folder in firebase storage, so this will be the path u will upload the file to
+ *    -> bucketFilename - the file name u want in firebase storage
+ *    -> filePath - the local path to the file
+ *
+ * this function is use when u need to upload a single image, e.g. profile picture, post images
+ * before using it u will need to get the bucket path from backend
+ * when creating data entry, backend will return with a bucketDir which tell the frontend can store images to this dir
+ * therfore u might need to do a for loop to upload all the images
+ * 
+ * {
+ *  "folder":"posts/abc123/post-456"
+ * }   <-- this is what backend will return ideally
+ *
+ * const images = [
+ *   { name: "image1.png", path: "data/image" },
+ *   { name: "image2.png", path: "data/image2" }
+ * ];
+ *
+ * const data = request.data;   <-- u most likely will use CustomApiReqeust to send the request the 'data' will contain {"folder":"posts/abc123/post-456"}
+ * const json = JSON.parse(data);
+ * 
+ * const bucketDir = json.folder
+ *
+ * foreach(const image in images){
+ *    FirebaseStorage.uploadFileToFirebase(bucketDir, image.name, image.path)
+ * }
+ *
+ *
+ *
+ * -> FirebaseStorageHelper.uploadFolderToFirebase(bucketBaseDir, localFolderPath)
+ *    -> bucketBaseDir - same as bucketDir, this will be the parent folder of the uploading file in firebase storage
+ *    -> localFolderPath - the local path of the folder u want to upload
+ *
+ * this function is mainly for files like 3D model which is have folder storing the model and its texture
+ * same as uploading file u will need to get the bucketBaseDir from backend, after that use that dir in this function
+ *
+ * const bucketBaseDir = request.data;
+ * const json = JSON.parse(data);
+ * 
+ * const bucketBaseDir = json.folder
+ * 
+ * FirebaseStorageHelper.uploadFolderToFirebase(bucketBaseDir, localFolderPath)
+ *
+ */
+
 import RNFS from 'react-native-fs';
+import { getStorage, ref, uploadBytes } from 'firebase/storage';
 
-const storage = getStorage(getApp());
+storage = getStorage();
 
-const withBase = (base, endpoints) => {
-  const obj = {};
-  for (const [key, value] of Object.entries(endpoints)) {
-    if (typeof value === 'object' && value !== null) {
-      obj[key] = withBase(base, value);
-    } else {
-      obj[key] = `${base}${value}`;
-    }
-  }
-  return obj;
-};
-
-const getBucketDir = (id, secondID = null) => ({
-  USER: withBase(`users/${id}/`, {
-    IMAGE: 'images/',
-  }),
-  CRAG: withBase(`crags/${id}/`, {
-    IMAGE: 'images/',
-    ROUTE: withBase(`routes/${secondID}/`, {
-      IMAGE: 'images/',
-    }),
-    MODEL: `models/${secondID}/`,
-  }),
-  POST: withBase(`posts/${id}/`, {
-    IMAGE: 'images/',
-  }),
-});
-
-// For fetching file URL from Firebase Storage
-// can use for displaying images, e.g.,
-/* <Image
-  source={{ uri: url }}
-  style={{ width: 200, height: 200, borderRadius: 10 }}
-/> */
 /**
- * @param {string} fileRef - Path in Firebase Storage bucket
- * @returns {string} - Download URL of the file
+ * Upload a local file to Firebase Storage
+ * @param {string} bucketDir - Folder in Firebase Storage, e.g. "crags/CRAG-000003/model"
+ * @param {string} bucketFilename - File name to store in Firebase Storage, e.g. "Image_0.001.png"
+ * @param {string|Blob|File} filePath - Local file path (RNFS path) or Blob/File
  */
-async function getUrl(fileRef) {
-  try {
-    const url = await getDownloadURL(fileRef);
-    console.log('File URL:', url);
-    return url;
-  } catch (error) {
-    console.error('Error fetching file URL:', error);
-    return null;
-  }
-}
+export const uploadFileToFirebase = async (
+  bucketDir,
+  bucketFilename,
+  filePath,
+) => {
+  // Normalize the folder path
+  let safeDir = bucketDir;
+  safeDir = bucketDir.replace(/^\/+|\/+$/g, '');
 
-// For downloading single file from Firebase Storage
-/**
- * @param {string} bucketPath - Path in Firebase Storage bucket
- * @returns {string} - Local file path where the file is downloaded
- */
-async function downloadFile(bucketPath) {
+  const bucketPath = `${safeDir}/${bucketFilename}`;
+
   try {
     const fileRef = ref(storage, bucketPath);
-    const url = await getDownloadURL(fileRef);
 
-    const localPath = `${RNFS.ExternalDirectoryPath}/storage/${bucketPath}`;
-    const localDir = localPath.substring(0, localPath.lastIndexOf('/'));
-
-    // Create all folders recursively
-    await RNFS.mkdir(localDir);
-
-    const result = await RNFS.downloadFile({
-      fromUrl: url,
-      toFile: localPath,
-    }).promise;
-
-    if (result.statusCode === 200) {
-      console.log('✅ File downloaded to:', localPath);
-      return localPath;
+    let fileBlob;
+    if (typeof filePath === 'string') {
+      const response = await fetch(`file://${filePath}`);
+      fileBlob = await response.blob();
     } else {
-      console.error('❌ Download failed with status:', result.statusCode);
-      return null;
-    }
-  } catch (error) {
-    console.error('⚠️ Error downloading file:', error);
-    return null;
-  }
-}
-
-// For downloading entire folder from Firebase Storage
-/**
- * @param {string} bucketFolderPath - Path in Firebase Storage bucket
- * @returns {string} - Local folder path where the folder is downloaded
- */
-async function downloadFolder(bucketFolderPath) {
-  try {
-    const folderRef = ref(storage, bucketFolderPath);
-    const res = await listAll(folderRef);
-
-    // Download all files in this folder
-    for (const item of res.items) {
-      downloadFile(item.fullPath);
+      fileBlob = filePath;
     }
 
-    // Recursively handle subfolders in parallel
-    const subFolderResults = await Promise.all(
-      res.prefixes.map(async (subFolder) => {
-        try {
-          const result = await downloadFolder(subFolder.fullPath);
-          if (!result) {
-            console.error('⚠️ Error downloading subfolder:', subFolder.fullPath);
-            return false;
-          }
-          return true;
-        } catch (err) {
-          console.error('⚠️ Exception downloading subfolder:', subFolder.fullPath, err);
-          return false;
-        }
-      })
-    );
+    await uploadBytes(fileRef, filePath);
 
-    // Determine overall success
-    const isSuccess = subFolderResults.every(r => r === true);
+    console.log('File uploaded successfully:');
+  } catch (err) {
+    console.error('Upload failed:', err);
+  }
+};
 
-    if (isSuccess) {
-      console.log(`✅ Folder downloaded successfully: ${bucketFolderPath}`);
+/**
+ * Recursively upload a local folder to Firebase Storage
+ * @param {string} localFolderPath - e.g. "/storage/emulated/0/GoClimb/crags/CRAG-000003"
+ * @param {string} bucketBaseDir - Firebase folder to mirror locally, e.g. "crags/CRAG-000003"
+ */
+const uploadFolderToFirebase = async (bucketBaseDir, localFolderPath) => {
+  const storage = getStorage();
+
+  // Recursively get all files
+  const getFilesRecursively = async folder => {
+    let allFiles = [];
+    const items = await RNFS.readDir(folder);
+
+    for (const item of items) {
+      if (item.isFile()) {
+        allFiles.push(item.path);
+      } else if (item.isDirectory()) {
+        const nestedFiles = await getFilesRecursively(item.path);
+        allFiles = allFiles.concat(nestedFiles);
+      }
     }
+    return allFiles;
+  };
 
-    return isSuccess;
-  } catch (error) {
-    console.error('⚠️ Error downloading folder:', error);
-    return false;
+  const files = await getFilesRecursively(localFolderPath);
+
+  for (const filePath of files) {
+    try {
+      // Compute relative path to preserve folder structure
+      const relativePath = filePath.replace(`${localFolderPath}/`, '');
+      const safeBucketBaseDir = bucketBaseDir.replace(/^\/+|\/+$/g, ''); // remove leading/trailing slash
+      const bucketPath = `${safeBucketBaseDir}/${relativePath}`;
+
+      const fileRef = ref(storage, bucketPath);
+
+      // Convert local file to Blob
+      const response = await fetch(`file://${filePath}`);
+      const blob = await response.blob();
+
+      await uploadBytes(fileRef, blob);
+
+      console.log(`Uploaded: ${filePath}`);
+    } catch (err) {
+      console.error(`Failed to upload ${filePath}:`, err?.message || err);
+    }
   }
-}
-
-// For getting profile image URL
-/**
- * @param {string} userId
- * @returns {string[]} - Download URLs of the file
- */
-async function getProfileImageUrls(userId) {
-  
-  console.log('Fetching profile images for user:', userId);
-
-  const dir = getBucketDir(userId).USER.IMAGE;
-
-  console.log('Looking in directory:', dir);
-
-  const folderRef = ref(storage, dir);
-
-  try {
-    const list = await listAll(folderRef);
-
-    console.log('Files found:', list.items.length);
-
-    const itemList = list.items.map(async fileRef => {
-      try {
-        const meta = await getMetadata(fileRef);
-        if (meta.customMetadata?.purpose === 'profile_picture') {
-          return await getUrl(fileRef);
-        }
-      } catch (err) {
-        console.error(
-          'Error getting metadata for file:',
-          fileRef.fullPath,
-          err,
-        );
-        return null;
-      }
-    });
-
-    const urls = await Promise.all(itemList).then(results =>
-      results.filter(url => url !== null),
-    );
-
-    return urls;
-  } catch (err) {
-    console.error('Error listing files:', err);
-    return [];
-  }
-}
-
-// For getting crag image URL
-/**
- * @param {string} cragId
- * @returns {string[]} - Download URLs of the file
- */
-async function getCragImageUrls(cragId) {
-  console.log('Fetching crag images for crag:', cragId);
-
-  const dir = getBucketDir(cragId).CRAG.IMAGE;
-
-  console.log('Looking in directory:', dir);
-
-  const folderRef = ref(storage, dir);
-
-  try {
-    const list = await listAll(folderRef);
-
-    console.log('Files found:', list.items.length);
-
-    const itemList = list.items.map(async fileRef => {
-      try {
-        const meta = await getMetadata(fileRef);
-        if (meta.customMetadata?.purpose === 'crag_image') {
-          return await getUrl(fileRef);
-        }
-      } catch (err) {
-        console.error(
-          'Error getting metadata for file:',
-          fileRef.fullPath,
-          err,
-        );
-        return null;
-      }
-    });
-
-    const urls = await Promise.all(itemList).then(results =>
-      results.filter(url => url !== null),
-    );
-
-    return urls;
-  } catch (err) {
-    console.error('Error listing files:', err);
-    return [];
-  }
-}
-
-// For getting routes image URL ( Note: Route Model(ApiModel) will contain its crag data represented in Crag Model )
-/**
- * @param {string} cragId
- * @param {string} routeId
- * @returns {string[]} - Download URLs of the file
- */
-async function getRouteImageUrls(cragId, routeId) {
-  console.log('Fetching route images for crag:', cragId, 'and route:', routeId);
-
-  const dir = getBucketDir(cragId, routeId).CRAG.ROUTE.IMAGE;
-
-  console.log('Looking in directory:', dir);
-
-  const folderRef = ref(storage, dir);
-
-  try {
-    const list = await listAll(folderRef);
-
-    console.log('Files found:', list.items.length);
-
-    const itemList = list.items.map(async fileRef => {
-      try {
-        const meta = await getMetadata(fileRef);
-        if (meta.customMetadata?.purpose === 'route_image') {
-          return await getUrl(fileRef);
-        }
-      } catch (err) {
-        console.error(
-          'Error getting metadata for file:',
-          fileRef.fullPath,
-          err,
-        );
-        return null;
-      }
-    });
-
-    const urls = await Promise.all(itemList).then(results =>
-      results.filter(url => url !== null),
-    );
-
-    return urls;
-  } catch (err) {
-    console.error('Error listing files:', err);
-    return [];
-  }
-}
-
-// For getting posts image URL
-/**
- * @param {string} postId
- * @returns {string[]} - Download URLs of the file
- */
-async function getPostImageUrls(postId) {
-  console.log('Fetching post images for post:', postId);
-
-  const dir = getBucketDir(postId).POST.IMAGE;
-
-  console.log('Looking in directory:', dir);
-
-  const folderRef = ref(storage, dir);
-
-  try {
-    const list = await listAll(folderRef);
-
-    console.log('Files found:', list.items.length);
-
-    const itemList = list.items.map(async fileRef => {
-      try {
-        const meta = await getMetadata(fileRef);
-        if (meta.customMetadata?.purpose === 'post_image') {
-          return await getUrl(fileRef);
-        }
-      } catch (err) {
-        console.error(
-          'Error getting metadata for file:',
-          fileRef.fullPath,
-          err,
-        );
-        return null;
-      }
-    });
-
-    const urls = await Promise.all(itemList).then(results =>
-      results.filter(url => url !== null),
-    );
-
-    return urls;
-  } catch (err) {
-    console.error('Error listing files:', err);
-    return [];
-  }
-}
-
-// For downloading crag model
-/**
- * @param {string} cragId
- * @param {string} modelId
- * @returns {string} - Local path of the downloaded file
- */
-async function downloadCragModel(cragId, modelId) {
-  console.log('Fetching crag model for crag:', cragId, 'and route:', modelId);
-
-  const dir = getBucketDir(cragId, modelId).CRAG.MODEL;
-
-  console.log('Looking in directory:', dir);
-
-  try {
-    downloadFolder(dir);
-  } catch (err) {
-    console.error('Error listing files:', err);
-    return [];
-  }
-}
+};
 
 const FirebaseStorageHelper = {
-  getProfileImageUrls,
-  getCragImageUrls,
-  getRouteImageUrls,
-  getPostImageUrls,
-  downloadCragModel,
+  uploadFileToFirebase,
+  uploadFolderToFirebase,
 };
+
 export default FirebaseStorageHelper;
