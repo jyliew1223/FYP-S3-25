@@ -8,12 +8,20 @@ from MyApp.Boundary.post_boundary import (
     get_post_by_user_id_view,
     # delete_post_view,
     # get_member_posts_view,
+    # like_post_view,
+    # unlike_post_view,
+    # post_likes_count_view,
+    # post_likes_users_view,
+    # create_post_view,
+)
+
+from MyApp.Boundary.post_likes_boundary import (
     like_post_view,
     unlike_post_view,
     post_likes_count_view,
     post_likes_users_view,
-    create_post_view,
 )
+
 
 urlpatterns = [
     path("get_post/", get_post_view, name="get_post"),
@@ -25,9 +33,13 @@ urlpatterns = [
     path("get_random_posts/", get_random_post_view, name="get_random_post"),
     # path('post_delete/', delete_post_view, name='post_delete'),  # Admin - 1
     # path('posts_by_member/', get_member_posts_view, name='posts_by_member'),  # Admin - 4
-    path("like/", like_post_view, name="like_post"),   # MEMBER - 2
-    path("unlike/", unlike_post_view, name="unlike_post"),   # MEMBER - 2
+    # path("like/", like_post_view, name="like_post"),   # MEMBER - 2
+    # path("unlike/", unlike_post_view, name="unlike_post"),   # MEMBER - 2
+    # path("likes/count/", post_likes_count_view, name="post_likes_count"),   # MEMBER - 2
+    # path("likes/users/", post_likes_users_view, name="post_likes_users"),   # MEMBER - 2
+    # path("create_post/", create_post_view, name="create_post"),
+    path("like/", like_post_view, name="like_post"),                # MEMBER - 2
+    path("unlike/", unlike_post_view, name="unlike_post"),          # MEMBER - 2
     path("likes/count/", post_likes_count_view, name="post_likes_count"),   # MEMBER - 2
     path("likes/users/", post_likes_users_view, name="post_likes_users"),   # MEMBER - 2
-    path("create_post/", create_post_view, name="create_post"),
 ]

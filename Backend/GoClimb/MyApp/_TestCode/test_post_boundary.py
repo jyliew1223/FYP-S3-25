@@ -510,7 +510,7 @@ class LikePostViewTestCase(TestCase):
         except Exception:
             print("(non-JSON response)", getattr(resp, "content", b"")[:200])
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_likes_boundary.authenticate_app_check_token")
     def test_like_unauthorized(self, mock_appcheck):
         mock_appcheck.return_value = {"success": False, "message": "Invalid token."}
         resp = self.client.post(
@@ -521,7 +521,7 @@ class LikePostViewTestCase(TestCase):
         self._pretty(resp)
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_likes_boundary.authenticate_app_check_token")
     def test_like_missing_field(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
         resp = self.client.post(
@@ -533,7 +533,7 @@ class LikePostViewTestCase(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(resp.json().get("success"))
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_likes_boundary.authenticate_app_check_token")
     def test_like_invalid_post_id(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
@@ -546,7 +546,7 @@ class LikePostViewTestCase(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(resp.json().get("success"))
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_likes_boundary.authenticate_app_check_token")
     def test_like_success_with_prefixed_id(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
@@ -562,7 +562,7 @@ class LikePostViewTestCase(TestCase):
             PostLike.objects.filter(post=self.post, user=self.liker).exists()
         )
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_likes_boundary.authenticate_app_check_token")
     def test_like_and_count_and_users(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
@@ -591,7 +591,7 @@ class LikePostViewTestCase(TestCase):
         self.assertEqual(len(users), 1)
         self.assertEqual(users[0]["user_id"], self.liker_id)
 
-    @patch("MyApp.Boundary.post_boundary.authenticate_app_check_token")
+    @patch("MyApp.Boundary.post_likes_boundary.authenticate_app_check_token")
     def test_unlike_then_count_zero(self, mock_appcheck):
         mock_appcheck.return_value = {"success": True}
 
