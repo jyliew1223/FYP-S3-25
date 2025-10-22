@@ -1,5 +1,65 @@
 // src/services/firebase/InitFirebaseApps.js
 
+/**
+ * this will init all the firebase function
+ * call when app startup
+ * after that firebase instance will hanldle wll the firebase related task
+ *
+ * ------------------------------------------------------------------
+ *
+ * for logged in user, it will handle by Firebase Auth
+ * u can get the current user by using
+ *
+ *    import { getAuth } from '@react-native-firebase/auth'
+ *
+ *    let user = getAuth().currentUser
+ *
+ * current user will be a instance og firebase user, it will contain multiple data, but the most important one is id_token
+ * id token is a encypted token which represent user id, firebase wont return a user id by default, instead it returned with a id token
+ * u can get the id token using:
+ * -> getIdToken(user, force_refresh)
+ *    -> user - the user u want
+ *    -> force_refresh - telling SDK if u want to refresh the token, usually set it to false for performace issue the token can last for few hour after user logged in
+ *
+ * Example:
+ *
+ *    import { getIdToken, getAuth } from '@react-native-firebase/auth';
+ *
+ *    let idToken = await getIdToken(getAuth().currentUser, false);
+ *
+ * after u get the id_token u can get user_id by creating a request to our backend endpoint : auth/verify_id_token
+ *
+ * ----------------------------------------------------------------
+ *
+ * u can log user in with
+ *
+ *    import { getAuth, signInWithEmailAndPassword } from '@react-native-firebase/auth';
+ *
+ *    await signInWithEmailAndPassword(
+ *           getAuth(),
+ *           UserEmail,
+ *           UserPassword,
+ *         );
+ *
+ * note that this function is a async function which return a promise, us can use promise.then funtion for logic
+ * after this u probably will need to query backend again for user id
+ *
+ * ----------------------------------------------------------------
+ *
+ * Sign Up for a firebase user
+ *
+ *    import { getAuth, signUpWithEmailAndPassword } from '@react-native-firebase/auth';
+ *
+ *    let user = await signUpWithEmailAndPassword({value});
+ *
+ * after sign up a firebase user, u will need do send a request to backend for creating user entry in our database
+ * with endpoint auth/sign_up
+ *
+ * after u get response from backend, it most likely will contain user data, u can get the user_id from there
+ *
+ * ----------------------------------------------------------------
+ */
+
 import { getApp } from '@react-native-firebase/app';
 import {
   getAuth,

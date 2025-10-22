@@ -28,37 +28,13 @@ import FirebaseStorageHelper from '../services/firebase/FirebaseStorageHelper';
 import { IMAGES } from '../constants/images';
 
 const AsyncImageProvider = ({
-<<<<<<< Updated upstream
-  fetchUrls,
-  placeholder = IMAGES.PLACEHOLDER,
-=======
   placeholder = IMAGES.PLACEHOLDER,
   urls = [],
->>>>>>> Stashed changes
   children,
 }) => {
   const [imageUrls, setImageUrls] = useState([]);
 
   useEffect(() => {
-<<<<<<< Updated upstream
-    let isMounted = true;
-
-    const fetchImages = async () => {
-      try {
-        const urls = await fetchUrls();
-        if (isMounted) setImageUrls(urls);
-      } catch (err) {
-        console.error('Error fetching images:', err);
-      }
-    };
-
-    fetchImages();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [fetchUrls]);
-=======
     if (!urls || urls.length === 0) return;
 
     const loadedImages = [];
@@ -83,35 +59,11 @@ const AsyncImageProvider = ({
       };
     });
   }, [urls, placeholder]);
->>>>>>> Stashed changes
 
   return children(imageUrls.length > 0 ? imageUrls : [placeholder]);
 };
 
 // Example usage of AsyncImageProvider for Post Images
-<<<<<<< Updated upstream
-const PostImages = ({ cragId }) => {
-  return (
-    <AsyncImageProvider
-      fetchUrls={() => FirebaseStorageHelper.getPostImageUrls(cragId)}
-    >
-      {urls => (
-        // Warp with View for clean layout
-        // Display images in horizontal scroll view
-        <View style={{ marginVertical: 8 }}>
-          <ScrollView horizontal>
-            {urls.map((url, i) => (
-              // this will render each image using map(similar to for loop)
-              // Each image with fixed size and margin
-              <Image
-                key={i}
-                source={typeof url === 'string' ? { uri: url } : url}
-                style={{ width: 200, height: 200, marginRight: 8 }}
-              />
-            ))}
-          </ScrollView>
-        </View>
-=======
 const AsyncImages = ({ imageUrls }) => {
   return (
     <AsyncImageProvider urls={imageUrls} placeholder={IMAGES.PLACEHOLDER}>
@@ -127,7 +79,6 @@ const AsyncImages = ({ imageUrls }) => {
             />
           ))}
         </div>
->>>>>>> Stashed changes
       )}
     </AsyncImageProvider>
   );
@@ -165,8 +116,4 @@ const ProfileImage = ({ userId, placedHolder = IMAGES.PLACEHOLDER }) => {
   );
 };
 
-<<<<<<< Updated upstream
-export { AsyncImageProvider, ProfileImage, PostImages };
-=======
 export { AsyncImageProvider, ProfileImage };
->>>>>>> Stashed changes
