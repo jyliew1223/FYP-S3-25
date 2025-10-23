@@ -6,40 +6,6 @@ from rest_framework.request import Request
 import firebase_admin
 from firebase_admin import auth, credentials
 
-# Initialize Firebase app (if not already initialized)
-if not firebase_admin._apps:
-    cred = credentials.Certificate(
-        "path/to/your/firebase-service-account.json"
-    )  # <-- change path
-    firebase_admin.initialize_app(cred)
-
-# ------------------------------
-# App Check authentication
-# ------------------------------
-from MyApp.Firebase.helpers import (
-    verify_app_check_token,
-)  # keep your existing App Check function
-
-
-def authenticate_app_check_token(request: Request) -> Dict[str, Any]:
-    """
-    Extracts the Firebase App Check token from headers and verifies it.
-    """
-    app_check_token = request.headers.get("X-Firebase-AppCheck")
-
-    if not app_check_token:
-        return {"success": False, "message": "Missing App Check token"}
-
-    verification_result = verify_app_check_token(app_check_token)
-    if not verification_result.get("success"):
-        return {"success": False, "message": verification_result.get("message")}
-
-    return {
-        "success": True,
-        "message": "Request authorized",
-        "token_info": verification_result.get("token_info"),
-    }
-
 
 # ------------------------------
 # Firebase ID Token verification

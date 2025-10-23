@@ -1,33 +1,43 @@
-# MyApp/Entity/post.py
+# MyApp/Entity/crag_model.py
 
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
 from MyApp.Entity.user import User
+from MyApp.Entity.crag import Crag
 from typing import Tuple, Dict, Any
 from MyApp.Firebase.helpers import (
     delete_bucket_folder,
-    get_download_urls_in_folder,
+    get_download_urls_json_in_folder,
 )
 
 
-class Post(models.Model):
+class CragModel(models.Model):
     class Meta:
-        db_table = "post"
+        db_table = "crag_model"
         managed = True
 
-    post_id = models.AutoField(primary_key=True)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="posts")
-    content = models.TextField()
-    tags = ArrayField(models.CharField(max_length=50), blank=True, null=True)
+    model_id = models.AutoField(primary_key=True)
+
+    crag = models.ForeignKey(
+        Crag,
+        on_delete=models.CASCADE,
+        related_name="crag_models",  # so can do crag.crag_models.all()
+    )
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="crag_models",  # so can do user.crag_models.all()
+    )
+
     status = models.CharField(
         max_length=10,
         choices=[("active", "Active"), ("suspended", "Suspended")],
         default="active",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
-        return f"Post by {self.user} at {self.created_at}"
+        return f"Model for {self.crag.name} upload by {self.user}"
 
     def delete(self, *args, **kwargs) -> Tuple[int, Dict[Any, int]]:
         """
@@ -45,37 +55,27 @@ class Post(models.Model):
     @property
     def formatted_id(self) -> str:
         """Return id with prefix."""
-        return f"POST-{self.post_id:06d}"
+        return f"MODEL-{self.model_id:06d}"
 
     @property
     def bucket_path(self):
         """
         Returns the full bucket path for this user
         """
-        return f"users/{self.user.user_id}/posts/{self.formatted_id}"
+        return f"crags/{self.crag.formatted_id}/models/{self.formatted_id}"
 
     @property
-    def images_bucket_path(self):
-        """
-        Returns the full bucket path for this user's uploaded image.
-        Example: 'users/<user_id>/images/'
-        """
-        if not self.bucket_path:
-            return None
-        return f"{self.bucket_path}/images"
-
-    @property
-    def images_download_urls(self):
+    def download_urls_json(self):
         """
         Returns the download URL for the user's profile picture.
         Returns None if no profile picture is set.
         """
-        if not self.images_bucket_path:
+        if not self.bucket_path:
             return None
         try:
-            return get_download_urls_in_folder(self.images_bucket_path)
+            return get_download_urls_json_in_folder(self.bucket_path)
         except Exception as e:
             print(
-                f"Warning: could not get download URLs for '{self.images_bucket_path}': {e}"
+                f"Warning: could not get download URLs json for '{self.bucket_path}': {e}"
             )
             return None

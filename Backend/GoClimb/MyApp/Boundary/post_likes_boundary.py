@@ -8,7 +8,7 @@ from rest_framework import status
 
 from MyApp.Entity.post import Post
 from MyApp.Entity.post_likes import PostLike  
-from MyApp.Utils.helper import authenticate_app_check_token  # app-check
+from MyApp.Firebase.helpers import authenticate_app_check_token  # app-check
 from MyApp.Firebase.helpers import parse_prefixed_int  # we already added this helper
 
 

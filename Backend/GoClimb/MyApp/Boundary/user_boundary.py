@@ -15,7 +15,7 @@ from MyApp.Controller.user_controller import (
     get_monthly_user_ranking,
 )
 from MyApp.Exceptions.exceptions import InvalidUIDError
-from MyApp.Utils.helper import authenticate_app_check_token
+from MyApp.Firebase.helpers import authenticate_app_check_token
 
 
 @api_view(["POST"])

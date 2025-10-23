@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 
 from MyApp.Controller import post_controller
-from MyApp.Utils.helper import authenticate_app_check_token, verify_id_token
+from MyApp.Firebase.helpers import authenticate_app_check_token, verify_id_token
 from MyApp.Serializer.serializers import PostSerializer
 
 

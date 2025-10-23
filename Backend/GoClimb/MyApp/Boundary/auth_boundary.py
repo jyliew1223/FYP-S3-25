@@ -7,8 +7,7 @@ from rest_framework import status
 from firebase_admin import auth
 
 from MyApp.Serializer.serializers import UserSerializer
-from MyApp.Utils.helper import authenticate_app_check_token
-from MyApp.Firebase.helpers import verify_id_token
+from MyApp.Firebase.helpers import authenticate_app_check_token, verify_id_token
 from MyApp.Controller.user_controller import (
     signup_user,
 )

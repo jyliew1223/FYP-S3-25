@@ -10,15 +10,12 @@ class ClimbLog(models.Model):
         db_table = "climb_log"
         managed = True
 
-    # Maybe can use AutoField for primary key incrementation
     log_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="climb_log", null=False
+        User, on_delete=models.CASCADE, related_name="climb_log"
     )
-
-    # this field maybe a foreign key to a route model in the future
     route = models.ForeignKey(
-        Route, on_delete=models.CASCADE, related_name="climb_log", null=True
+        Route, on_delete=models.CASCADE, related_name="climb_log"
     )
     date_climbed = models.DateField()
     notes = models.TextField(blank=True, null=True)

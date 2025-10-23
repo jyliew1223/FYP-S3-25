@@ -8,7 +8,7 @@ from rest_framework import status
 from firebase_admin import auth
 
 from MyApp.Serializer.serializers import ClimbLogSerializer
-from MyApp.Utils.helper import authenticate_app_check_token
+from MyApp.Firebase.helpers import authenticate_app_check_token
 from MyApp.Controller.climblog_controller import get_user_climb_logs, get_user_climb_state
 from MyApp.Exceptions.exceptions import InvalidUIDError
 

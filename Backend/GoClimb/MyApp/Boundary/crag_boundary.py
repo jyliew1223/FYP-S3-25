@@ -9,7 +9,7 @@ from rest_framework import status
 from MyApp.Serializer.serializers import CragSerializer
 
 # Utils
-from MyApp.Utils.helper import authenticate_app_check_token
+from MyApp.Firebase.helpers import authenticate_app_check_token
 
 from MyApp.Controller.crag_controller import (
     get_crag_info,
