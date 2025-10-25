@@ -1,5 +1,3 @@
-// GoClimb/src/screens/SignUpScreen.js
-
 import React, { useState } from 'react';
 import {
   View,
@@ -17,6 +15,22 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { registerUserInDjango } from '../services/api/AuthApi';
 
+// validation helpers
+function isValidEmail(str) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(str);
+}
+
+function isStrongPassword(str) {
+  if (!str || str.length < 8) return false;
+  if (/\s/.test(str)) return false;
+  if (!/[a-z]/.test(str)) return false;
+  if (!/[A-Z]/.test(str)) return false;
+  if (!/[0-9]/.test(str)) return false;
+  if (!/[^A-Za-z0-9]/.test(str)) return false;
+  return true;
+}
+
 export default function SignUpScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
@@ -28,34 +42,53 @@ export default function SignUpScreen() {
   const [err, setErr] = useState('');
 
   async function onSignUp() {
+    // client-side checks
+    if (!displayName.trim() || !email.trim() || !pass) {
+      setErr('Please fill in all fields.');
+      return;
+    }
+
+    if (/\s/.test(displayName)) {
+      setErr('Username cannot contain spaces.');
+      return;
+    }
+
+    if (!isValidEmail(email.trim())) {
+      setErr('Please enter a valid email address.');
+      return;
+    }
+
+    if (!isStrongPassword(pass)) {
+      setErr(
+        'Password must be 8+ chars, include upper & lower case, a number, a symbol, and no spaces.'
+      );
+      return;
+    }
+
     try {
       setBusy(true);
       setErr('');
 
-      // Create Firebase account
       const { user } = await auth().createUserWithEmailAndPassword(
         email.trim(),
-        pass,
+        pass
       );
 
-      // Set Firebase displayName
-      if (displayName) {
-        await user.updateProfile({ displayName });
+      if (displayName.trim()) {
+        await user.updateProfile({ displayName: displayName.trim() });
       }
 
-      // Tell Django to create/sync this user in its DB (Firebase ID token + displayName + email)
-      const djangoResp = await registerUserInDjango(displayName);
+      const djangoResp = await registerUserInDjango(displayName.trim());
 
       if (!djangoResp.ok) {
         console.log('Django signup failed:', djangoResp.debugRaw);
         Alert.alert(
           'Warning',
           djangoResp.message ||
-            'Your account was created, but the server profile could not be synced yet.',
+            'Your account was created, but the server profile could not be synced yet.'
         );
       }
 
-      // Return to homescreen 
       navigation.reset({
         index: 0,
         routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
@@ -77,7 +110,6 @@ export default function SignUpScreen() {
       style={[styles.safe, { backgroundColor: colors.bg }]}
       edges={['top', 'bottom', 'left', 'right']}
     >
-      {/* Top bar with back chevron */}
       <View
         style={[
           styles.topBar,
@@ -100,7 +132,7 @@ export default function SignUpScreen() {
           placeholderTextColor={colors.textDim}
           value={displayName}
           onChangeText={setDisplayName}
-          autoCapitalize="words"
+          autoCapitalize="none"
           style={[
             styles.input,
             {
@@ -149,10 +181,7 @@ export default function SignUpScreen() {
           onPress={onSignUp}
           style={[
             styles.cta,
-            {
-              backgroundColor: colors.accent,
-              opacity: busy ? 0.6 : 1,
-            },
+            { backgroundColor: colors.accent, opacity: busy ? 0.6 : 1 },
           ]}
           activeOpacity={0.8}
         >
