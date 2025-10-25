@@ -127,6 +127,6 @@ dependencies {
     // add aar files
     implementation fileTree(dir: 'libs', include: ['*.aar'])
     // add unityLibrary
-    implementation project(':unityLibrary')
+    // implementation project(':unityLibrary')
     implementation 'com.google.firebase:firebase-analytics:21.3.0'
 }

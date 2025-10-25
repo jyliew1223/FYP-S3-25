@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
   AUTH: withBase('auth/', {
     VERIFY_APP_CHECK_TOKEN: 'verify_app_check_token/',
     VERIFY_ID_TOKEN: 'verify_id_token/',
+    SIGN_UP: 'signup/',
   }),
   USER: withBase('user/', {
     GET_USER: 'get_user',

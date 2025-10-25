@@ -3,20 +3,10 @@
 import { getApp } from '@react-native-firebase/app';
 import appCheck, { getToken } from '@react-native-firebase/app-check';
 
-/**
- * Base API payload class - extend as needed
- */
 class BaseApiPayload {
-  /**
-   * Field mapping configuration for JSON deserialization
-   * Override this in subclasses to change JSON key mappings
-   */
+
   static get fieldMapping() {}
 
-  /**
-   * Converts this instance to JSON using field mapping
-   * @returns {Object} - JSON object with mapped keys
-   */
   toJson() {
     const mapping = this.constructor.fieldMapping;
     const jsonData = {};
@@ -31,21 +21,10 @@ class BaseApiPayload {
   }
 }
 
-/**
- * Base API response data class - extend as needed
- */
 class BaseApiModel {
-  /**
-   * Field mapping configuration for JSON deserialization
-   * Override this in subclasses to change JSON key mappings
-   */
+
   static get fieldMapping() {}
 
-  /**
-   * Creates a new BaseApiResponse instance from JSON data
-   * @param {Object} jsonData - JSON data to map to instance
-   * @returns {BaseApiResponse} - New instance with mapped data
-   */
   static fromJson(jsonData = {}) {
     const mapping = this.fieldMapping;
     const mappedData = {};
@@ -56,16 +35,33 @@ class BaseApiModel {
 
     return new this(mappedData);
   }
+
+  wrapModel(value, ModelClass) {
+    if (value instanceof ModelClass) return value;
+    if (value && typeof value === 'object') return new ModelClass(value);
+    return null;
+  }
+
+  parseDate(value) {
+    if (value instanceof Date) return value;
+
+    if (typeof value === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [y, m, d] = value.split('-').map(Number);
+        return new Date(y, m - 1, d);
+      }
+      return new Date(value);
+    }
+
+    if (typeof value === 'number') {
+      return new Date(value);
+    }
+
+    return null;
+  }
 }
 
-/**
- * Base API response class
- */
 class BaseApiResponse {
-  /**
-   * Field mapping configuration for JSON deserialization
-   * Override this in subclasses to change JSON key mappings
-   */
   static get fieldMapping() {
     return {
       status: 'status',
@@ -75,11 +71,6 @@ class BaseApiResponse {
     };
   }
 
-  /**
-   * Creates a new BaseApiResponse instance from JSON data
-   * @param {Object} jsonData - JSON data to map to instance
-   * @returns {BaseApiResponse} - New instance with mapped data
-   */
   static fromJson(jsonData = {}) {
     const mapping = this.fieldMapping;
     const mappedData = {};
@@ -91,26 +82,14 @@ class BaseApiResponse {
     return new this(mappedData);
   }
 
-  /**
-   * Creates a new BaseApiResponse instance
-   * @param {Object} options - Response options
-   * @param {boolean} [options.success] - Whether the request was successful
-   * @param {string} [options.message] - Response message
-   * @param {*} [options.errors] - Any errors that occurred
-   */
   constructor({ status, success, message, errors } = {}) {
-    this.status = status
+    this.status = status;
     this.success = success ?? false;
     this.message = message ?? null;
     this.errors = errors ?? null;
   }
 }
 
-/**
- * Frozen object containing HTTP request methods
- * @readonly
- * @enum {string}
- */
 const RequestMethod = Object.freeze({
   GET: 'GET',
   POST: 'POST',
@@ -118,36 +97,20 @@ const RequestMethod = Object.freeze({
   DELETE: 'DELETE',
 });
 
-/**
- * Custom web request handler class
- */
 class CustomApiRequest {
-  /** @type {string} HTTP method (GET, POST, PUT, DELETE) */
+  
   #method;
 
-  /** @type {string} Base API URL (e.g., 'https://api.example.com') */
   #baseUrl;
 
-  /** @type {string} API endpoint path (e.g., '/users/profile') */
   #path;
 
-  /** @type {ApiPayload = BaseApiPayload|null} Request payload data for POST/PUT requests */
   #payload;
 
-  /** @type {boolean} Whether to attach authentication token */
   #attachAppCheckToken;
 
-  /** @type {ApiResponse = BaseApiResponse|null} Parsed response object after request completion */
   #response;
 
-  /**
-   * Creates a new CustomWebRequest instance
-   * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
-   * @param {string} baseUrl - Base URL for the API
-   * @param {string} path - API endpoint path
-   * @param {ApiPayload = BaseApiPayload} payload - Request payload/data
-   * @param {boolean} [attachAppCheckToken=true] - Whether to attach app check token
-   */
   constructor(method, baseUrl, path, payload, attachAppCheckToken = true) {
     this.#method = method;
     this.#baseUrl = baseUrl;
@@ -157,11 +120,6 @@ class CustomApiRequest {
     this.#response = null;
   }
 
-  /**
-   * Sends the HTTP request
-   * @param {Function} [ResponseClass=BaseApiResponse] - Response class constructor to use for parsing response
-   * @returns {Promise<boolean>} - True if request was successful, false otherwise
-   */
   async sendRequest(ResponseClass = BaseApiResponse) {
     let url = `${this.#baseUrl.replace(/\/$/, '')}/${this.#path.replace(
       /^\//,
@@ -219,12 +177,6 @@ class CustomApiRequest {
     }
   }
 
-  /**
-   * Logs the response details in a formatted way
-   * @param {Response} res - Fetch Response object
-   * @param {string} [prefix=this.constructor.name] - Prefix for log messages
-   * @returns {string} - Formatted log string
-   */
   logResponse(prefix = this.constructor.name) {
     if (!this.#response) return `${prefix}: Response is null.`;
 
@@ -244,11 +196,6 @@ class CustomApiRequest {
     return log;
   }
 
-  /**
-   * Converts an object to a URL query string
-   * @param {Object} obj - Object to convert to query string
-   * @returns {string} - Query string (including leading '?' if not empty)
-   */
   #toQueryString(obj) {
     if (!obj) return '';
     const parts = [];
@@ -260,12 +207,6 @@ class CustomApiRequest {
     return parts.length > 0 ? '?' + parts.join('&') : '';
   }
 
-  /**
-   * Formats error data for display
-   * @param {*} errors - Error data to format
-   * @returns {string} - Formatted error string
-   * @private
-   */
   #formatErrors(errors) {
     if (!errors) return 'No errors';
     if (typeof errors === 'string') {
@@ -277,13 +218,6 @@ class CustomApiRequest {
     }
   }
 
-  /**
-   * Logs child properties of the response object (excluding base properties)
-   * @param {Object} response - Response object to log
-   * @param {string} [indent="  "] - Indentation string for formatting
-   * @returns {string} - Formatted string of child properties
-   * @private
-   */
   #logChildProperties(response) {
     let log = '';
     const baseProps = Object.getOwnPropertyNames(new BaseApiResponse({}));
@@ -299,12 +233,6 @@ class CustomApiRequest {
     return log;
   }
 
-  /**
-   * 🎨 Format property values based on their type
-   * @param {*} value - Value to format
-   * @returns {string} Formatted value string
-   * @private
-   */
   #formatPropertyValue(value) {
     if (value === null) {
       return 'null';

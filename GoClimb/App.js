@@ -1,9 +1,10 @@
 // GoClimb/App.js
+
 import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { AuthProvider } from './src/context/AuthContext'; // keep your existing auth context
+import { AuthProvider } from './src/context/AuthContext'; 
 
 import { downloadFolderFromJson } from './src/utils/FileDownloadHelper';
 import InitFirebaseApps from './src/services/firebase/InitFirebaseApps';
@@ -40,9 +41,8 @@ const json = `
 function AppInner() {
   const { navTheme } = useTheme();
 
-  useEffect(() => {
-    const data = JSON.parse(json);
-    downloadFolderFromJson(data);
+  useEffect(async () => {
+    await InitFirebaseApps();
   }, []);
 
   return <RootNavigator navTheme={navTheme} />;
