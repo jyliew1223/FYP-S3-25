@@ -743,14 +743,13 @@ def create_post_view(request):
                 status=status.HTTP_201_CREATED,
             )
 
-        return (
-            Response(
-                {
-                    "success": False,
-                    "message": "Post creation failed.",
-                    "data": None,
-                }
-            ),
+        return Response(
+            {
+                "success": False,
+                "message": "Post creation failed.",
+                "data": None,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
     except User.DoesNotExist as e:
         return Response(

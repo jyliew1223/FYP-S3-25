@@ -13,7 +13,7 @@ from MyApp.Entity.climblog import ClimbLog
 from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
 
 
-def signup_user(id_token: str, full_name: str, email: str) -> bool:
+def signup_user(id_token: str, username: str, email: str) -> bool:
     decoded_token = auth.verify_id_token(id_token) 
     user_id = decoded_token.get("uid")
     if not user_id:
@@ -29,9 +29,8 @@ def signup_user(id_token: str, full_name: str, email: str) -> bool:
 
     user = User(
         user_id=user_id,
-        full_name=full_name,
+        username=username,
         email=email,
-        role="member",
         status=True,
     )
     user.save()

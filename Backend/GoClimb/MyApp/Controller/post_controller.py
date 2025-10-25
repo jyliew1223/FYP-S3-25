@@ -294,12 +294,16 @@ def get_likes_users(post_id: int, page: int = 1, page_size: int = 50) -> Dict[st
 from MyApp.Serializer.serializers import PostSerializer
 
 def create_post(user_id: str, data):
-    user = User.objects.get(pk=user_id)
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return {"success": False, "error": "User not found"}
     
     serializer = PostSerializer(data=data)
     if serializer.is_valid():
         serializer.save(user=user)
-        return True
+        return {"success": True, "post": serializer.data}
     
-    return False
+    return {"success": False, "errors": serializer.errors}
+
 

@@ -20,7 +20,7 @@ def signup_view(request: Request) -> Response:
     """
     INPUT:{
         "id_token": str,
-        "full_name": str,
+        "username": str,
         "email": str
     }
     OUTPUT:{
@@ -36,7 +36,7 @@ def signup_view(request: Request) -> Response:
 
     data: dict[str, Any] = request.data if isinstance(request.data, dict) else {}
 
-    allowed_fields: list = ["full_name", "email"]
+    allowed_fields: list = ["username", "email"]
     filtered_data: dict = {k: v for k, v in data.items() if k in allowed_fields}
 
     serializer = UserSerializer(data=filtered_data)
@@ -54,12 +54,12 @@ def signup_view(request: Request) -> Response:
     validated_data: dict = cast(dict[str, Any], serializer.validated_data)
 
     id_token: str = str(data.get("id_token", ""))
-    full_name = str(validated_data.get("full_name", ""))
+    username = str(validated_data.get("username", ""))
     email = str(validated_data.get("email", ""))
 
     required_fields: dict = {
         "id_token": id_token,
-        "full_name": full_name,
+        "username": username,
         "email": email,
     }
 
@@ -74,7 +74,7 @@ def signup_view(request: Request) -> Response:
             )
 
     try:
-        signup_result = signup_user(id_token, full_name, email)
+        signup_result = signup_user(id_token, username, email)
         if signup_result:
             return Response(
                 {
