@@ -1,4 +1,4 @@
-//utils/ApiHelper.js
+// src/services/api/ApiHelper.js
 
 import { getApp } from '@react-native-firebase/app';
 import appCheck, { getToken } from '@react-native-firebase/app-check';
@@ -66,21 +66,9 @@ class BaseApiResponse {
    * Field mapping configuration for JSON deserialization
    * Override this in subclasses to change JSON key mappings
    */
-  #status;
-
-  set status(value) {
-    if (this.#status !== undefined) {
-      throw new Error('Status can only be set once');
-    }
-    this.#status = value;
-  }
-
-  get status() {
-    return this.#status;
-  }
-
   static get fieldMapping() {
     return {
+      status: 'status',
       success: 'success',
       message: 'message',
       errors: 'errors',
@@ -110,7 +98,8 @@ class BaseApiResponse {
    * @param {string} [options.message] - Response message
    * @param {*} [options.errors] - Any errors that occurred
    */
-  constructor({ success, message, errors } = {}) {
+  constructor({ status, success, message, errors } = {}) {
+    this.status = status
     this.success = success ?? false;
     this.message = message ?? null;
     this.errors = errors ?? null;
@@ -178,13 +167,17 @@ class CustomApiRequest {
       /^\//,
       '',
     )}`;
+    if (!url.endsWith('/')) url += '/';
+
     let options = { method: this.#method, headers: {} };
 
     if (this.#method === 'GET' && this.#payload) {
       url += this.#toQueryString(this.#payload);
     } else if (this.#method !== 'GET' && this.#method !== 'DELETE') {
       options.headers['Content-Type'] = 'application/json';
-      options.body = this.#payload ? JSON.stringify(this.#payload) : '';
+      options.body = this.#payload
+        ? JSON.stringify(this.#payload.toJson())
+        : '';
     }
 
     if (this.#attachAppCheckToken) {

@@ -1,57 +1,88 @@
-// GoClimb/src/components/BottomBar.js
-import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Dimensions, Pressable, View, Text, TouchableOpacity } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../context/ThemeContext';
+import auth from '@react-native-firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
+import { colors } from '../theme/colors';
 
-export default function BottomBar({ state, descriptors, navigation }) {
-  const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+const { width } = Dimensions.get('window');
+const MENU_W = Math.min(300, width * 0.8);
+
+export default function SideMenu({ open, onClose }) {
+  const x = useRef(new Animated.Value(-MENU_W)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+  const { user } = useAuth();
+  const nav = useNavigation();
+
+  useEffect(() => {
+    if (open) {
+      Animated.parallel([
+        Animated.timing(x, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(x, { toValue: -MENU_W, duration: 200, useNativeDriver: true }),
+        Animated.timing(fade, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [open]);
+
+  function goSettings() {
+    onClose();
+    nav.navigate('Settings');
+  }
+
+  async function onLoginLogout() {
+    onClose();
+    if (user) {
+      await auth().signOut();
+    } else {
+      nav.navigate('SignUp');
+    }
+  }
+
+  if (!open) return null;
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.surface, borderTopColor: colors.divider, paddingBottom: Math.max(insets.bottom, 6) }]}>
-      <View style={styles.bar}>
-        {state.routes.map((route, index) => {
-          const focused = state.index === index;
-          const { options } = descriptors[route.key];
-          const label = options.tabBarLabel ?? options.title ?? route.name;
+    <>
+      {/* Overlay */}
+      <Animated.View style={{ position: 'absolute', inset: 0, backgroundColor: colors.overlay, opacity: fade }}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+      </Animated.View>
 
-          const iconName =
-            options.tabBarIconName ||
-            ({
-              Home: 'home',
-              Rankings: 'trophy',
-              Map: 'map',
-              Forum: 'chatbubbles',
-              Routes: 'flag',
-            }[label] || 'ellipse');
+      {/* Drawer */}
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0, bottom: 0, left: 0, width: MENU_W,
+          backgroundColor: colors.surface,
+          transform: [{ translateX: x }],
+          elevation: 8,
+          shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10,
+          paddingTop: 64, paddingHorizontal: 20,
+        }}
+      >
+        <Text style={{ color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: 16 }}>
+          {user ? `Hello, ${user.displayName || user.email}` : 'Guest'}
+        </Text>
 
-          const onPress = () => {
-            if (!focused) navigation.navigate(route.name);
-          };
-
-          return (
-            <TouchableOpacity key={route.key} onPress={onPress} style={styles.item}>
-              <Ionicons name={iconName} size={20} color={focused ? colors.accent : colors.textDim} />
-              <Text style={[styles.txt, { color: focused ? colors.accent : colors.textDim }]}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-    </View>
+        <MenuItem icon="settings-outline" label="Settings" onPress={goSettings} />
+        <MenuItem icon={user ? 'log-out-outline' : 'log-in-outline'} label={user ? 'Logout' : 'Login / Sign Up'} onPress={onLoginLogout} />
+      </Animated.View>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  bar: {
-    flexDirection: 'row',
-    paddingTop: 8,
-    paddingHorizontal: 6,
-  },
-  item: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 6 },
-  txt: { fontSize: 11, fontWeight: '600' },
-});
+function MenuItem({ icon, label, onPress }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}
+    >
+      <Ionicons name={icon} size={20} color={colors.text} style={{ marginRight: 10 }} />
+      <Text style={{ color: colors.text, fontSize: 16 }}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
