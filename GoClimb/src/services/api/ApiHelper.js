@@ -3,9 +3,16 @@
 import { getApp } from '@react-native-firebase/app';
 import appCheck, { getToken } from '@react-native-firebase/app-check';
 
+/**
+ * BaseApiPayload
+ * - Knows how to map its internal field names to the JSON keys
+ *   expected by backend using static fieldMapping.
+ */
 class BaseApiPayload {
-
-  static get fieldMapping() {}
+  static get fieldMapping() {
+    // subclass overrides
+    return {};
+  }
 
   toJson() {
     const mapping = this.constructor.fieldMapping;
@@ -21,9 +28,15 @@ class BaseApiPayload {
   }
 }
 
+/**
+ * BaseApiModel
+ * - For mapping backend JSON into JS model instances.
+ */
 class BaseApiModel {
-
-  static get fieldMapping() {}
+  static get fieldMapping() {
+    // subclass overrides
+    return {};
+  }
 
   static fromJson(jsonData = {}) {
     const mapping = this.fieldMapping;
@@ -46,6 +59,7 @@ class BaseApiModel {
     if (value instanceof Date) return value;
 
     if (typeof value === 'string') {
+      // try "YYYY-MM-DD"
       if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
         const [y, m, d] = value.split('-').map(Number);
         return new Date(y, m - 1, d);
@@ -61,6 +75,10 @@ class BaseApiModel {
   }
 }
 
+/**
+ * BaseApiResponse
+ * - Default shape for responses coming back from Django.
+ */
 class BaseApiResponse {
   static get fieldMapping() {
     return {
@@ -90,95 +108,174 @@ class BaseApiResponse {
   }
 }
 
+/**
+ * Allowed HTTP verbs.
+ */
 const RequestMethod = Object.freeze({
   GET: 'GET',
   POST: 'POST',
   PUT: 'PUT',
+  PATCH: 'PATCH',
   DELETE: 'DELETE',
 });
 
+/**
+ * CustomApiRequest
+ *
+ * You create one of these and call sendRequest().
+ * It handles:
+ * - URL building
+ * - headers (including X-Firebase-AppCheck)
+ * - body serialization for non-GET
+ * - parsing JSON response
+ * - logging
+ */
 class CustomApiRequest {
-  
   #method;
-
   #baseUrl;
-
   #path;
-
   #payload;
-
   #attachAppCheckToken;
-
   #response;
 
   constructor(method, baseUrl, path, payload, attachAppCheckToken = true) {
-    this.#method = method;
-    this.#baseUrl = baseUrl;
-    this.#path = path;
-    this.#payload = payload;
+    this.#method = method; // RequestMethod.POST, etc.
+    this.#baseUrl = baseUrl; // e.g. "https://server/api/" OR "https://server/"
+    this.#path = path; // e.g. "post/get_random_post/" OR "user/get_user/"
+    this.#payload = payload; // instance of BaseApiPayload or plain object
     this.#attachAppCheckToken = attachAppCheckToken;
     this.#response = null;
   }
 
-  async sendRequest(ResponseClass = BaseApiResponse) {
-    let url = `${this.#baseUrl.replace(/\/$/, '')}/${this.#path.replace(
-      /^\//,
-      '',
-    )}`;
-    if (!url.endsWith('/')) url += '/';
+  /**
+   * Build the full URL, making sure there's exactly one slash.
+   * Example:
+   *   base "https://x.y/api/"
+   *   path "post/get_random_post/"
+   * => "https://x.y/api/post/get_random_post/"
+   */
+  #buildUrl() {
+    const base = this.#baseUrl.replace(/\/$/, ''); // remove trailing slash
+    const pathNoLead = this.#path.replace(/^\//, ''); // remove leading slash
+    return `${base}/${pathNoLead}`;
+  }
 
-    let options = { method: this.#method, headers: {} };
+  /**
+   * Convert an object (or payload) into "?a=b&c=d"
+   */
+  #toQueryString(obj) {
+    if (!obj) return '';
+    const parts = [];
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined && value !== null) {
+        parts.push(
+          `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+        );
+      }
+    }
+    return parts.length > 0 ? '?' + parts.join('&') : '';
+  }
 
-    if (this.#method === 'GET' && this.#payload) {
-      url += this.#toQueryString(this.#payload);
-    } else if (this.#method !== 'GET' && this.#method !== 'DELETE') {
-      options.headers['Content-Type'] = 'application/json';
-      options.body = this.#payload
-        ? JSON.stringify(this.#payload.toJson())
-        : '';
+  /**
+   * Stringify the payload for body if method != GET/DELETE
+   */
+  #buildBody() {
+    if (
+      this.#method === RequestMethod.GET ||
+      this.#method === RequestMethod.DELETE
+    ) {
+      return null;
+    }
+
+    if (!this.#payload) {
+      return '';
+    }
+
+    // if payload has .toJson(), use that mapping
+    if (typeof this.#payload.toJson === 'function') {
+      return JSON.stringify(this.#payload.toJson());
+    }
+
+    // else assume it's a plain object
+    return JSON.stringify(this.#payload);
+  }
+
+  /**
+   * Build headers (including App Check if needed)
+   */
+  async #buildHeaders() {
+    const headers = {};
+
+    // For non-GET/DELETE, we send JSON
+    if (
+      this.#method !== RequestMethod.GET &&
+      this.#method !== RequestMethod.DELETE
+    ) {
+      headers['Content-Type'] = 'application/json';
     }
 
     if (this.#attachAppCheckToken) {
+      // getToken() from @react-native-firebase/app-check
+      // false = forceRefresh? your previous code used false.
       const tokenResult = await getToken(getApp().appCheck(), false);
-      options.headers['X-Firebase-AppCheck'] = tokenResult.token;
+      headers['X-Firebase-AppCheck'] = tokenResult.token;
     }
 
-    try {
-      const res = await fetch(url, options);
-      const responseText = await res.text();
-
-      let json;
-      try {
-        json = JSON.parse(responseText);
-      } catch (err) {
-        console.error(
-          `Failed to parse JSON: ${err.message}\n` +
-            `Raw response: ${responseText}`,
-        );
-      }
-
-      this.#response = ResponseClass.fromJson(json);
-      this.#response.status = res.status;
-
-      if (res.ok) {
-        return true;
-      } else {
-        console.error(
-          `Request Failed:\n` + `${this.logResponse(res, ResponseClass)}`,
-        );
-        return false;
-      }
-    } catch (error) {
-      console.error(
-        `Network error: ${error.message || error}\n` +
-          `Details: ${error.stack || 'No stack trace available'}`,
-      );
-      return false;
-    }
+    return headers;
   }
 
+  /**
+   * Internal helper for dumping values to console
+   */
+  #formatErrors(errors) {
+    if (!errors) return 'No errors';
+    if (typeof errors === 'string') return errors;
+    if (typeof errors === 'object') return JSON.stringify(errors, null, 2);
+    return String(errors);
+  }
+
+  #formatChildProperties(response) {
+    let log = '';
+    const baseProps = Object.getOwnPropertyNames(new BaseApiResponse({}));
+    const allProps = Object.keys(response || {});
+    const childProps = allProps.filter(p => !baseProps.includes(p));
+
+    for (const prop of childProps) {
+      const value = response[prop];
+      let formattedValue;
+      if (value === null) {
+        formattedValue = 'null';
+      } else if (value === undefined) {
+        formattedValue = 'undefined';
+      } else if (typeof value === 'string') {
+        formattedValue = `"${value}"`;
+      } else if (
+        typeof value === 'number' ||
+        typeof value === 'boolean'
+      ) {
+        formattedValue = String(value);
+      } else if (Array.isArray(value) || typeof value === 'object') {
+        formattedValue = JSON.stringify(value, null, 2).replace(
+          /\n/g,
+          '\n\t' + ' '.repeat(14)
+        );
+      } else {
+        formattedValue = JSON.stringify(value);
+      }
+
+      log += `\t${prop.padEnd(12)}: ${formattedValue}\n`;
+    }
+
+    return log;
+  }
+
+  /**
+   * Public helper to pretty-print the response we parsed
+   */
   logResponse(prefix = this.constructor.name) {
-    if (!this.#response) return `${prefix}: Response is null.`;
+    if (!this.#response) {
+      return `${prefix}: Response is null.`;
+    }
 
     let log = `${prefix}: Response:\n`;
     log += `\t${'StatusCode'.padEnd(12)}: ${this.#response.status}\n`;
@@ -188,70 +285,118 @@ class CustomApiRequest {
     log += `\t${'Message'.padEnd(12)}: ${
       this.#response.message || 'No message'
     }\n`;
-    log += this.#logChildProperties(this.#response);
+
+    // dump extra fields like data, etc.
+    log += this.#formatChildProperties(this.#response);
+
     log += `\t${'Errors'.padEnd(12)}: ${this.#formatErrors(
-      this.#response.errors,
+      this.#response.errors
     )}\n`;
 
     return log;
   }
 
-  #toQueryString(obj) {
-    if (!obj) return '';
-    const parts = [];
-    for (const [key, value] of Object.entries(obj)) {
-      if (value !== undefined && value !== null) {
-        parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-      }
-    }
-    return parts.length > 0 ? '?' + parts.join('&') : '';
-  }
+  /**
+   * Main call.
+   * - builds URL
+   * - attaches querystring if GET
+   * - logs request
+   * - fetches
+   * - parses JSON (or logs the HTML error)
+   */
+  async sendRequest(ResponseClass = BaseApiResponse) {
+    // 1. build URL
+    let finalUrl = this.#buildUrl();
 
-  #formatErrors(errors) {
-    if (!errors) return 'No errors';
-    if (typeof errors === 'string') {
-      return errors;
-    } else if (typeof errors === 'object') {
-      return JSON.stringify(errors, null, 2);
-    } else {
-      return String(errors);
-    }
-  }
-
-  #logChildProperties(response) {
-    let log = '';
-    const baseProps = Object.getOwnPropertyNames(new BaseApiResponse({}));
-    const allProps = Object.keys(response);
-    const childProps = allProps.filter(p => !baseProps.includes(p));
-
-    for (const prop of childProps) {
-      const value = response[prop];
-      const formattedValue = this.#formatPropertyValue(value);
-      log += `\t${prop.padEnd(12)}: ${formattedValue}\n`;
-    }
-
-    return log;
-  }
-
-  #formatPropertyValue(value) {
-    if (value === null) {
-      return 'null';
-    } else if (value === undefined) {
-      return 'undefined';
-    } else if (typeof value === 'string') {
-      return `"${value}"`;
-    } else if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value);
-    } else if (Array.isArray(value) || typeof value === 'object') {
-      return JSON.stringify(value, null, 2).replace(
-        /\n/g,
-        '\n\t' + ' '.repeat(14),
+    // If GET and payload provided, add query string
+    if (this.#method === RequestMethod.GET && this.#payload) {
+      finalUrl += this.#toQueryString(
+        typeof this.#payload.toJson === 'function'
+          ? this.#payload.toJson()
+          : this.#payload
       );
-    } else {
-      return JSON.stringify(value);
     }
 
-    return log;
+    // 2. headers + body
+    const headers = await this.#buildHeaders();
+    const bodyString = this.#buildBody();
+
+    const fetchOptions = {
+      method: this.#method,
+      headers,
+    };
+    if (bodyString !== null) {
+      fetchOptions.body = bodyString;
+    }
+
+    // 3. DEBUG REQUEST (correct values)
+    console.log('[DEBUG REQUEST]', {
+      method: this.#method,
+      url: finalUrl,
+      headers,
+      body:
+        bodyString && bodyString.length
+          ? JSON.parse(bodyString)
+          : null,
+    });
+
+    // 4. fetch
+    let responseText = '';
+    let res;
+    try {
+      res = await fetch(finalUrl, fetchOptions);
+      responseText = await res.text();
+    } catch (networkErr) {
+      console.error(
+        `Network error: ${networkErr.message || networkErr}\n` +
+          `Details: ${networkErr.stack || 'No stack trace available'}`
+      );
+      // synthesize a "failed" response object
+      this.#response = ResponseClass.fromJson({
+        status: 0,
+        success: false,
+        message: 'Network error',
+        errors: { network: networkErr.message || String(networkErr) },
+      });
+      this.#response.status = 0;
+      return false;
+    }
+
+    // 5. parse JSON if possible
+    let parsedJson;
+    try {
+      parsedJson = JSON.parse(responseText);
+    } catch (parseErr) {
+      console.error(
+        `Failed to parse JSON: ${parseErr.message}\n` +
+          `Raw response:\n${responseText}\n`
+      );
+      parsedJson = {
+        status: res.status,
+        success: false,
+        message: 'Non-JSON response from server',
+        errors: null,
+      };
+    }
+
+    // 6. wrap in ResponseClass
+    this.#response = ResponseClass.fromJson(parsedJson || {});
+    // ensure status is always present
+    this.#response.status = res.status;
+
+    // 7. success logic
+    const httpOk = res.ok; // 2xx
+    const logicalOk =
+      this.#response.success === undefined
+        ? true
+        : !!this.#response.success;
+
+    if (httpOk && logicalOk) {
+      return true;
+    } else {
+      console.error('Request Failed:\n' + this.logResponse());
+      return false;
+    }
   }
 
   get Response() {

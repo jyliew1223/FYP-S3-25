@@ -1,101 +1,279 @@
 // GoClimb/src/services/api/PostsService.js
-// Mock API for forum posts + comments. Swap to real endpoints later.
-// Real endpoints (when backend is ready):
-//  - GET  post/get_post/?post_id=...                 → 1 post (with comments if your API supports)
-//  - POST post/get_random_post/                      → feed ({ count, blacklist })
-//  - POST post/get_post_by_user_id/                  → posts by user ({ id_token })
 
-// ===== MOCK DATA =====
-const MOCK_POSTS = [
-  {
-    id: 'p001',
-    author: { id: 'u001', name: 'Aly', avatar: null },
-    title: 'Best shoes for granite slabs?',
-    body: 'Been slipping on the turtle again 🙃 Any shoe suggestions for Singapore granite? Short list so far: Katana, Kubo, Theory…',
-    createdAt: Date.now() - 3600 * 1000 * 2, // 2h
-    tags: ['gear', 'boulder'],
-    imageUrl: null, // text-only post
-    likes: 12,
-    comments: 3,
-  },
-  {
-    id: 'p002',
-    author: { id: 'u002', name: 'Ben', avatar: null },
-    title: 'Beta for “Shredder” 6B+',
-    body: 'Finally linked the middle section. Right hand crimp → left bump to the dish, toe hook helps a ton.',
-    createdAt: Date.now() - 3600 * 1000 * 5,
-    tags: ['beta', 'dairy-farm'],
-    imageUrl: 'placeholder://grey', // image post → grey placeholder in UI
-    likes: 31,
-    comments: 7,
-  },
-  {
-    id: 'p003',
-    author: { id: 'u003', name: 'Cheryl', avatar: null },
-    title: 'Morning circuit @ Yawning Turtle',
-    body: 'Fun mileage today. Conditions were crisp. Anyone down for Saturday 7am?',
-    createdAt: Date.now() - 3600 * 1000 * 8,
-    tags: ['partner', 'session'],
-    imageUrl: null,
-    likes: 9,
-    comments: 1,
-  },
-  {
-    id: 'p004',
-    author: { id: 'u004', name: 'Dee', avatar: null },
-    title: 'Rocksteady send!',
-    body: 'Big thanks to everyone for the spot 🙌',
-    createdAt: Date.now() - 3600 * 1000 * 12,
-    tags: ['send', 'video'],
-    imageUrl: 'placeholder://grey',
-    likes: 54,
-    comments: 12,
-  },
-];
+import auth from '@react-native-firebase/auth';
+import {
+  RequestMethod,
+  BaseApiPayload,
+  BaseApiResponse,
+  CustomApiRequest,
+} from './ApiHelper';
+import { API_ENDPOINTS } from '../../constants/api';
 
-const MOCK_COMMENTS = {
-  p001: [
-    { id: 'c1', author: { id: 'u010', name: 'JR' }, text: 'Katana Lace grips well on slick granite.', createdAt: Date.now() - 3600 * 1000 * 1.6 },
-    { id: 'c2', author: { id: 'u011', name: 'Ming' }, text: 'Try soft rubber + good footwork. Theory is nice.', createdAt: Date.now() - 3600 * 1000 * 1.2 },
-  ],
-  p002: [
-    { id: 'c3', author: { id: 'u012', name: 'Pao' }, text: 'Toe hook beta saved me too!', createdAt: Date.now() - 3600 * 1000 * 3.5 },
-  ],
-  p003: [
-    { id: 'c4', author: { id: 'u013', name: 'Iqbal' }, text: 'Sat 7am I’m in.', createdAt: Date.now() - 3600 * 1000 * 7.7 },
-  ],
-  p004: [
-    { id: 'c5', author: { id: 'u014', name: 'Wei' }, text: 'Huge send! Congrats!', createdAt: Date.now() - 3600 * 1000 * 10.3 },
-    { id: 'c6', author: { id: 'u015', name: 'SW' }, text: 'Video or it didn’t happen 😜', createdAt: Date.now() - 3600 * 1000 * 9.8 },
-  ],
-};
+// ---------- Models / Helpers ----------
 
-function delay(ms) { return new Promise((res) => setTimeout(res, ms)); }
+// Convert a raw "post" from Django into the shape Forum/PostDetail screens expect.
+function mapPostFromBackend(raw) {
+  if (!raw) return null;
 
-// Feed (pretend: post/get_random_post/)
-export async function fetchRandomPosts({ count = 10, blacklist = [] } = {}) {
-  await delay(300);
-  const pool = MOCK_POSTS.filter((p) => !blacklist.includes(p.id));
-  const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(count, pool.length));
-  return { success: true, data: shuffled, message: 'ok' };
+  // createdAt -> timestamp we can timeAgo()
+  const createdTs = raw.created_at ? Date.parse(raw.created_at) : Date.now();
+
+  // Figure out authorName with strict priority:
+  // 1. If raw.user is object and has username -> use that
+  // 2. If raw.user is object and has full_name -> use that
+  // 3. If raw.user is object and has email -> use before UID
+  // 4. If raw.user is string like "JustinJ | jus@tin.com" -> take part before "|"
+  // 5. If raw.user is a bare UID-looking string -> show "Unknown" instead of UID
+  let authorName = 'Unknown';
+
+  if (raw.user && typeof raw.user === 'object') {
+    if (raw.user.username && raw.user.username.trim()) {
+      authorName = raw.user.username.trim();
+    } else if (raw.user.full_name && raw.user.full_name.trim()) {
+      authorName = raw.user.full_name.trim();
+    } else if (raw.user.email && raw.user.email.trim()) {
+      // only use email if we don't have username/full_name
+      authorName = raw.user.email.trim();
+    } else if (raw.user.user_id && raw.user.user_id.trim()) {
+      // this is likely the Firebase UID, we do NOT want to show that,
+      // so we will only use it if literally nothing else is provided.
+      authorName = 'Unknown';
+    }
+  } else if (raw.user && typeof raw.user === 'string') {
+    // backend might send "JustinJ | jus@tin.com"
+    const parts = raw.user.split('|').map(p => p.trim());
+    if (parts[0]) {
+      // parts[0] might still be a UID sometimes; let's detect
+      const candidate = parts[0];
+
+      // Heuristic: Firebase UIDs are long mixed-case alphanumeric,
+      // usually ~28+ chars, no spaces, not an email.
+      const looksLikeUid =
+        candidate.length >= 20 &&
+        !candidate.includes(' ') &&
+        !candidate.includes('@');
+
+      if (!looksLikeUid) {
+        authorName = candidate;
+      } else {
+        // if it's obviously a UID, hide it
+        authorName = 'Unknown';
+      }
+    }
+  }
+
+  // first image (optional future enhancement)
+  const firstImage =
+    Array.isArray(raw.images_download_urls) &&
+    raw.images_download_urls.length > 0
+      ? raw.images_download_urls[0]
+      : null;
+
+  // generate a "title" preview:
+  // - prefer formatted_id if backend gives it (e.g. "POST-000010")
+  // - else use first ~60 chars of content
+  let titleGuess = '';
+  if (raw.formatted_id) {
+    titleGuess = raw.formatted_id;
+  }
+  if (!titleGuess && raw.content) {
+    const trimmed = String(raw.content).trim();
+    titleGuess =
+      trimmed.length > 60 ? trimmed.slice(0, 57).trim() + '…' : trimmed;
+  }
+
+  return {
+    // ID shown in FlatList keyExtractor and for navigation
+    id: String(raw.post_id ?? raw.id ?? ''),
+
+    author: {
+      // we'll stop exposing UID here since we don't want to show UID anywhere in UI
+      id: '',
+      name: authorName,
+    },
+
+    title: titleGuess || 'Untitled',
+    body: raw.content || '',
+    tags: raw.tags || [],
+    createdAt: createdTs,
+
+    likes: raw.likes ?? 0,
+    comments: raw.comments ?? 0,
+
+    imageUrl: firstImage,
+  };
 }
 
-// Single post (pretend: post/get_post/?post_id=...)
+
+// ---------- Base Payload / Response classes ----------
+
+// Payload for get_random_posts/
+class GetRandomPostsPayload extends BaseApiPayload {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      count: 'count',
+      blacklist: 'blacklist',
+    };
+  }
+
+  constructor({ count, blacklist }) {
+    super();
+    this.count = count;
+    this.blacklist = blacklist ?? [];
+  }
+}
+
+// Response for get_random_posts/
+class GetRandomPostsResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      data: 'data',
+    };
+  }
+
+  constructor({ status, success, message, errors, data, __rawData }) {
+    super({ status, success, message, errors });
+
+    // Save both raw and mapped
+    this.rawData = Array.isArray(__rawData) ? __rawData : Array.isArray(data) ? data : [];
+    this.data = this.rawData.map(mapPostFromBackend).filter(Boolean);
+  }
+
+  // custom fromJson so we can preserve original data array untouched
+  static fromJson(jsonData = {}) {
+    const mapping = this.fieldMapping;
+    const mappedData = {};
+
+    for (const [internalKey, jsonKey] of Object.entries(mapping)) {
+        mappedData[internalKey] = jsonData[jsonKey];
+    }
+
+    // pass original `jsonData.data` down as __rawData so constructor can keep both
+    return new this({
+      ...mappedData,
+      __rawData: jsonData.data,
+    });
+  }
+}
+
+
+// Response for get_post/?post_id=...
+class GetPostResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      data: 'data',
+    };
+  }
+
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    this.data = mapPostFromBackend(data);
+  }
+}
+
+// ---------- Service Functions ----------
+
+// 1) Feed / Explore posts
+// POST /post/get_random_posts/
+export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
+  const payload = new GetRandomPostsPayload({
+    count,
+    blacklist,
+  });
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    'post/get_random_posts/', // confirmed working
+    payload,
+    true
+  );
+
+  const ok = await req.sendRequest(GetRandomPostsResponse);
+  const res = req.Response;
+
+  // DEBUG: log what backend actually sent us
+  console.log('[DEBUG posts rawData]', res?.rawData);
+  console.log('[DEBUG posts mapped data]', res?.data);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? [],
+    errors: res?.errors ?? null,
+  };
+}
+
+
+// 2) Single post detail
+// GET /post/get_post/?post_id=XX
 export async function fetchPostById(postId) {
-  await delay(200);
-  const post = MOCK_POSTS.find((p) => p.id === postId);
-  if (!post) return { success: false, data: null, message: 'Not found' };
-  return { success: true, data: post };
+  const path = `post/get_post/?post_id=${encodeURIComponent(postId)}`;
+
+  const req = new CustomApiRequest(
+    RequestMethod.GET,
+    API_ENDPOINTS.BASE_URL,
+    path,
+    null,
+    true
+  );
+
+  const ok = await req.sendRequest(GetPostResponse);
+  const res = req.Response;
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
+  };
 }
 
-// Comments for a post (many APIs return them separately)
+// 3) Placeholder comments fetch
 export async function fetchCommentsByPostId(postId) {
-  await delay(200);
-  return { success: true, data: MOCK_COMMENTS[postId] ?? [] };
+  // backend not ready yet → return empty
+  return {
+    success: true,
+    data: [],
+  };
 }
 
-// Optional: posts by user (pretend: post/get_post_by_user_id/)
-export async function fetchPostsByUserId({ id_token }) {
-  await delay(300);
-  return { success: true, data: MOCK_POSTS.slice(0, 2), message: 'ok' };
+// 4) Posts by the logged-in user (Profile tab, later)
+// POST /post/get_post_by_user_id/
+// body: { id_token: str }
+// NOTE: your backend doc/version said "id_token", not "user_id", so we're following that.
+export async function fetchPostsByCurrentUser() {
+  const currentUser = auth().currentUser;
+  if (!currentUser) {
+    throw new Error('No Firebase session found.');
+  }
+  const idToken = await currentUser.getIdToken(false);
+
+  const payload = {
+    id_token: idToken,
+  };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    'post/get_post_by_user_id/',
+    payload,
+    true
+  );
+
+  const ok = await req.sendRequest(GetRandomPostsResponse);
+  const res = req.Response;
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? [],
+    errors: res?.errors ?? null,
+  };
 }
