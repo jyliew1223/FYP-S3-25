@@ -35,7 +35,7 @@ if not SECRET_KEY:
     raise ValueError("No SECRET_KEY set for Django application")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-#DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
+# DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 DEBUG = False
 
 allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
@@ -55,7 +55,7 @@ INSTALLED_APPS = [
     "MyApp",
 ]
 
-X_FRAME_OPTIONS = "SAMEORIGIN"              # allows you to use modals insated of popups
+X_FRAME_OPTIONS = "SAMEORIGIN"  # allows you to use modals insated of popups
 SILENCED_SYSTEM_CHECKS = ["security.W019"]  # ignores redundant warning messages
 
 MIDDLEWARE = [
@@ -69,14 +69,14 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 ROOT_URLCONF = "GoClimb.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, "templates")], 
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -149,7 +149,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 # STATICFILES_DIRS = [BASE_DIR / "static"]           # ✅ correct
-STATIC_ROOT = BASE_DIR / "staticfiles"            # use / instead of os.path.join
+STATIC_ROOT = BASE_DIR / "staticfiles"  # use / instead of os.path.join
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
@@ -172,13 +172,15 @@ if os.getenv("CI") != "true":
         )
 
     cred = credentials.Certificate(path)
-    firebase_admin.initialize_app(cred,{
-        'storageBucket': os.getenv("FIREBASE_STORAGE_BUCKET")
-    })
+    firebase_admin.initialize_app(
+        cred, {"storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET")}
+    )
 else:
     # Initialize a mock Firebase app for CI
     try:
-        firebase_admin.initialize_app(options={'projectId': 'test-project-ci'})
+        firebase_admin.initialize_app(options={"projectId": "test-project-ci"})
     except ValueError:
         # App already initialized, skip
         pass
+
+GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY")

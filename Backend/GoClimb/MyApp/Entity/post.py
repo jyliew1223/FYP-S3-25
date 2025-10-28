@@ -17,6 +17,7 @@ class Post(models.Model):
 
     post_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="posts")
+    title = models.CharField(max_length=255)
     content = models.TextField()
     tags = ArrayField(models.CharField(max_length=50), blank=True, null=True)
     status = models.CharField(

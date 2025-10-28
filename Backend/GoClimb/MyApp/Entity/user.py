@@ -12,7 +12,7 @@ class User(models.Model):
         managed = True
 
     user_id = models.CharField(max_length=128, primary_key=True, editable=False)
-    username = models.CharField(max_length=100)
+    username = models.CharField(max_length=100, unique=True)
     email = models.EmailField(max_length=255, unique=True)
     profile_picture = models.CharField(max_length=500, null=True)
     status = models.BooleanField(default=False)

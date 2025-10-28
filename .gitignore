@@ -81,3 +81,5 @@ coverage.xml
 node_modules/
 test_results.txt
 /Backend/GoClimb/MyApp/management
+serailizer_test.txt
+test_result.txt

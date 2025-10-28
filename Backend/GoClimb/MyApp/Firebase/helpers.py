@@ -15,7 +15,9 @@ def verify_id_token(id_token: str) -> dict[str, Any]:
         return {
             "success": True,
             "message": "User verified successfully",
-            "user_id": uid,
+            "data": {
+                "user_id": uid,
+            },
         }
     except exceptions.FirebaseError as e:
         return {"success": False, "message": f"Firebase error: {str(e)}"}
@@ -58,7 +60,9 @@ def authenticate_app_check_token(request: Request) -> Dict[str, Any]:
     return {
         "success": True,
         "message": "Request authorized",
-        "token_info": verification_result.get("token_info"),
+        "data": {
+            "token_info": verification_result.get("token_info"),
+        },
     }
 
 
@@ -129,7 +133,7 @@ def get_download_urls_json_in_folder(folder_path, expiry_minutes=15):
 
     result = {"folder": folder_path, "files": files}
 
-    return json.dumps(result, indent=4)  # Return pretty JSON string
+    return result
 
 
 def get_download_urls_in_folder(folder_path, expiry_minutes=15) -> list:

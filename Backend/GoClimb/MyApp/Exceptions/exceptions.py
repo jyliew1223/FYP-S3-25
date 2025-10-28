@@ -4,3 +4,7 @@ class UserAlreadyExistsError(Exception):
 
 class InvalidUIDError(Exception):
     pass
+
+
+class BadRequestException(Exception):
+    pass

@@ -11,6 +11,7 @@ from MyApp.Entity.route import Route
 from MyApp.Entity.post_likes import PostLike
 from MyApp.Entity.model_route_data import ModelRouteData
 from MyApp.Entity.crag_model import CragModel
+from MyApp.Entity.post_comment import   PostComment
 from django.contrib import admin, messages
 
 admin.site.register(User)
@@ -21,6 +22,7 @@ admin.site.register(Route)
 # admin.site.register(PostLike)
 admin.site.register(ModelRouteData)
 admin.site.register(CragModel)
+admin.site.register(PostComment)
 
 # --------------------------
 # ADMIN - 1, 2, 3, 4 (start)

@@ -76,10 +76,12 @@ def signup_view(request: Request) -> Response:
     try:
         signup_result = signup_user(id_token, username, email)
         if signup_result:
+            serializer = UserSerializer(signup_result)
             return Response(
                 {
                     "success": True,
                     "message": "User created successfully.",
+                    "data": serializer.data,
                 },
                 status=status.HTTP_201_CREATED,
             )

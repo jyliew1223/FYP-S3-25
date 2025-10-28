@@ -1,5 +1,8 @@
 # MyApp/Entity/crag.py
 
+import json
+import requests
+from django.conf import settings
 from django.db import models
 from typing import Tuple, Dict, Any
 from MyApp.Firebase.helpers import (
@@ -34,6 +37,37 @@ class Crag(models.Model):
                 print(f"Warning: could not delete bucket folder '{folder_path}': {e}")
 
         return super().delete(*args, **kwargs)
+
+    @property
+    def location_details(self):
+        """
+        Returns location detail (country, state, city) as JSON string
+        using Google Maps Geocoding API.
+        """
+        if not self.location_lat or not self.location_lon:
+            return json.dumps({})
+
+        try:
+            api_key = settings.GOOGLE_MAPS_API_KEY
+            url = (
+                f"https://maps.googleapis.com/maps/api/geocode/json"
+                f"?latlng={self.location_lat},{self.location_lon}&key={api_key}"
+            )
+            response = requests.get(url)
+            data = response.json()
+            if data.get("status") == "OK":
+                components = data["results"][0]["address_components"]
+                city = country = None
+                for comp in components:
+                    if "locality" in comp["types"]:
+                        city = comp["long_name"]
+                    if "country" in comp["types"]:
+                        country = comp["long_name"]
+
+                return {"city": city, "country": country}
+        except Exception as e:
+            print(f"Warning: could not fetch location details: {e}")
+        return {"city": None, "country": None}
 
     @property
     def formatted_id(self) -> str:
