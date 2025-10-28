@@ -1,5 +1,12 @@
 // GoClimb/src/screens/Forum.js
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 
 import {
   fetchRandomPosts,
@@ -21,6 +29,7 @@ import {
 } from '../services/api/PostsService';
 
 export default function Forum({ navigation }) {
+  const route = useRoute();
   const { colors } = useTheme();
 
   const [query, setQuery] = useState('');
@@ -28,7 +37,7 @@ export default function Forum({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // track which posts current user has liked (session-local)
+  // track which posts current user has liked (session-local only)
   const [liked, setLiked] = useState(() => new Set());
 
   // toast banner
@@ -40,14 +49,14 @@ export default function Forum({ navigation }) {
     toastRef.current = setTimeout(() => setToast(''), 2000);
   }, []);
 
-  // after we get posts from backend, we fetch accurate comment counts
+  // after we get posts from backend, fetch accurate comment counts
   const hydrateCommentCounts = useCallback(async (list) => {
     const updated = await Promise.all(
       list.map(async (p) => {
         const realCount = await fetchCommentCountForPost(p.id);
         return {
           ...p,
-          comments: realCount, // overwrite 0 placeholder with true length
+          comments: realCount,
         };
       })
     );
@@ -56,6 +65,7 @@ export default function Forum({ navigation }) {
     setPosts(updated);
   }, []);
 
+  // load initial feed
   const load = useCallback(async () => {
     setLoading(true);
 
@@ -65,7 +75,7 @@ export default function Forum({ navigation }) {
       setPosts(res.data);
       setLiked(new Set()); // reset local like set on new load
 
-      // hydrate just the comment counts
+      // hydrate just comment counts (they're reliable)
       hydrateCommentCounts(res.data);
     } else {
       setPosts([]);
@@ -79,7 +89,19 @@ export default function Forum({ navigation }) {
     load();
   }, [load]);
 
-  // pull-to-refresh: similar logic to load(), but passes blacklist
+  // When forum tab gains focus, if we were sent here after creating a post
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.justPosted) {
+        showToast('Post published');
+        // optional: refresh to try to pull new post if backend returns it
+        // load();
+        route.params.justPosted = false;
+      }
+    }, [route.params, showToast])
+  );
+
+  // pull-to-refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     const blacklist = posts.map((p) => p.id);
@@ -116,11 +138,11 @@ export default function Forum({ navigation }) {
     showToast('Feature under construction');
   };
 
-  // like toggle (pure optimistic for now)
+  // like toggle (optimistic only)
   const toggleLike = async (post) => {
     const already = liked.has(post.id);
 
-    // optimistic UI update
+    // optimistic UI
     setLiked((prev) => {
       const next = new Set(prev);
       if (already) next.delete(post.id);
@@ -142,8 +164,9 @@ export default function Forum({ navigation }) {
       )
     );
 
-    // backend request
-    const res = already ? await unlikePost(post.id) : await likePost(post.id);
+    const res = already
+      ? await unlikePost(post.id)
+      : await likePost(post.id);
 
     if (!res?.success) {
       // revert on fail
@@ -213,7 +236,7 @@ export default function Forum({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => showToast('Feature under construction')}
+            onPress={() => navigation.navigate('CreatePost')}
             style={styles.topIcon}
           >
             <Ionicons

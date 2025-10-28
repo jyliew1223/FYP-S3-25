@@ -29,7 +29,7 @@ function toTs(value) {
 /* -------------------------- model mapping -------------------------- */
 
 function getAuthorName(rawUser) {
-  // backend may send user as UID string or as object { user_id, username, email }
+  // backend may send user as UID string OR object { user_id, username, email }
   if (!rawUser) return 'User';
   if (typeof rawUser === 'string') return 'User';
   if (rawUser.username) return rawUser.username;
@@ -46,7 +46,7 @@ function mapPostJsonToUi(raw) {
   const authorName = getAuthorName(raw.user);
   const createdTs = toTs(raw.created_at);
 
-  // prefer serialized title; fallback to content
+  // prefer serialized title; fallback to content snippet
   let uiTitle = '';
   if (typeof raw.title === 'string' && raw.title.trim()) {
     uiTitle = raw.title.trim();
@@ -57,7 +57,6 @@ function mapPostJsonToUi(raw) {
     uiTitle = 'Untitled';
   }
 
-  // backend may not yet include these counts, so default to 0
   const likes = Number(
     raw.likes ?? raw.likes_count ?? raw.like_count ?? 0
   );
@@ -78,7 +77,7 @@ function mapPostJsonToUi(raw) {
     tags: raw.tags || [],
     createdAt: createdTs,
     likes,
-    comments, // might be 0 placeholder; Forum will optionally hydrate this
+    comments, // fallback until we hydrate with fetchCommentCountForPost
     imageUrl,
   };
 }
@@ -169,9 +168,40 @@ class CreateCommentResponse extends BaseApiResponse {
   }
 }
 
+/* -- CreatePost payload/response ----------------------------------- */
+
+class CreatePostPayload extends BaseApiPayload {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      user_id: 'user_id',
+      title: 'title',
+      content: 'content',
+      tags: 'tags',
+    };
+  }
+  constructor({ user_id, title, content, tags }) {
+    super();
+    this.user_id = user_id;
+    this.title = title;
+    this.content = content;
+    this.tags = tags;
+  }
+}
+
+class CreatePostResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    this.data = mapPostJsonToUi(data);
+  }
+}
+
 /* --------------------------- service calls -------------------------- */
 
-// FEED
+// FEED POSTS
 export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
   const req = new CustomApiRequest(
     RequestMethod.POST,
@@ -198,7 +228,7 @@ export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
 export async function fetchPostById(postId) {
   const payload = { post_id: postId };
 
-  // Use POST first because that worked in your logs.
+  // Try POST first
   let req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
@@ -209,7 +239,7 @@ export async function fetchPostById(postId) {
   let ok = await req.sendRequest(GetPostResponse);
   let res = req.Response;
 
-  // Retry GET only if POST says 405/404
+  // fallback GET for 405/404
   if (!ok && (res?.status === 405 || res?.status === 404)) {
     req = new CustomApiRequest(
       RequestMethod.GET,
@@ -237,7 +267,7 @@ export async function fetchPostById(postId) {
 export async function fetchCommentsByPostId(postId) {
   const payload = { post_id: postId };
 
-  // POST worked for you (and GET sometimes 405s), so POST first:
+  // Try POST first
   let req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
@@ -248,7 +278,7 @@ export async function fetchCommentsByPostId(postId) {
   let ok = await req.sendRequest(GetCommentsResponse);
   let res = req.Response;
 
-  // fallback GET if POST 405s
+  // fallback GET on 405/404
   if (!ok && (res?.status === 405 || res?.status === 404)) {
     req = new CustomApiRequest(
       RequestMethod.GET,
@@ -272,7 +302,7 @@ export async function fetchCommentsByPostId(postId) {
   };
 }
 
-// helper: return # of comments for a single post
+// comment count helper for Forum
 export async function fetchCommentCountForPost(postId) {
   const res = await fetchCommentsByPostId(postId);
   if (res?.success) {
@@ -315,7 +345,6 @@ export async function likePost(postId) {
   if (!user) throw new Error('No Firebase session found.');
   const pid = numericPostId(postId) ?? postId;
 
-  // include user_id so backend can attribute the like
   const payload = { post_id: pid, user_id: user.uid };
 
   const req = new CustomApiRequest(
@@ -354,5 +383,37 @@ export async function unlikePost(postId) {
     success: ok && !!res?.success,
     status: res?.status,
     message: res?.message ?? null,
+  };
+}
+
+// CREATE POST
+export async function createPost({ title, content, tags }) {
+  const user = auth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST.CREATE_POST,
+    new CreatePostPayload({
+      user_id: user.uid,
+      title,
+      content,
+      tags,
+    }),
+    true
+  );
+
+  const ok = await req.sendRequest(CreatePostResponse);
+  const res = req.Response;
+
+  console.log('[DEBUG createPost response]', res);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
   };
 }
