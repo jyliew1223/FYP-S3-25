@@ -154,6 +154,7 @@ class PostSerializer(serializers.ModelSerializer):
         fields = [
             "post_id",  # will return formatted_id
             "user",
+            "title",
             "content",
             "tags",
             "status",
