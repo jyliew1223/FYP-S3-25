@@ -13,51 +13,76 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
+import auth from '@react-native-firebase/auth';
+
 import {
   fetchCommentsByPostId,
   fetchPostById,
+  createComment,
+  likePost,
+  unlikePost,
 } from '../services/api/PostsService';
 
 export default function PostDetail() {
   const navigation = useNavigation();
   const route = useRoute();
   const { colors } = useTheme();
+
   const { postId } = route.params || {};
 
   const [post, setPost] = useState(null);
+  const [liked, setLiked] = useState(false);
   const [comments, setComments] = useState([]);
+
   const [loading, setLoading] = useState(true);
-
-  const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // toast for "Feature under construction"
   const [toast, setToast] = useState('');
-  const toastTimeoutRef = useRef(null);
+  const toastRef = useRef(null);
   function showToast(msg) {
     setToast(msg);
-    if (toastTimeoutRef.current) {
-      clearTimeout(toastTimeoutRef.current);
-    }
-    toastTimeoutRef.current = setTimeout(() => {
-      setToast('');
-    }, 2000);
+    if (toastRef.current) clearTimeout(toastRef.current);
+    toastRef.current = setTimeout(() => setToast(''), 2000);
   }
 
+  // watch auth state
+  useEffect(() => {
+    const sub = auth().onAuthStateChanged((u) => setIsLoggedIn(!!u));
+    return sub;
+  }, []);
+
+  // initial load
   useEffect(() => {
     let alive = true;
     (async () => {
       setLoading(true);
-      const [p, c] = await Promise.all([
+
+      // fetch post + comments
+      const [pRes, cRes] = await Promise.all([
         fetchPostById(postId),
         fetchCommentsByPostId(postId),
       ]);
 
+      const pData = pRes?.success ? pRes.data : null;
+      const cData = cRes?.success ? cRes.data : [];
+
+      console.log('[DEBUG PostDetail post mapped]', pData);
+      console.log('[DEBUG PostDetail comments count]', cData.length);
+
+      // We don't have a reliable "did I like?" endpoint without 405s,
+      // so we'll just default liked=false for now.
+      const userLiked = false;
+
       if (!alive) return;
-      setPost(p?.success ? p.data : null);
-      setComments(c?.success ? c.data : []);
+
+      setPost(pData);
+      setLiked(userLiked);
+      setComments(cData);
       setLoading(false);
     })();
+
     return () => {
       alive = false;
     };
@@ -68,33 +93,68 @@ export default function PostDetail() {
       ? navigation.goBack()
       : navigation.navigate('MainTabs', { screen: 'Home' });
 
-  const sendComment = async () => {
-    if (!draft.trim()) return;
-    // For now, comments posting is WIP.
-    // We'll just fake the append locally.
+  // optimistic like toggle
+  async function toggleLike() {
+    if (!post) return;
+    const wasLiked = liked;
+
+    setLiked(!wasLiked);
+    setPost((p) =>
+      p
+        ? {
+            ...p,
+            likes: Math.max(
+              0,
+              (p.likes || 0) + (wasLiked ? -1 : 1)
+            ),
+          }
+        : p,
+    );
+
+    const res = wasLiked ? await unlikePost(post.id) : await likePost(post.id);
+
+    if (!res?.success) {
+      // revert if backend failed
+      setLiked(wasLiked);
+      setPost((p) =>
+        p
+          ? {
+              ...p,
+              likes: Math.max(
+                0,
+                (p.likes || 0) + (wasLiked ? 1 : -1)
+              ),
+            }
+          : p,
+      );
+      showToast(res?.message || 'Could not update like');
+    }
+  }
+
+  // comment submit
+  async function sendComment() {
+    if (!isLoggedIn) {
+      navigation.navigate('SignUp'); // adjust if your signup route is different
+      return;
+    }
+
+    const text = draft.trim();
+    if (!text) return;
+
     setSending(true);
-
-    const newComment = {
-      id: 'local-' + Math.random().toString(36).slice(2, 8),
-      author: { id: 'me', name: 'You' },
-      text: draft.trim(),
-      createdAt: Date.now(),
-    };
-    setComments((cur) => [newComment, ...cur]);
-    setDraft('');
+    const res = await createComment({ postId, content: text });
+    if (res?.success && res.data) {
+      // add new comment to the front
+      setComments((cur) => [res.data, ...cur]);
+      setDraft('');
+    } else {
+      showToast(res?.message || 'Failed to post comment');
+    }
     setSending(false);
-
-    // Eventually: call backend to actually post comment.
-    showToast('Feature under construction');
-  };
+  }
 
   const renderComment = ({ item }) => (
-    <View
-      style={[
-        styles.cRow,
-        { borderBottomColor: colors.divider },
-      ]}
-    >
+    <View style={[styles.cRow, { borderBottomColor: colors.divider }]}>
       <View
         style={[
           styles.cAvatar,
@@ -141,9 +201,7 @@ export default function PostDetail() {
         edges={['top', 'bottom']}
       >
         <TopBar colors={colors} onBack={goBack} />
-        {toast ? (
-          <ToastBanner colors={colors} text={toast} />
-        ) : null}
+        {toast ? <ToastBanner colors={colors} text={toast} /> : null}
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
@@ -158,15 +216,141 @@ export default function PostDetail() {
         edges={['top', 'bottom']}
       >
         <TopBar colors={colors} onBack={goBack} />
-        {toast ? (
-          <ToastBanner colors={colors} text={toast} />
-        ) : null}
+        {toast ? <ToastBanner colors={colors} text={toast} /> : null}
         <View style={styles.center}>
           <Text style={{ color: colors.textDim }}>Post not found.</Text>
         </View>
       </SafeAreaView>
     );
   }
+
+  console.log('[DEBUG PostDetail title]', { id: post.id, title: post.title });
+
+  const header = (
+    <View style={{ padding: 16 }}>
+      {/* Author row */}
+      <View style={styles.headerRow}>
+        <View
+          style={[
+            styles.avatar,
+            {
+              backgroundColor: colors.surfaceAlt,
+              borderColor: colors.divider,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              color: colors.textDim,
+              fontWeight: '800',
+              fontSize: 12,
+            }}
+          >
+            {initials(post.author?.name)}
+          </Text>
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[styles.author, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {post.author?.name ?? 'User'}
+          </Text>
+          <Text style={[styles.meta, { color: colors.textDim }]}>
+            {timeAgo(post.createdAt)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Title/body */}
+      {!!post.title && (
+        <Text style={[styles.title, { color: colors.text }]}>
+          {post.title}
+        </Text>
+      )}
+      {!!post.body && (
+        <Text style={[styles.body, { color: colors.text }]}>
+          {post.body}
+        </Text>
+      )}
+
+      {/* (future) images */}
+      {post.imageUrl ? (
+        <View
+          style={[styles.imagePh, { backgroundColor: '#555' }]}
+        />
+      ) : null}
+
+      {/* tags */}
+      {!!post.tags?.length && (
+        <View style={styles.tagsRow}>
+          {post.tags.map((t) => (
+            <View
+              key={t}
+              style={[
+                styles.tag,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  borderColor: colors.divider,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: colors.textDim,
+                  fontSize: 11,
+                  fontWeight: '700',
+                }}
+              >
+                #{t}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* action bar */}
+      <View
+        style={[
+          styles.actionsRow,
+          { borderTopColor: colors.divider },
+        ]}
+      >
+        <RowAction
+          icon={liked ? 'heart' : 'heart-outline'}
+          text={String(post.likes ?? 0)}
+          colors={colors}
+          onPress={toggleLike}
+          active={liked}
+        />
+        <RowAction
+          icon="chatbubble-ellipses-outline"
+          text={String(comments.length)}
+          colors={colors}
+          onPress={() => {}}
+        />
+        <RowAction
+          icon="share-social-outline"
+          text="Share"
+          colors={colors}
+          onPress={() => showToast('Feature under construction')}
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.commentsTitle,
+          {
+            color: colors.text,
+            borderBottomColor: colors.divider,
+          },
+        ]}
+      >
+        Comments
+      </Text>
+    </View>
+  );
 
   return (
     <SafeAreaView
@@ -179,148 +363,16 @@ export default function PostDetail() {
       <FlatList
         data={comments}
         keyExtractor={(i) => i.id}
-        ListHeaderComponent={
-          <View style={{ padding: 16 }}>
-            {/* Header */}
-            <View style={styles.headerRow}>
-              <View
-                style={[
-                  styles.avatar,
-                  {
-                    backgroundColor: colors.surfaceAlt,
-                    borderColor: colors.divider,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: colors.textDim,
-                    fontWeight: '800',
-                    fontSize: 12,
-                  }}
-                >
-                  {initials(post.author?.name)}
-                </Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[styles.author, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {post.author?.name ?? 'User'}
-                </Text>
-                <Text
-                  style={[styles.meta, { color: colors.textDim }]}
-                >
-                  {timeAgo(post.createdAt)}
-                </Text>
-              </View>
-            </View>
-
-            {/* Title/Body */}
-            <Text style={[styles.title, { color: colors.text }]}>
-              {post.title}
-            </Text>
-            {!!post.body && (
-              <Text style={[styles.body, { color: colors.text }]}>
-                {post.body}
-              </Text>
-            )}
-
-            {/* Optional Image */}
-            {post.imageUrl ? (
-              <View
-                style={[
-                  styles.imagePh,
-                  { backgroundColor: '#555' },
-                ]}
-              />
-            ) : null}
-
-            {/* Tags */}
-            {!!post.tags?.length && (
-              <View style={styles.tagsRow}>
-                {post.tags.map((t) => (
-                  <View
-                    key={t}
-                    style={[
-                      styles.tag,
-                      {
-                        backgroundColor: colors.surfaceAlt,
-                        borderColor: colors.divider,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: colors.textDim,
-                        fontSize: 11,
-                        fontWeight: '700',
-                      }}
-                    >
-                      #{t}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            {/* Actions */}
-            <View
-              style={[
-                styles.actionsRow,
-                { borderTopColor: colors.divider },
-              ]}
-            >
-              <RowAction
-                icon="heart-outline"
-                text={String(post.likes ?? 0)}
-                colors={colors}
-                onPress={() =>
-                  showToast('Feature under construction')
-                }
-              />
-              <RowAction
-                icon="chatbubble-ellipses-outline"
-                text={String(post.comments ?? 0)}
-                colors={colors}
-                onPress={() =>
-                  showToast('Feature under construction')
-                }
-              />
-              <RowAction
-                icon="share-social-outline"
-                text="Share"
-                colors={colors}
-                onPress={() =>
-                  showToast('Feature under construction')
-                }
-              />
-            </View>
-
-            {/* Comments label */}
-            <Text
-              style={[
-                styles.commentsTitle,
-                {
-                  color: colors.text,
-                  borderBottomColor: colors.divider,
-                },
-              ]}
-            >
-              Comments
-            </Text>
-          </View>
-        }
         renderItem={renderComment}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ListHeaderComponent={header}
         contentContainerStyle={{
           paddingHorizontal: 16,
           paddingBottom: 100,
         }}
       />
 
-      {/* Composer */}
+      {/* comment composer */}
       <View
         style={[
           styles.composer,
@@ -331,7 +383,9 @@ export default function PostDetail() {
         ]}
       >
         <TextInput
-          placeholder="Write a comment…"
+          placeholder={
+            isLoggedIn ? 'Write a comment…' : 'Sign up to comment…'
+          }
           placeholderTextColor={colors.textDim}
           value={draft}
           onChangeText={setDraft}
@@ -343,22 +397,117 @@ export default function PostDetail() {
               borderColor: colors.divider,
             },
           ]}
+          autoCapitalize="sentences"
+          autoCorrect
+          editable={isLoggedIn && !sending}
         />
         <TouchableOpacity
           onPress={sendComment}
-          disabled={sending || !draft.trim()}
+          disabled={
+            sending ||
+            (!isLoggedIn && true) ||
+            (isLoggedIn && !draft.trim())
+          }
           style={[
             styles.sendBtn,
             {
-              backgroundColor: colors.accent,
-              opacity: sending || !draft.trim() ? 0.6 : 1,
+              backgroundColor:
+                !isLoggedIn ||
+                sending ||
+                (isLoggedIn && !draft.trim())
+                  ? colors.surfaceAlt
+                  : colors.accent,
             },
           ]}
         >
-          <Ionicons name="send" size={18} color="#fff" />
+          <Ionicons
+            name={isLoggedIn ? 'send' : 'log-in-outline'}
+            size={18}
+            color={
+              !isLoggedIn ||
+              sending ||
+              (isLoggedIn && !draft.trim())
+                ? colors.textDim
+                : 'white'
+            }
+          />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+  );
+}
+
+/* ----------------- helpers ----------------- */
+
+function initials(name) {
+  const a = (name || '').trim().split(/\s+/);
+  return (
+    ((a[0]?.[0] || '') + (a[1]?.[0] || '')).toUpperCase() || 'U'
+  );
+}
+
+function timeAgo(ts) {
+  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function RowAction({ icon, text, colors, onPress, active }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.rowAction}
+      activeOpacity={0.85}
+    >
+      <Ionicons
+        name={icon}
+        size={16}
+        color={active ? colors.accent : colors.textDim}
+      />
+      {!!text && (
+        <Text
+          style={[
+            styles.rowActionText,
+            { color: active ? colors.accent : colors.textDim },
+          ]}
+        >
+          {text}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function TopBar({ colors, onBack }) {
+  return (
+    <View
+      style={[
+        styles.topBar,
+        {
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.divider,
+        },
+      ]}
+    >
+      <TouchableOpacity onPress={onBack} style={{ paddingRight: 8 }}>
+        <Ionicons
+          name="chevron-back"
+          size={22}
+          color={colors.text}
+        />
+      </TouchableOpacity>
+
+      <Text style={[styles.topTitle, { color: colors.text }]}>
+        Post
+      </Text>
+
+      <View style={{ width: 22 }} />
+    </View>
   );
 }
 
@@ -386,158 +535,126 @@ function ToastBanner({ colors, text }) {
   );
 }
 
-function TopBar({ colors, onBack }) {
-  return (
-    <View
-      style={[
-        styles.topBar,
-        {
-          backgroundColor: colors.surface,
-          borderBottomColor: colors.divider,
-        },
-      ]}
-    >
-      <TouchableOpacity onPress={onBack} style={styles.iconBtn}>
-        <Ionicons name="chevron-back" size={26} color={colors.text} />
-      </TouchableOpacity>
-      <Text
-        style={[styles.topTitle, { color: colors.text }]}
-      >
-        Post
-      </Text>
-      <View style={{ width: 26 }} />
-    </View>
-  );
-}
-
-function RowAction({ icon, text, colors, onPress }) {
-  return (
-    <TouchableOpacity
-      style={styles.actionBtn}
-      activeOpacity={0.7}
-      onPress={onPress}
-    >
-      <Ionicons name={icon} size={18} color={colors.textDim} />
-      <Text
-        style={[styles.actionText, { color: colors.textDim }]}
-      >
-        {text}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function initials(name) {
-  const parts = String(name || '')
-    .split(' ')
-    .filter(Boolean);
-  if (!parts.length) return 'U';
-  return (
-    (parts[0][0] || 'U').toUpperCase() +
-    (parts[1]?.[0] || '').toUpperCase()
-  );
-}
-
-function timeAgo(ts) {
-  if (!ts) return '';
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  const d = Math.floor(h / 24);
-  return `${d}d`;
-}
+/* ------------------------------ styles ------------------------------ */
 
 const styles = StyleSheet.create({
   topBar: {
-    height: 56,
-    paddingHorizontal: 12,
+    height: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'space-between',
   },
-  iconBtn: { padding: 6, borderRadius: 8 },
   topTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: 0.3,
   },
 
   toast: {
-    alignSelf: 'center',
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    position: 'absolute',
+    top: 56,
+    left: 16,
+    right: 16,
+    zIndex: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
   },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 6,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
-  author: { fontWeight: '800', fontSize: 14 },
-  meta: { fontSize: 12 },
+  author: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  meta: {
+    fontSize: 11,
+  },
 
-  title: { fontSize: 18, fontWeight: '900', marginTop: 6 },
-  body: { fontSize: 14, marginTop: 8, lineHeight: 20 },
+  title: {
+    marginTop: 6,
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  body: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 20,
+  },
 
   imagePh: {
-    width: '100%',
-    aspectRatio: 16 / 9,
+    height: 180,
     borderRadius: 10,
-    marginTop: 12,
-    backgroundColor: '#555',
+    marginTop: 10,
   },
 
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: 6,
+    marginTop: 8,
   },
   tag: {
-    paddingHorizontal: 10,
     paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 8,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
   },
 
   actionsRow: {
-    flexDirection: 'row',
-    gap: 16,
-    paddingTop: 10,
-    marginTop: 12,
+    marginTop: 10,
+    paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'space-around',
   },
-  actionText: { fontWeight: '700', fontSize: 12 },
 
   commentsTitle: {
-    fontSize: 15,
+    marginTop: 14,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    fontSize: 13,
     fontWeight: '800',
-    paddingBottom: 8,
+  },
+
+  cRow: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  cAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cAuthor: {
+    fontWeight: '700',
+    fontSize: 13,
   },
 
   composer: {
@@ -545,19 +662,36 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     padding: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 20,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
-    paddingVertical: 8,
     fontSize: 14,
   },
-  sendBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 16 },
+  sendBtn: {
+    width: 42,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  rowAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  rowActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

@@ -9,195 +9,181 @@ import {
 } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
 
-// ---------- Models / Helpers ----------
+/* ----------------------------- helpers ----------------------------- */
 
-// Convert a raw "post" from Django into the shape Forum/PostDetail screens expect.
-function mapPostFromBackend(raw) {
+function numericPostId(postId) {
+  if (typeof postId === 'number') return postId;
+  if (!postId) return null;
+  const digits = String(postId).replace(/\D/g, '');
+  return digits ? Number(digits) : null;
+}
+
+function toTs(value) {
+  try {
+    return value ? Date.parse(value) : Date.now();
+  } catch {
+    return Date.now();
+  }
+}
+
+/* -------------------------- model mapping -------------------------- */
+
+function getAuthorName(rawUser) {
+  // backend may send user as UID string or as object { user_id, username, email }
+  if (!rawUser) return 'User';
+  if (typeof rawUser === 'string') return 'User';
+  if (rawUser.username) return rawUser.username;
+  if (rawUser.email) return rawUser.email;
+  return 'User';
+}
+
+function mapPostJsonToUi(raw) {
   if (!raw) return null;
 
-  // createdAt -> timestamp we can timeAgo()
-  const createdTs = raw.created_at ? Date.parse(raw.created_at) : Date.now();
+  console.log('[DEBUG mapPostJsonToUi raw]', raw);
 
-  // Figure out authorName with strict priority:
-  // 1. If raw.user is object and has username -> use that
-  // 2. If raw.user is object and has full_name -> use that
-  // 3. If raw.user is object and has email -> use before UID
-  // 4. If raw.user is string like "JustinJ | jus@tin.com" -> take part before "|"
-  // 5. If raw.user is a bare UID-looking string -> show "Unknown" instead of UID
-  let authorName = 'Unknown';
+  const postId = String(raw.post_id ?? '');
+  const authorName = getAuthorName(raw.user);
+  const createdTs = toTs(raw.created_at);
 
-  if (raw.user && typeof raw.user === 'object') {
-    if (raw.user.username && raw.user.username.trim()) {
-      authorName = raw.user.username.trim();
-    } else if (raw.user.full_name && raw.user.full_name.trim()) {
-      authorName = raw.user.full_name.trim();
-    } else if (raw.user.email && raw.user.email.trim()) {
-      // only use email if we don't have username/full_name
-      authorName = raw.user.email.trim();
-    } else if (raw.user.user_id && raw.user.user_id.trim()) {
-      // this is likely the Firebase UID, we do NOT want to show that,
-      // so we will only use it if literally nothing else is provided.
-      authorName = 'Unknown';
-    }
-  } else if (raw.user && typeof raw.user === 'string') {
-    // backend might send "JustinJ | jus@tin.com"
-    const parts = raw.user.split('|').map(p => p.trim());
-    if (parts[0]) {
-      // parts[0] might still be a UID sometimes; let's detect
-      const candidate = parts[0];
-
-      // Heuristic: Firebase UIDs are long mixed-case alphanumeric,
-      // usually ~28+ chars, no spaces, not an email.
-      const looksLikeUid =
-        candidate.length >= 20 &&
-        !candidate.includes(' ') &&
-        !candidate.includes('@');
-
-      if (!looksLikeUid) {
-        authorName = candidate;
-      } else {
-        // if it's obviously a UID, hide it
-        authorName = 'Unknown';
-      }
-    }
+  // prefer serialized title; fallback to content
+  let uiTitle = '';
+  if (typeof raw.title === 'string' && raw.title.trim()) {
+    uiTitle = raw.title.trim();
+  } else if (typeof raw.content === 'string' && raw.content.trim()) {
+    const trimmed = raw.content.trim();
+    uiTitle = trimmed.length > 70 ? trimmed.slice(0, 67).trim() + '…' : trimmed;
+  } else {
+    uiTitle = 'Untitled';
   }
 
-  // first image (optional future enhancement)
-  const firstImage =
-    Array.isArray(raw.images_download_urls) &&
-    raw.images_download_urls.length > 0
-      ? raw.images_download_urls[0]
+  // backend may not yet include these counts, so default to 0
+  const likes = Number(
+    raw.likes ?? raw.likes_count ?? raw.like_count ?? 0
+  );
+  const comments = Number(
+    raw.comments ?? raw.comments_count ?? raw.comment_count ?? 0
+  );
+
+  const imageUrl =
+    Array.isArray(raw.images_urls) && raw.images_urls.length
+      ? raw.images_urls[0]
       : null;
 
-  // generate a "title" preview:
-  // - prefer formatted_id if backend gives it (e.g. "POST-000010")
-  // - else use first ~60 chars of content
-  let titleGuess = '';
-  if (raw.formatted_id) {
-    titleGuess = raw.formatted_id;
-  }
-  if (!titleGuess && raw.content) {
-    const trimmed = String(raw.content).trim();
-    titleGuess =
-      trimmed.length > 60 ? trimmed.slice(0, 57).trim() + '…' : trimmed;
-  }
-
   return {
-    // ID shown in FlatList keyExtractor and for navigation
-    id: String(raw.post_id ?? raw.id ?? ''),
-
-    author: {
-      // we'll stop exposing UID here since we don't want to show UID anywhere in UI
-      id: '',
-      name: authorName,
-    },
-
-    title: titleGuess || 'Untitled',
+    id: postId,
+    author: { id: String(raw.user?.user_id ?? ''), name: authorName },
+    title: uiTitle,
     body: raw.content || '',
     tags: raw.tags || [],
     createdAt: createdTs,
-
-    likes: raw.likes ?? 0,
-    comments: raw.comments ?? 0,
-
-    imageUrl: firstImage,
+    likes,
+    comments, // might be 0 placeholder; Forum will optionally hydrate this
+    imageUrl,
   };
 }
 
+function mapCommentJsonToUi(raw) {
+  if (!raw) return null;
 
-// ---------- Base Payload / Response classes ----------
+  console.log('[DEBUG mapCommentJsonToUi raw]', raw);
 
-// Payload for get_random_posts/
+  const authorName = getAuthorName(raw.user);
+  return {
+    id: String(raw.comment_id ?? raw.id ?? ''),
+    author: { id: String(raw.user?.user_id ?? ''), name: authorName },
+    text: raw.content || '',
+    createdAt: toTs(raw.created_at),
+  };
+}
+
+/* ------------------------ payload/response ------------------------- */
+
 class GetRandomPostsPayload extends BaseApiPayload {
   static get fieldMapping() {
-    return {
-      ...super.fieldMapping,
-      count: 'count',
-      blacklist: 'blacklist',
-    };
+    return { ...super.fieldMapping, count: 'count', blacklist: 'blacklist' };
   }
-
   constructor({ count, blacklist }) {
     super();
     this.count = count;
-    this.blacklist = blacklist ?? [];
+    this.blacklist = Array.isArray(blacklist) ? blacklist : [];
   }
 }
 
-// Response for get_random_posts/
 class GetRandomPostsResponse extends BaseApiResponse {
   static get fieldMapping() {
-    return {
-      ...super.fieldMapping,
-      data: 'data',
-    };
+    return { ...super.fieldMapping, data: 'data' };
   }
-
-  constructor({ status, success, message, errors, data, __rawData }) {
+  constructor({ status, success, message, errors, data }) {
     super({ status, success, message, errors });
-
-    // Save both raw and mapped
-    this.rawData = Array.isArray(__rawData) ? __rawData : Array.isArray(data) ? data : [];
-    this.data = this.rawData.map(mapPostFromBackend).filter(Boolean);
-  }
-
-  // custom fromJson so we can preserve original data array untouched
-  static fromJson(jsonData = {}) {
-    const mapping = this.fieldMapping;
-    const mappedData = {};
-
-    for (const [internalKey, jsonKey] of Object.entries(mapping)) {
-        mappedData[internalKey] = jsonData[jsonKey];
-    }
-
-    // pass original `jsonData.data` down as __rawData so constructor can keep both
-    return new this({
-      ...mappedData,
-      __rawData: jsonData.data,
-    });
+    const arr = Array.isArray(data) ? data : [];
+    this.data = arr.map(mapPostJsonToUi).filter(Boolean);
   }
 }
 
-
-// Response for get_post/?post_id=...
 class GetPostResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    this.data = mapPostJsonToUi(data);
+  }
+}
+
+class GetCommentsResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    const arr = Array.isArray(data) ? data : [];
+    this.data = arr.map(mapCommentJsonToUi).filter(Boolean);
+  }
+}
+
+class CreateCommentPayload extends BaseApiPayload {
   static get fieldMapping() {
     return {
       ...super.fieldMapping,
-      data: 'data',
+      post_id: 'post_id',
+      user_id: 'user_id',
+      content: 'content',
     };
   }
-
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    this.data = mapPostFromBackend(data);
+  constructor({ post_id, user_id, content }) {
+    super();
+    this.post_id = post_id;
+    this.user_id = user_id;
+    this.content = content;
   }
 }
 
-// ---------- Service Functions ----------
+class CreateCommentResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    this.data = mapCommentJsonToUi(data);
+  }
+}
 
-// 1) Feed / Explore posts
-// POST /post/get_random_posts/
+/* --------------------------- service calls -------------------------- */
+
+// FEED
 export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
-  const payload = new GetRandomPostsPayload({
-    count,
-    blacklist,
-  });
-
   const req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
-    'post/get_random_posts/', // confirmed working
-    payload,
+    API_ENDPOINTS.POST.GET_RANDOM_POSTS,
+    new GetRandomPostsPayload({ count, blacklist }),
     true
   );
-
   const ok = await req.sendRequest(GetRandomPostsResponse);
   const res = req.Response;
 
-  // DEBUG: log what backend actually sent us
-  console.log('[DEBUG posts rawData]', res?.rawData);
-  console.log('[DEBUG posts mapped data]', res?.data);
+  console.log('[DEBUG fetchRandomPosts mapped]', res?.data);
 
   return {
     success: ok && !!res?.success,
@@ -208,21 +194,110 @@ export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
   };
 }
 
-
-// 2) Single post detail
-// GET /post/get_post/?post_id=XX
+// SINGLE POST
 export async function fetchPostById(postId) {
-  const path = `post/get_post/?post_id=${encodeURIComponent(postId)}`;
+  const payload = { post_id: postId };
 
-  const req = new CustomApiRequest(
-    RequestMethod.GET,
+  // Use POST first because that worked in your logs.
+  let req = new CustomApiRequest(
+    RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
-    path,
-    null,
+    API_ENDPOINTS.POST.GET_POST,
+    payload,
     true
   );
+  let ok = await req.sendRequest(GetPostResponse);
+  let res = req.Response;
 
-  const ok = await req.sendRequest(GetPostResponse);
+  // Retry GET only if POST says 405/404
+  if (!ok && (res?.status === 405 || res?.status === 404)) {
+    req = new CustomApiRequest(
+      RequestMethod.GET,
+      API_ENDPOINTS.BASE_URL,
+      API_ENDPOINTS.POST.GET_POST,
+      payload,
+      true
+    );
+    ok = await req.sendRequest(GetPostResponse);
+    res = req.Response;
+  }
+
+  console.log('[DEBUG fetchPostById mapped]', res?.data);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
+  };
+}
+
+// COMMENTS LIST
+export async function fetchCommentsByPostId(postId) {
+  const payload = { post_id: postId };
+
+  // POST worked for you (and GET sometimes 405s), so POST first:
+  let req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.COMMENT.GET_COMMENTS_BY_POST_ID,
+    payload,
+    true
+  );
+  let ok = await req.sendRequest(GetCommentsResponse);
+  let res = req.Response;
+
+  // fallback GET if POST 405s
+  if (!ok && (res?.status === 405 || res?.status === 404)) {
+    req = new CustomApiRequest(
+      RequestMethod.GET,
+      API_ENDPOINTS.BASE_URL,
+      API_ENDPOINTS.COMMENT.GET_COMMENTS_BY_POST_ID,
+      payload,
+      true
+    );
+    ok = await req.sendRequest(GetCommentsResponse);
+    res = req.Response;
+  }
+
+  console.log('[DEBUG fetchCommentsByPostId count]', res?.data?.length ?? 0);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? [],
+    errors: res?.errors ?? null,
+  };
+}
+
+// helper: return # of comments for a single post
+export async function fetchCommentCountForPost(postId) {
+  const res = await fetchCommentsByPostId(postId);
+  if (res?.success) {
+    return res.data.length;
+  }
+  return 0;
+}
+
+// CREATE COMMENT
+export async function createComment({ postId, content }) {
+  const user = auth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.COMMENT.CREATE_COMMENT,
+    new CreateCommentPayload({
+      post_id: postId,
+      user_id: user.uid,
+      content,
+    }),
+    true
+  );
+  const ok = await req.sendRequest(CreateCommentResponse);
   const res = req.Response;
 
   return {
@@ -234,46 +309,50 @@ export async function fetchPostById(postId) {
   };
 }
 
-// 3) Placeholder comments fetch
-export async function fetchCommentsByPostId(postId) {
-  // backend not ready yet → return empty
-  return {
-    success: true,
-    data: [],
-  };
-}
+// LIKE / UNLIKE
+export async function likePost(postId) {
+  const user = auth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+  const pid = numericPostId(postId) ?? postId;
 
-// 4) Posts by the logged-in user (Profile tab, later)
-// POST /post/get_post_by_user_id/
-// body: { id_token: str }
-// NOTE: your backend doc/version said "id_token", not "user_id", so we're following that.
-export async function fetchPostsByCurrentUser() {
-  const currentUser = auth().currentUser;
-  if (!currentUser) {
-    throw new Error('No Firebase session found.');
-  }
-  const idToken = await currentUser.getIdToken(false);
-
-  const payload = {
-    id_token: idToken,
-  };
+  // include user_id so backend can attribute the like
+  const payload = { post_id: pid, user_id: user.uid };
 
   const req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
-    'post/get_post_by_user_id/',
+    API_ENDPOINTS.POST_LIKE.LIKE,
     payload,
     true
   );
-
-  const ok = await req.sendRequest(GetRandomPostsResponse);
+  const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
-
   return {
     success: ok && !!res?.success,
     status: res?.status,
     message: res?.message ?? null,
-    data: res?.data ?? [],
-    errors: res?.errors ?? null,
+  };
+}
+
+export async function unlikePost(postId) {
+  const user = auth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+  const pid = numericPostId(postId) ?? postId;
+
+  const payload = { post_id: pid, user_id: user.uid };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST_LIKE.UNLIKE,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
   };
 }
