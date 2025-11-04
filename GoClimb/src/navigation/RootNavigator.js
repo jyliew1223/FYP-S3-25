@@ -10,8 +10,9 @@ import LoginScreen from '../screens/LogInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import MapScreen from '../screens/MapScreen';
 import BottomBar from '../components/BottomBar';
-import Routes from '../screens/Routes';
+import CragsScreen from '../screens/CragsScreen';
 import RouteDetails from '../screens/RouteDetails';
 import AR from '../screens/AR';
 
@@ -38,13 +39,17 @@ function MainTabs() {
         component={SettingsScreen}
         options={{ title: 'Rankings' }}
       />
-      <Tab.Screen name="Map" component={SettingsScreen} />
+      <Tab.Screen name="Map" component={MapScreen} />
       <Tab.Screen
         name="ForumMain"
         component={Forum}
         options={{ title: 'Forum' }}
       />
-      <Tab.Screen name="Routes" component={Routes} />
+      <Tab.Screen
+        name="Routes"
+        component={CragsScreen}
+        options={{ title: 'Routes' }}
+      />    
     </Tab.Navigator>
   );
 }
@@ -65,7 +70,6 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="RouteDetails" component={RouteDetails} />
         <Stack.Screen name="AR" component={AR} />
 
         {/* Forum-related */}
@@ -73,6 +77,16 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen
           name="CreatePost"
           component={CreatePostScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Crags"
+          component={CragsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="RouteDetails"
+          component={RouteDetails}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

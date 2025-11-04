@@ -21,6 +21,8 @@ import {
   createComment,
   likePost,
   unlikePost,
+  checkIfUserLikedPost,
+  getLikeCount,
 } from '../services/api/PostsService';
 
 export default function PostDetail() {
@@ -59,25 +61,31 @@ export default function PostDetail() {
     (async () => {
       setLoading(true);
 
-      // fetch post + comments
-      const [pRes, cRes] = await Promise.all([
+      // fetch post + comments + like status
+      const [pRes, cRes, likeCountRes, likeStatusRes] = await Promise.all([
         fetchPostById(postId),
         fetchCommentsByPostId(postId),
+        getLikeCount(postId),
+        checkIfUserLikedPost(postId)
       ]);
 
       const pData = pRes?.success ? pRes.data : null;
       const cData = cRes?.success ? cRes.data : [];
+      const userLiked = likeStatusRes?.success ? likeStatusRes.liked : false;
 
       console.log('[DEBUG PostDetail post mapped]', pData);
       console.log('[DEBUG PostDetail comments count]', cData.length);
-
-      // We don't have a reliable "did I like?" endpoint without 405s,
-      // so we'll just default liked=false for now.
-      const userLiked = false;
+      console.log('[DEBUG PostDetail user liked]', userLiked);
 
       if (!alive) return;
 
-      setPost(pData);
+      // Update post with accurate like count
+      const updatedPost = pData ? {
+        ...pData,
+        likes: likeCountRes.success ? likeCountRes.count : (pData.likes || 0)
+      } : null;
+
+      setPost(updatedPost);
       setLiked(userLiked);
       setComments(cData);
       setLoading(false);

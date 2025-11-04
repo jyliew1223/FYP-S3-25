@@ -26,6 +26,8 @@ import {
   fetchCommentCountForPost,
   likePost,
   unlikePost,
+  checkIfUserLikedPost,
+  getLikeCount,
 } from '../services/api/PostsService';
 
 export default function Forum({ navigation }) {
@@ -49,20 +51,36 @@ export default function Forum({ navigation }) {
     toastRef.current = setTimeout(() => setToast(''), 2000);
   }, []);
 
-  // after we get posts from backend, fetch accurate comment counts
-  const hydrateCommentCounts = useCallback(async (list) => {
+  // after we get posts from backend, fetch accurate comment counts and like status
+  const hydratePostData = useCallback(async (list) => {
     const updated = await Promise.all(
       list.map(async (p) => {
-        const realCount = await fetchCommentCountForPost(p.id);
+        const [commentCount, likeCountRes, likeStatusRes] = await Promise.all([
+          fetchCommentCountForPost(p.id),
+          getLikeCount(p.id),
+          checkIfUserLikedPost(p.id)
+        ]);
+        
         return {
           ...p,
-          comments: realCount,
+          comments: commentCount,
+          likes: likeCountRes.success ? likeCountRes.count : (p.likes || 0),
         };
       })
     );
 
-    console.log('[DEBUG hydrateCommentCounts updated]', updated);
+    console.log('[DEBUG hydratePostData updated]', updated);
     setPosts(updated);
+    
+    // Update liked set based on actual backend data
+    const newLikedSet = new Set();
+    for (const post of list) {
+      const likeStatus = await checkIfUserLikedPost(post.id);
+      if (likeStatus.success && likeStatus.liked) {
+        newLikedSet.add(post.id);
+      }
+    }
+    setLiked(newLikedSet);
   }, []);
 
   // load initial feed
@@ -75,15 +93,15 @@ export default function Forum({ navigation }) {
       setPosts(res.data);
       setLiked(new Set()); // reset local like set on new load
 
-      // hydrate just comment counts (they're reliable)
-      hydrateCommentCounts(res.data);
+      // hydrate comment counts and like status
+      hydratePostData(res.data);
     } else {
       setPosts([]);
       showToast(res?.message || 'Failed to load posts');
     }
 
     setLoading(false);
-  }, [showToast, hydrateCommentCounts]);
+  }, [showToast, hydratePostData]);
 
   useEffect(() => {
     load();
@@ -109,7 +127,7 @@ export default function Forum({ navigation }) {
     if (res?.success) {
       setPosts(res.data);
       setLiked(new Set());
-      hydrateCommentCounts(res.data);
+      hydratePostData(res.data);
     }
     setRefreshing(false);
   }, [posts, hydrateCommentCounts]);

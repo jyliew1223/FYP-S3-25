@@ -339,6 +339,54 @@ export async function createComment({ postId, content }) {
   };
 }
 
+// LIKE STATUS CHECK
+export async function checkIfUserLikedPost(postId) {
+  const user = auth().currentUser;
+  if (!user) return { success: false, liked: false };
+  
+  const pid = numericPostId(postId) ?? postId;
+  const payload = { post_id: pid };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST_LIKE.LIKES_USERS, // This gets users who liked the post
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+  
+  if (ok && res?.success && res?.data?.users) {
+    const userLiked = res.data.users.some(u => u.user_id === user.uid);
+    return { success: true, liked: userLiked };
+  }
+  
+  return { success: false, liked: false };
+}
+
+// GET LIKE COUNT
+export async function getLikeCount(postId) {
+  const pid = numericPostId(postId) ?? postId;
+  const payload = { post_id: pid };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST_LIKE.LIKES_COUNT,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+  
+  if (ok && res?.success && res?.data?.count !== undefined) {
+    return { success: true, count: res.data.count };
+  }
+  
+  return { success: false, count: 0 };
+}
+
 // LIKE / UNLIKE
 export async function likePost(postId) {
   const user = auth().currentUser;

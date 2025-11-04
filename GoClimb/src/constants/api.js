@@ -42,10 +42,10 @@ export const API_ENDPOINTS = {
     GET_USER_CLIMB_STATS: 'get_user_climb_stats',
   }),
   POST_LIKE: withBase('post/', {
-    LIKE: 'like',
-    UNLIKE: 'unlike',
-    LIKES_COUNT: 'likes/count',
-    LIKES_USER: 'likesusers',
+    LIKE: 'like/',
+    UNLIKE: 'unlike/',
+    LIKES_COUNT: 'likes/count/',
+    LIKES_USERS: 'likes/users/',
   }),
   COMMENT: withBase('comment/', {
     CREATE_COMMENT: 'create_post_comment',
