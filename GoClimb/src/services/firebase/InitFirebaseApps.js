@@ -163,7 +163,7 @@ const InitFirebaseApps = async () => {
     }
   } catch (err) {
     console.log(
-      `${TAG}: Firebase AppCheck initialization failed ❌\n${error.message}`,
+      `${TAG}: Firebase AppCheck initialization failed ❌\n${err.message}`,
     );
     return false;
   }

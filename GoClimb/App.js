@@ -41,8 +41,8 @@ const json = `
 function AppInner() {
   const { navTheme } = useTheme();
 
-  useEffect(async () => {
-    await InitFirebaseApps();
+  useEffect(() => {
+    InitFirebaseApps();
   }, []);
 
   return <RootNavigator navTheme={navTheme} />;

@@ -130,7 +130,7 @@ export default function Forum({ navigation }) {
       hydratePostData(res.data);
     }
     setRefreshing(false);
-  }, [posts, hydrateCommentCounts]);
+  }, [posts, hydratePostData]);
 
   // local search
   const filtered = useMemo(() => {
