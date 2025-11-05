@@ -92,3 +92,22 @@ def get_trending_crags(count: int) -> list[dict[str, Any]]:
     # Sort by growth_rate descending and limit to requested count
     trending_list.sort(key=lambda x: x["growth_rate"], reverse=True)
     return trending_list[:count]
+
+
+def get_random_crag(count: int = 10, blacklist: list[str] | None = None):
+
+    if count < 0:
+        raise ValueError("Count must be a positive integer.")
+
+    if blacklist is None:
+        blacklist = []
+
+    converter = PrefixedIDConverter()
+    blacklist_int: list[int] = []
+
+    for item in blacklist:
+        data: int = converter.to_raw_id(item)
+        blacklist_int.append(data)
+
+    crags = Crag.objects.exclude(crag_id__in=blacklist_int).order_by("?")[:count]
+    return crags

@@ -276,7 +276,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_crag_monthly_ranking")
-        params = {"crag_id": self.test_crag.crag_id, "count": "5"}
+        params = {"count": "5"}
         response = self.client.get(url, params)
         self.print_endpoint_result("CRAG - GET MONTHLY RANKING", url, response, params)
 
@@ -463,11 +463,13 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.print_endpoint_result("POST - LIKE", url, response, data)
 
         # Assertions
+        count = PostLike.objects.filter(post_id=self.test_post.post_id)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertTrue(response_data.get("success"))
         self.assertEqual(response_data.get("message"), "Post liked")
+        self.assertFalse(count == 0)
 
     @patch("firebase_admin.app_check.verify_token")
     def test_17_post_unlike(self, mock_verify_app_check):
@@ -700,3 +702,21 @@ class AllEndpointsSuccessTestCase(TestCase):
     def tearDown(self):
         """Clean up after tests"""
         pass
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_28_crag_get_random(self, mock_verify_app_check):
+        """Test get random posts endpoint: POST /post/get_random_posts/"""
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("get_random_crag")
+        data = {"count": 10, "blacklist": []}
+        response = self.client.post(url, data, format="json")
+        self.print_endpoint_result("CRAG - GET RANDOM", url, response, data)
+
+        # Assertions
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)

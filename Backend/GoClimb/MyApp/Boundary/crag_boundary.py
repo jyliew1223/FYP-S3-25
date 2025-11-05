@@ -11,11 +11,7 @@ from MyApp.Serializer.serializers import CragSerializer
 # Utils
 from MyApp.Firebase.helpers import authenticate_app_check_token
 
-from MyApp.Controller.crag_controller import (
-    get_crag_info,
-    get_monthly_ranking,
-    get_trending_crags,
-)
+from MyApp.Controller import crag_controller
 
 
 @api_view(["GET"])
@@ -37,7 +33,7 @@ def get_crag_info_view(request: Request) -> Response:
         )
 
     try:
-        crag = get_crag_info(crag_id)
+        crag = crag_controller.get_crag_info(crag_id)
         if not crag:
             return Response(
                 {"success": False, "message": "Crag not found."},
@@ -70,19 +66,19 @@ def get_crag_monthly_ranking_view(request: Request) -> Response:
 
     count_param = request.query_params.get("count")
     try:
-        count = int(count_param) if count_param is not None else 0 
+        count = int(count_param) if count_param is not None else 0
     except ValueError:
         return Response(
             {
                 "success": False,
                 "message": "Invalid count value.",
-                "errors": {"count":"count must be an integer."},
+                "errors": {"count": "count must be an integer."},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
-        crag_list: list = get_monthly_ranking(count)
+        crag_list: list = crag_controller.get_monthly_ranking(count)
 
         serialized_data = []
         for idx, item in enumerate(crag_list, 1):
@@ -93,10 +89,7 @@ def get_crag_monthly_ranking_view(request: Request) -> Response:
             else:
                 continue
 
-            serialized_data.append({
-                "crag": crag_data, 
-                "ranking": idx    
-            })
+            serialized_data.append({"crag": crag_data, "ranking": idx})
 
         return Response(
             {
@@ -138,7 +131,7 @@ def get_trending_crags_view(request: Request) -> Response:
 
     count_param = request.query_params.get("count")
     try:
-        count = int(count_param) if count_param is not None else 0 
+        count = int(count_param) if count_param is not None else 0
     except ValueError:
         return Response(
             {
@@ -150,8 +143,8 @@ def get_trending_crags_view(request: Request) -> Response:
         )
 
     try:
-        trending_list = get_trending_crags(count)
-        
+        trending_list = crag_controller.get_trending_crags(count)
+
         if not trending_list:
             return Response(
                 {
@@ -170,13 +163,15 @@ def get_trending_crags_view(request: Request) -> Response:
                 crag_obj = item["crag"]
                 crag_data = dict(CragSerializer(crag_obj).data)
 
-                trending_list_json.append({
-                    "crag": crag_data,
-                    "current_count": item.get("current_count", 0),
-                    "previous_count": item.get("previous_count", 0),
-                    "growth": item.get("growth", 0),
-                    "growth_rate": item.get("growth_rate", 0),
-                })
+                trending_list_json.append(
+                    {
+                        "crag": crag_data,
+                        "current_count": item.get("current_count", 0),
+                        "previous_count": item.get("previous_count", 0),
+                        "growth": item.get("growth", 0),
+                        "growth_rate": item.get("growth_rate", 0),
+                    }
+                )
 
         return Response(
             {
@@ -204,6 +199,120 @@ def get_trending_crags_view(request: Request) -> Response:
                 "message": f"Error fetching climb logs: {str(e)}",
                 "data": [],
                 "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+def get_random_crag_view(request: Request) -> Response:
+    """
+        Method: POST (blacklist may get huge)
+
+        INPUT:
+        {
+        count: int,
+        blacklist:[list of post_id]
+        }
+
+        OUTPUT:
+        {
+        'success' : bool
+        'message' : str
+        'data' :[
+            {
+                post_data....
+            },
+            {
+                post_data
+            }
+            ]
+        'errors': # Only if success is False
+        }
+
+
+        Expected Status:
+        200_OK
+        400_Bad Request
+        401_Unauthorzed
+
+        Note:
+        use 200_OK for empty list
+    }
+    """
+    result: dict = authenticate_app_check_token(request)
+
+    if not result.get("success"):
+        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+
+    data: dict[str, Any] = request.data if isinstance(request.data, dict) else {}
+
+    count_str: str = data.get("count", 10)
+    count: int = int(count_str)
+    blacklist: list[str] = data.get("blacklist", [])
+
+    required_fields: dict = {
+        "count": count,
+    }
+
+    for field_name, value in required_fields.items():
+        if not value:
+            return Response(
+                {
+                    "success": False,
+                    "message": "missing field",
+                    "errors": f"{field_name} is required.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    try:
+        crag_list = crag_controller.get_random_crag(count, blacklist)
+        serializer = CragSerializer(crag_list, many=True)
+        serialized_data = serializer.data if isinstance(serializer.data, list) else []
+
+        if not serialized_data:
+            return Response(
+                {
+                    "success": True,
+                    "message": "No posts available.",
+                    "data": [],
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {
+                    "success": True,
+                    "message": "Posts fetched successfully.",
+                    "data": serialized_data,
+                },
+                status=status.HTTP_200_OK,
+            )
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": str(ve),
+                "errors": {"ValueError": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except IndexError as ie:
+        return Response(
+            {
+                "success": False,
+                "message": str(ie),
+                "errors": {"IndexError": str(ie)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": str(e),
+                "errors": {"Exception": str(e)},
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
