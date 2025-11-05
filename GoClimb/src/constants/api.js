@@ -36,6 +36,7 @@ export const API_ENDPOINTS = {
     GET_CRAG_INFO: 'get_crag_info/',
     GET_CRAG_MONTHLY_RANKING: 'get_crag_monthly_ranking',
     GET_TRANDING_CRAG: 'get_trending_crags',
+    GET_RANDOM_CRAGS: 'get_random_crags',
   }),
   CLIMB_LOG: withBase('climb_log/', {
     GET_USER_CLIMB_LOG: 'get_user_climb_logs',

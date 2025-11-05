@@ -40,25 +40,39 @@ export default function CragsScreen({ navigation }) {
   // crag_pk -> [{ route_id, name, gradeFont, ... }]
   const routesCacheRef = useRef(new Map());
 
+  // load crags function
+  const loadCrags = async () => {
+    setLoadingCrags(true);
+    try {
+      const liveCrags = await fetchAllCragsBootstrap();
+      // Sort crags alphabetically by name
+      const sortedCrags = liveCrags.sort((a, b) => {
+        const nameA = (a.name || '').toLowerCase();
+        const nameB = (b.name || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      setCrags(sortedCrags);
+    } catch (error) {
+      console.log('[CragsScreen] Error loading crags:', error);
+      setCrags([]);
+    }
+    setLoadingCrags(false);
+  };
+
   // initial load of crags from backend using bootstrap
   useEffect(() => {
-    let alive = true;
-    async function run() {
-      setLoadingCrags(true);
-      const liveCrags = await fetchAllCragsBootstrap();
-      if (!alive) return;
-      setCrags(liveCrags);
-      setLoadingCrags(false);
-    }
-    run();
-    return () => {
-      alive = false;
-    };
+    loadCrags();
   }, []);
 
   async function onToggleCrag(crag) {
     const pk = crag.crag_pk;
-    if (pk == null) return;
+    console.log('[onToggleCrag] crag:', crag);
+    console.log('[onToggleCrag] pk:', pk);
+
+    if (pk == null) {
+      console.log('[onToggleCrag] No valid crag_pk, cannot fetch routes');
+      return;
+    }
 
     if (expandedCragPk === pk) {
       // collapse it
@@ -71,10 +85,12 @@ export default function CragsScreen({ navigation }) {
     if (!routesCacheRef.current.has(pk)) {
       setLoadingCragRoutes((prev) => ({ ...prev, [pk]: true }));
 
-      // IMPORTANT: we try numeric pk first: pk
-      // If backend actually wants pretty id for route fetch,
-      // change pk -> crag.crag_pretty_id here and test.
-      const { success, routes } = await fetchRoutesByCragIdGET(pk);
+      console.log('[onToggleCrag] Fetching routes for crag_pk:', pk);
+      console.log('[onToggleCrag] Trying pretty_id instead:', crag.crag_pretty_id);
+
+      // Try pretty ID first since API test shows "CRAG-000026" format
+      const cragIdToUse = crag.crag_pretty_id || pk;
+      const { success, routes } = await fetchRoutesByCragIdGET(cragIdToUse);
 
       setLoadingCragRoutes((prev) => ({ ...prev, [pk]: false }));
 

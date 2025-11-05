@@ -87,7 +87,13 @@ export default function PostDetail() {
 
       setPost(updatedPost);
       setLiked(userLiked);
-      setComments(cData);
+      // Sort comments chronologically: oldest first (ascending order)
+      const sortedComments = cData.sort((a, b) => {
+        const timeA = a.createdAt || 0;
+        const timeB = b.createdAt || 0;
+        return timeA - timeB; // Ascending order (oldest first)
+      });
+      setComments(sortedComments);
       setLoading(false);
     })();
 
@@ -152,8 +158,15 @@ export default function PostDetail() {
     setSending(true);
     const res = await createComment({ postId, content: text });
     if (res?.success && res.data) {
-      // add new comment to the front
-      setComments((cur) => [res.data, ...cur]);
+      // add new comment and maintain chronological order (oldest first)
+      setComments((cur) => {
+        const updated = [...cur, res.data];
+        return updated.sort((a, b) => {
+          const timeA = a.createdAt || 0;
+          const timeB = b.createdAt || 0;
+          return timeA - timeB; // Ascending order (oldest first)
+        });
+      });
       setDraft('');
     } else {
       showToast(res?.message || 'Failed to post comment');

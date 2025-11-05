@@ -53,54 +53,79 @@ export default function Forum({ navigation }) {
 
   // after we get posts from backend, fetch accurate comment counts and like status
   const hydratePostData = useCallback(async (list) => {
-    const updated = await Promise.all(
-      list.map(async (p) => {
-        const [commentCount, likeCountRes, likeStatusRes] = await Promise.all([
-          fetchCommentCountForPost(p.id),
-          getLikeCount(p.id),
-          checkIfUserLikedPost(p.id)
-        ]);
-        
-        return {
-          ...p,
-          comments: commentCount,
-          likes: likeCountRes.success ? likeCountRes.count : (p.likes || 0),
-        };
-      })
-    );
+    try {
+      const updated = await Promise.all(
+        list.map(async (p) => {
+          try {
+            const [commentCount, likeCountRes, likeStatusRes] = await Promise.all([
+              fetchCommentCountForPost(p.id),
+              getLikeCount(p.id),
+              checkIfUserLikedPost(p.id)
+            ]);
+            
+            return {
+              ...p,
+              comments: commentCount || 0,
+              likes: likeCountRes.success ? likeCountRes.count : (p.likes || 0),
+            };
+          } catch (error) {
+            console.log(`[DEBUG] Error hydrating post ${p.id}:`, error);
+            return {
+              ...p,
+              comments: p.comments || 0,
+              likes: p.likes || 0,
+            };
+          }
+        })
+      );
 
-    console.log('[DEBUG hydratePostData updated]', updated);
-    setPosts(updated);
-    
-    // Update liked set based on actual backend data
-    const newLikedSet = new Set();
-    for (const post of list) {
-      const likeStatus = await checkIfUserLikedPost(post.id);
-      if (likeStatus.success && likeStatus.liked) {
-        newLikedSet.add(post.id);
+      console.log('[DEBUG hydratePostData updated]', updated);
+      setPosts(updated);
+      
+      // Update liked set based on actual backend data
+      const newLikedSet = new Set();
+      for (const post of list) {
+        try {
+          const likeStatus = await checkIfUserLikedPost(post.id);
+          if (likeStatus.success && likeStatus.liked) {
+            newLikedSet.add(post.id);
+          }
+        } catch (error) {
+          console.log(`[DEBUG] Error checking like status for post ${post.id}:`, error);
+        }
       }
+      setLiked(newLikedSet);
+    } catch (error) {
+      console.log('[DEBUG] Error in hydratePostData:', error);
     }
-    setLiked(newLikedSet);
   }, []);
 
   // load initial feed
   const load = useCallback(async () => {
     setLoading(true);
 
-    const res = await fetchRandomPosts({ count: 12 });
-    if (res?.success) {
-      console.log('[DEBUG Forum fetchRandomPosts]', res.data);
-      setPosts(res.data);
-      setLiked(new Set()); // reset local like set on new load
+    try {
+      const res = await fetchRandomPosts({ count: 12 });
+      if (res?.success) {
+        console.log('[DEBUG Forum fetchRandomPosts]', res.data);
+        // Show posts immediately for faster UI
+        setPosts(res.data);
+        setLiked(new Set()); // reset local like set on new load
+        setLoading(false);
 
-      // hydrate comment counts and like status
-      hydratePostData(res.data);
-    } else {
+        // hydrate comment counts and like status in background
+        hydratePostData(res.data);
+      } else {
+        setPosts([]);
+        showToast(res?.message || 'Failed to load posts');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.log('[DEBUG] Error loading posts:', error);
       setPosts([]);
-      showToast(res?.message || 'Failed to load posts');
+      showToast('Failed to load posts');
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [showToast, hydratePostData]);
 
   useEffect(() => {
@@ -132,18 +157,29 @@ export default function Forum({ navigation }) {
     setRefreshing(false);
   }, [posts, hydratePostData]);
 
-  // local search
+  // local search and chronological sorting (newest first)
   const filtered = useMemo(() => {
-    if (!query.trim()) return posts;
-    const q = query.trim().toLowerCase();
-    return posts.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.body.toLowerCase().includes(q) ||
-        (p.tags || []).some((t) =>
-          String(t).toLowerCase().includes(q)
-        )
-    );
+    let result = posts;
+    
+    // Filter by search query if provided
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      result = posts.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.body.toLowerCase().includes(q) ||
+          (p.tags || []).some((t) =>
+            String(t).toLowerCase().includes(q)
+          )
+      );
+    }
+    
+    // Sort chronologically: newest first (highest createdAt timestamp)
+    return result.sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      return timeB - timeA; // Descending order (newest first)
+    });
   }, [posts, query]);
 
   const openPost = (post) =>

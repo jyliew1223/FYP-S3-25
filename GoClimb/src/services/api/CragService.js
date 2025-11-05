@@ -40,11 +40,20 @@ function safeTs(str) {
 
 // Normalize a single crag result
 function normalizeCrag(raw, fallbackNumericPk) {
+  // Extract numeric ID from crag_id string like "CRAG-000007" -> 7
+  let numericPk = fallbackNumericPk;
+  if (raw?.crag_id && typeof raw.crag_id === 'string') {
+    const match = raw.crag_id.match(/CRAG-0*(\d+)/);
+    if (match && match[1]) {
+      numericPk = parseInt(match[1], 10);
+    }
+  }
+
   return {
     // backend returns "crag_id": "CRAG-000007" etc.
     crag_pretty_id: raw?.crag_id ?? 'CRAG-UNKNOWN',
-    // but we ALSO track numeric PK we asked for, so we can pass it back later
-    crag_pk: fallbackNumericPk ?? null,
+    // Extract numeric PK from the pretty ID for route fetching
+    crag_pk: numericPk,
 
     name: raw?.name ?? 'Unknown Crag',
     description: raw?.description ?? '',
@@ -52,6 +61,9 @@ function normalizeCrag(raw, fallbackNumericPk) {
       raw?.location_details?.country ||
       raw?.location_details?.city ||
       'Unknown',
+    // Include lat/lon for map markers
+    location_lat: raw?.location_lat ?? null,
+    location_lon: raw?.location_lon ?? null,
     images: Array.isArray(raw?.images_urls) ? raw.images_urls : [],
   };
 }
@@ -59,12 +71,17 @@ function normalizeCrag(raw, fallbackNumericPk) {
 // Normalize a single route result
 function normalizeRoute(raw) {
   const numericGrade = raw?.route_grade;
+  // Handle both old format (crag as number) and new format (crag as object)
+  const cragData = typeof raw?.crag === 'object' ? raw.crag : null;
+  const cragId = cragData?.crag_id || raw?.crag;
+  
   return {
     route_id: raw?.route_id ?? 'ROUTE-UNKNOWN',
     name: raw?.route_name ?? 'Unnamed Route',
     gradeRaw: numericGrade,
     gradeFont: convertNumericGradeToFont(numericGrade),
-    cragPk: raw?.crag ?? null,
+    cragPk: cragId,
+    cragData: cragData, // Store full crag data if available
     images: Array.isArray(raw?.images_urls) ? raw.images_urls : [],
     createdAt: safeTs(raw?.created_at),
   };
@@ -138,21 +155,26 @@ async function fetchCragInfoGET(numericPkCragId) {
 export async function fetchRoutesByCragIdGET(cragIdParam) {
   await InitFirebaseApps();
 
-  const query = `?crag_id=${encodeURIComponent(cragIdParam)}`;
+  const payload = { crag_id: cragIdParam };
+  
+  console.log('[fetchRoutesByCragIdGET] BASE_URL:', API_ENDPOINTS.BASE_URL);
+  console.log('[fetchRoutesByCragIdGET] ENDPOINT:', API_ENDPOINTS.ROUTE.GET_ROUTES_BY_CRAG_ID);
+  console.log('[fetchRoutesByCragIdGET] cragIdParam:', cragIdParam);
+  console.log('[fetchRoutesByCragIdGET] payload:', payload);
 
   const req = new CustomApiRequest(
     RequestMethod.GET,
     API_ENDPOINTS.BASE_URL,
-    API_ENDPOINTS.ROUTE.GET_ROUTES_BY_CRAG_ID + query,
-    null,
+    API_ENDPOINTS.ROUTE.GET_ROUTES_BY_CRAG_ID,
+    payload,
     true
   );
 
   const ok = await req.sendRequest(GenericGetResponse);
   const res = req.Response;
 
-  console.log('[fetchRoutesByCragIdGET] req', cragIdParam);
-  console.log('[fetchRoutesByCragIdGET] res', res);
+  console.log('[fetchRoutesByCragIdGET] cragIdParam:', cragIdParam);
+  console.log('[fetchRoutesByCragIdGET] response:', res);
 
   if (!ok || !res?.success) {
     return {
@@ -175,13 +197,13 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
 export async function fetchRouteByIdGET(routeId) {
   await InitFirebaseApps();
 
-  const query = `?route_id=${encodeURIComponent(routeId)}`;
+  const payload = { route_id: routeId };
 
   const req = new CustomApiRequest(
     RequestMethod.GET,
     API_ENDPOINTS.BASE_URL,
-    API_ENDPOINTS.ROUTE.GET_ROUTE_BY_ID + query,
-    null,
+    API_ENDPOINTS.ROUTE.GET_ROUTE_BY_ID,
+    payload,
     true
   );
 
@@ -205,30 +227,58 @@ export async function fetchRouteByIdGET(routeId) {
 }
 
 /**
- * fetchAllCragsBootstrap
- *
- * We do NOT yet have a "list all crags" endpoint.
- * So:
- * 1. We keep an array of known numeric PKs we care about (from Django admin list)
- *    - In your screenshot: Toast Bunch | 3, Green Attack | 4
- * 2. For each one, we call fetchCragInfoGET(pk)
- * 3. We build an array of crag objects for the UI
- *
- * Later, if backend gives you /crag/list_all/, you replace this with that.
+ * fetchRandomCrags
+ * Uses the random crags endpoint from your API
  */
-export async function fetchAllCragsBootstrap() {
-  // Update this list if you add more crags in Django.
-  const KNOWN_NUMERIC_IDS = [3, 4];
+export async function fetchRandomCrags(count = 10, blacklist = []) {
+  await InitFirebaseApps();
 
-  const results = [];
-  for (const pk of KNOWN_NUMERIC_IDS) {
-    const info = await fetchCragInfoGET(pk);
-    if (info.success && info.crag) {
-      results.push(info.crag);
-    } else {
-      console.warn('[fetchAllCragsBootstrap] failed pk=', pk, info);
-    }
+  const payload = { 
+    count: count.toString(),
+    blacklist: blacklist
+  };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.CRAG.GET_RANDOM_CRAGS,
+    payload,
+    true
+  );
+
+  const ok = await req.sendRequest(GenericGetResponse);
+  const res = req.Response;
+
+  console.log('[fetchRandomCrags] req', payload);
+  console.log('[fetchRandomCrags] res', res);
+
+  if (!ok || !res?.success) {
+    return {
+      success: false,
+      crags: [],
+    };
   }
 
-  return results;
+  const arr = Array.isArray(res.data) ? res.data : [];
+  return {
+    success: true,
+    crags: arr.map((raw) => normalizeCrag(raw, null)),
+  };
+}
+
+/**
+ * fetchAllCragsBootstrap
+ * Simple function that uses get_random_crags endpoint
+ */
+export async function fetchAllCragsBootstrap() {
+  console.log('[fetchAllCragsBootstrap] Using random crags endpoint');
+  const randomResult = await fetchRandomCrags(10);
+  
+  if (randomResult.success && randomResult.crags.length > 0) {
+    return randomResult.crags;
+  }
+
+  // If random crags fails, return empty array
+  console.warn('[fetchAllCragsBootstrap] Failed to load crags');
+  return [];
 }

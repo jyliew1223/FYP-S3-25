@@ -341,7 +341,7 @@ export async function createComment({ postId, content }) {
 
 // LIKE STATUS CHECK
 export async function checkIfUserLikedPost(postId) {
-  const user = auth().currentUser;
+  const user = getAuth().currentUser;
   if (!user) return { success: false, liked: false };
   
   const pid = numericPostId(postId) ?? postId;
@@ -350,7 +350,7 @@ export async function checkIfUserLikedPost(postId) {
   const req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
-    API_ENDPOINTS.POST_LIKE.LIKES_USERS, // This gets users who liked the post
+    API_ENDPOINTS.POST_LIKE.LIKES_USERS,
     payload,
     true
   );
@@ -389,7 +389,7 @@ export async function getLikeCount(postId) {
 
 // LIKE / UNLIKE
 export async function likePost(postId) {
-  const user = auth().currentUser;
+  const user = getAuth().currentUser;
   if (!user) throw new Error('No Firebase session found.');
   const pid = numericPostId(postId) ?? postId;
 
@@ -412,7 +412,7 @@ export async function likePost(postId) {
 }
 
 export async function unlikePost(postId) {
-  const user = auth().currentUser;
+  const user = getAuth().currentUser;
   if (!user) throw new Error('No Firebase session found.');
   const pid = numericPostId(postId) ?? postId;
 

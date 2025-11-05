@@ -42,7 +42,10 @@ function AppInner() {
   const { navTheme } = useTheme();
 
   useEffect(() => {
-    InitFirebaseApps();
+    // Initialize Firebase in background without blocking UI
+    InitFirebaseApps().catch(error => {
+      console.log('Firebase initialization failed:', error);
+    });
   }, []);
 
   return <RootNavigator navTheme={navTheme} />;

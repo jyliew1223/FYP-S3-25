@@ -218,8 +218,17 @@ class CustomApiRequest {
     }
 
     if (this.#attachAppCheckToken) {
-      const tokenResult = await getToken(getApp().appCheck(), false);
-      options.headers['X-Firebase-AppCheck'] = tokenResult.token;
+      try {
+        const app = getApp();
+        if (app.appCheck) {
+          const tokenResult = await getToken(app.appCheck(), false);
+          options.headers['X-Firebase-AppCheck'] = tokenResult.token;
+          console.log('AppCheck token attached successfully');
+        }
+      } catch (error) {
+        console.log('Failed to get AppCheck token:', error.message);
+        // Don't fail the request, but log the issue
+      }
     }
 
     try {
