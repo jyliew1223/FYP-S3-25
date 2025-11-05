@@ -8,22 +8,31 @@ import {
 import { API_ENDPOINTS } from '../../constants/api';
 import InitFirebaseApps from '../firebase/InitFirebaseApps';
 
-/**
- * GRADE_TABLE:
- * numeric route_grade -> Font grade
- */
 const GRADE_TABLE = {
   1: '4',
-  2: '4+',
-  3: '5',
-  4: '5+',
-  5: '6A',
-  6: '6A+',
+  2: '5',
+  3: '5+',
+  4: '6A',
+  5: '6A+',
+  6: '6B',
   7: '6B+',
   8: '6C',
   9: '6C+',
   10: '7A',
+  11: '7A+',
+  12: '7B',
+  13: '7B+',
+  14: '7C',
+  15: '7C+',
+  16: '8A',
+  17: '8A+',
+  18: '8B',
+  19: '8B+',
+  20: '8C',
+  21: '8C+',
+  22: '9A',
 };
+
 export function convertNumericGradeToFont(n) {
   if (n == null) return '—';
   const asNum = Number(n);
@@ -38,9 +47,7 @@ function safeTs(str) {
   }
 }
 
-// Normalize a single crag result
 function normalizeCrag(raw, fallbackNumericPk) {
-  // Extract numeric ID from crag_id string like "CRAG-000007" -> 7
   let numericPk = fallbackNumericPk;
   if (raw?.crag_id && typeof raw.crag_id === 'string') {
     const match = raw.crag_id.match(/CRAG-0*(\d+)/);
@@ -50,9 +57,7 @@ function normalizeCrag(raw, fallbackNumericPk) {
   }
 
   return {
-    // backend returns "crag_id": "CRAG-000007" etc.
     crag_pretty_id: raw?.crag_id ?? 'CRAG-UNKNOWN',
-    // Extract numeric PK from the pretty ID for route fetching
     crag_pk: numericPk,
 
     name: raw?.name ?? 'Unknown Crag',
@@ -61,17 +66,15 @@ function normalizeCrag(raw, fallbackNumericPk) {
       raw?.location_details?.country ||
       raw?.location_details?.city ||
       'Unknown',
-    // Include lat/lon for map markers
+
     location_lat: raw?.location_lat ?? null,
     location_lon: raw?.location_lon ?? null,
     images: Array.isArray(raw?.images_urls) ? raw.images_urls : [],
   };
 }
 
-// Normalize a single route result
 function normalizeRoute(raw) {
   const numericGrade = raw?.route_grade;
-  // Handle both old format (crag as number) and new format (crag as object)
   const cragData = typeof raw?.crag === 'object' ? raw.crag : null;
   const cragId = cragData?.crag_id || raw?.crag;
   
@@ -87,10 +90,6 @@ function normalizeRoute(raw) {
   };
 }
 
-/**
- * Helper to wrap GET responses because our ApiHelper response
- * still expects JSON with {success, data,...}
- */
 class GenericGetResponse extends BaseApiResponse {
   static get fieldMapping() {
     return {
@@ -104,16 +103,9 @@ class GenericGetResponse extends BaseApiResponse {
   }
 }
 
-/**
- * fetchCragInfoGET
- * Uses GET /crag/get_crag_info/?crag_id=<NUMERIC_PK>
- *
- * numericPkCragId: number or string like "3"
- */
 async function fetchCragInfoGET(numericPkCragId) {
   await InitFirebaseApps();
 
-  // build query param
   const query = `?crag_id=${encodeURIComponent(
     numericPkCragId
   )}`;
@@ -145,13 +137,6 @@ async function fetchCragInfoGET(numericPkCragId) {
   };
 }
 
-/**
- * fetchRoutesByCragIdGET
- * Uses GET /route/get_route_by_crag_id/?crag_id=<NUMERIC_OR_PRETTY>
- *
- * We will first try numeric PK (like 3, 4). If backend
- * expects the pretty "CRAG-000003", you can switch what you pass.
- */
 export async function fetchRoutesByCragIdGET(cragIdParam) {
   await InitFirebaseApps();
 
@@ -190,10 +175,6 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
   };
 }
 
-/**
- * fetchRouteByIdGET
- * Uses GET /route/get_route_by_id/?route_id=<ROUTE-XXXXX>
- */
 export async function fetchRouteByIdGET(routeId) {
   await InitFirebaseApps();
 
@@ -226,10 +207,6 @@ export async function fetchRouteByIdGET(routeId) {
   };
 }
 
-/**
- * fetchRandomCrags
- * Uses the random crags endpoint from your API
- */
 export async function fetchRandomCrags(count = 10, blacklist = []) {
   await InitFirebaseApps();
 
@@ -266,10 +243,6 @@ export async function fetchRandomCrags(count = 10, blacklist = []) {
   };
 }
 
-/**
- * fetchAllCragsBootstrap
- * Simple function that uses get_random_crags endpoint
- */
 export async function fetchAllCragsBootstrap() {
   console.log('[fetchAllCragsBootstrap] Using random crags endpoint');
   const randomResult = await fetchRandomCrags(10);
@@ -278,7 +251,6 @@ export async function fetchAllCragsBootstrap() {
     return randomResult.crags;
   }
 
-  // If random crags fails, return empty array
   console.warn('[fetchAllCragsBootstrap] Failed to load crags');
   return [];
 }
