@@ -19,6 +19,7 @@ import {
   fetchCommentsByPostId,
   fetchPostById,
   createComment,
+  deleteComment,
   likePost,
   unlikePost,
   checkIfUserLikedPost,
@@ -61,32 +62,25 @@ export default function PostDetail() {
     (async () => {
       setLoading(true);
 
-      // fetch post + comments + like status
-      const [pRes, cRes, likeCountRes, likeStatusRes] = await Promise.all([
+      // fetch post + comments (skip like calls for faster loading)
+      const [pRes, cRes] = await Promise.all([
         fetchPostById(postId),
-        fetchCommentsByPostId(postId),
-        getLikeCount(postId),
-        checkIfUserLikedPost(postId)
+        fetchCommentsByPostId(postId)
       ]);
 
       const pData = pRes?.success ? pRes.data : null;
       const cData = cRes?.success ? cRes.data : [];
-      const userLiked = likeStatusRes?.success ? likeStatusRes.liked : false;
 
       console.log('[DEBUG PostDetail post mapped]', pData);
       console.log('[DEBUG PostDetail comments count]', cData.length);
-      console.log('[DEBUG PostDetail user liked]', userLiked);
 
       if (!alive) return;
 
-      // Update post with accurate like count
-      const updatedPost = pData ? {
-        ...pData,
-        likes: likeCountRes.success ? likeCountRes.count : (pData.likes || 0)
-      } : null;
+      // Use post data as-is (like count from backend)
+      const updatedPost = pData;
 
       setPost(updatedPost);
-      setLiked(userLiked);
+      setLiked(false); // Default to not liked for faster loading
       // Sort comments chronologically: oldest first (ascending order)
       const sortedComments = cData.sort((a, b) => {
         const timeA = a.createdAt || 0;
@@ -109,6 +103,12 @@ export default function PostDetail() {
 
   // optimistic like toggle
   async function toggleLike() {
+    // Check if user is logged in
+    if (!isLoggedIn) {
+      navigation.navigate('SignUp');
+      return;
+    }
+    
     if (!post) return;
     const wasLiked = liked;
 
@@ -174,7 +174,36 @@ export default function PostDetail() {
     setSending(false);
   }
 
-  const renderComment = ({ item }) => (
+  async function handleDeleteComment(commentId) {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      showToast('You must be logged in to delete comments');
+      return;
+    }
+
+    try {
+      const res = await deleteComment(commentId);
+      if (res?.success) {
+        // Remove comment from local state
+        setComments((cur) => cur.filter((c) => c.id !== commentId));
+        showToast('Comment deleted');
+      } else {
+        showToast(res?.message || 'Failed to delete comment');
+      }
+    } catch (error) {
+      console.log('[PostDetail] Error deleting comment:', error);
+      showToast('Failed to delete comment');
+    }
+  }
+
+  const [menuVisible, setMenuVisible] = useState(null);
+
+  const renderComment = ({ item }) => {
+    const currentUser = auth().currentUser;
+    const isOwnComment = currentUser && item.author?.id === currentUser.uid;
+    const isMenuOpen = menuVisible === item.id;
+
+    return (
     <View style={[styles.cRow, { borderBottomColor: colors.divider }]}>
       <View
         style={[
@@ -196,24 +225,57 @@ export default function PostDetail() {
         </Text>
       </View>
       <View style={{ flex: 1 }}>
-        <Text
-          style={[styles.cAuthor, { color: colors.text }]}
-        >
-          {item.author?.name ?? 'User'}
-        </Text>
-        <Text
-          style={{
-            color: colors.textDim,
-            fontSize: 12,
-            marginBottom: 2,
-          }}
-        >
-          {timeAgo(item.createdAt)}
-        </Text>
+        <View style={styles.commentHeader}>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={[styles.cAuthor, { color: colors.text }]}
+            >
+              {item.author?.name ?? 'User'}
+            </Text>
+            <Text
+              style={{
+                color: colors.textDim,
+                fontSize: 12,
+                marginBottom: 2,
+              }}
+            >
+              {timeAgo(item.createdAt)}
+            </Text>
+          </View>
+          {isOwnComment && (
+            <View>
+              <TouchableOpacity
+                onPress={() => setMenuVisible(isMenuOpen ? null : item.id)}
+                style={styles.menuBtn}
+              >
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={18}
+                  color={colors.textDim}
+                />
+              </TouchableOpacity>
+              {isMenuOpen && (
+                <View style={[styles.commentMenu, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setMenuVisible(null);
+                      handleDeleteComment(item.id);
+                    }}
+                    style={styles.menuItem}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                    <Text style={[styles.menuText, { color: '#FF6B6B' }]}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
         <Text style={{ color: colors.text }}>{item.text}</Text>
       </View>
     </View>
   );
+  };
 
   if (loading) {
     return (
@@ -676,6 +738,39 @@ const styles = StyleSheet.create({
   cAuthor: {
     fontWeight: '700',
     fontSize: 13,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  menuBtn: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  commentMenu: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 120,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 8,
+  },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   composer: {

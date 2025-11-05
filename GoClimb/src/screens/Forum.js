@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
+import auth from '@react-native-firebase/auth';
 
 import {
   fetchRandomPosts,
@@ -51,22 +52,19 @@ export default function Forum({ navigation }) {
     toastRef.current = setTimeout(() => setToast(''), 2000);
   }, []);
 
-  // after we get posts from backend, fetch accurate comment counts and like status
+  // after we get posts from backend, fetch accurate comment counts (skip like calls for faster loading)
   const hydratePostData = useCallback(async (list) => {
     try {
       const updated = await Promise.all(
         list.map(async (p) => {
           try {
-            const [commentCount, likeCountRes, likeStatusRes] = await Promise.all([
-              fetchCommentCountForPost(p.id),
-              getLikeCount(p.id),
-              checkIfUserLikedPost(p.id)
-            ]);
+            // Only fetch comment count for faster loading
+            const commentCount = await fetchCommentCountForPost(p.id);
             
             return {
               ...p,
               comments: commentCount || 0,
-              likes: likeCountRes.success ? likeCountRes.count : (p.likes || 0),
+              likes: p.likes || 0, // Use existing like count from backend
             };
           } catch (error) {
             console.log(`[DEBUG] Error hydrating post ${p.id}:`, error);
@@ -82,19 +80,8 @@ export default function Forum({ navigation }) {
       console.log('[DEBUG hydratePostData updated]', updated);
       setPosts(updated);
       
-      // Update liked set based on actual backend data
-      const newLikedSet = new Set();
-      for (const post of list) {
-        try {
-          const likeStatus = await checkIfUserLikedPost(post.id);
-          if (likeStatus.success && likeStatus.liked) {
-            newLikedSet.add(post.id);
-          }
-        } catch (error) {
-          console.log(`[DEBUG] Error checking like status for post ${post.id}:`, error);
-        }
-      }
-      setLiked(newLikedSet);
+      // Skip like status checking for faster loading
+      setLiked(new Set());
     } catch (error) {
       console.log('[DEBUG] Error in hydratePostData:', error);
     }
@@ -194,6 +181,13 @@ export default function Forum({ navigation }) {
 
   // like toggle (optimistic only)
   const toggleLike = async (post) => {
+    // Check if user is logged in
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      navigation.navigate('SignUp');
+      return;
+    }
+    
     const already = liked.has(post.id);
 
     // optimistic UI
@@ -290,7 +284,14 @@ export default function Forum({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate('CreatePost')}
+            onPress={() => {
+              const currentUser = auth().currentUser;
+              if (!currentUser) {
+                navigation.navigate('SignUp');
+              } else {
+                navigation.navigate('CreatePost');
+              }
+            }}
             style={styles.topIcon}
           >
             <Ionicons

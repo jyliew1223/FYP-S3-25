@@ -339,6 +339,38 @@ export async function createComment({ postId, content }) {
   };
 }
 
+// DELETE COMMENT
+export async function deleteComment(commentId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+
+  const payload = { comment_id: commentId };
+
+  console.log('[deleteComment] commentId:', commentId);
+  console.log('[deleteComment] payload:', payload);
+  console.log('[deleteComment] endpoint:', API_ENDPOINTS.COMMENT.DELETE_COMMENT);
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.COMMENT.DELETE_COMMENT,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+
+  console.log('[deleteComment] response:', res);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
+  };
+}
+
 // LIKE STATUS CHECK
 export async function checkIfUserLikedPost(postId) {
   const user = getAuth().currentUser;

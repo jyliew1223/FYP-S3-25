@@ -84,7 +84,7 @@ function normalizeRoute(raw) {
     gradeRaw: numericGrade,
     gradeFont: convertNumericGradeToFont(numericGrade),
     cragPk: cragId,
-    cragData: cragData, // Store full crag data if available
+    cragData: cragData,
     images: Array.isArray(raw?.images_urls) ? raw.images_urls : [],
     createdAt: safeTs(raw?.created_at),
   };

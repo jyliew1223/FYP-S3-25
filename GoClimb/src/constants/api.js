@@ -50,7 +50,7 @@ export const API_ENDPOINTS = {
   }),
   COMMENT: withBase('comment/', {
     CREATE_COMMENT: 'create_post_comment',
-    DELETE_COMMENT: 'delete_post_comment',
+    DELETE_COMMENT: 'delete_post_comment/',
     GET_COMMENTS_BY_POST_ID: 'get_post_comments_by_post_id',
     GET_COMMENTS_BY_USER_ID: 'get_post_comments_by_user_id',
   }),
