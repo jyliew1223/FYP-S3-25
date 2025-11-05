@@ -86,6 +86,7 @@ class RouteSerializer(serializers.ModelSerializer):
 
     route_id = serializers.SerializerMethodField()
     images_urls = serializers.SerializerMethodField()
+    crag = CragSerializer(read_only=True)
 
     class Meta:
         model = Route
