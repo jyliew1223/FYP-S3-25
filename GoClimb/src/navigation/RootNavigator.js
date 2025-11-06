@@ -15,6 +15,8 @@ import RouteDetails from '../screens/RouteDetails';
 import AR from '../screens/AR';
 import PostDetail from '../screens/PostDetail';
 import Forum from '../screens/Forum';
+import RankingOptionsScreen from '../screens/Rankings/RankingOptionsScreen';
+import RankingListScreen from '../screens/Rankings/RankingListScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -23,7 +25,7 @@ function MainTabs() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <BottomBar {...props} />}>
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Rankings" component={SettingsScreen} options={{ title: 'Rankings' }} />
+      <Tab.Screen name="Rankings" component={RankingOptionsScreen} options={{ title: 'Rankings' }} />
       <Tab.Screen name="Map" component={SettingsScreen} />
       <Tab.Screen name="Forum" component={Forum} />
       <Tab.Screen name="Routes" component={Routes} />
@@ -44,6 +46,7 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen name="AR" component={AR} />
         <Stack.Screen name="PostDetail" component={PostDetail} />
         <Stack.Screen name="Forum" component={Forum} />
+        <Stack.Screen name="RankingListScreen" component={RankingListScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
