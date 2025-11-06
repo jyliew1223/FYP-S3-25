@@ -1,6 +1,12 @@
 // GoClimb/src/screens/Forum.js
-// Hybrid forum: Forum.js layout + optional image support (grey placeholders).
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,9 +19,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
-import { fetchRandomPosts } from '../services/api/PostsService';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
+import auth from '@react-native-firebase/auth';
+
+import {
+  fetchRandomPosts,
+  fetchCommentCountForPost,
+  likePost,
+  unlikePost,
+  checkIfUserLikedPost,
+  getLikeCount,
+} from '../services/api/PostsService';
 
 export default function Forum({ navigation }) {
+  const route = useRoute();
   const { colors } = useTheme();
 
   const [query, setQuery] = useState('');
@@ -23,77 +40,327 @@ export default function Forum({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // track which posts current user has liked (session-local only)
+  const [liked, setLiked] = useState(() => new Set());
+
+  // toast banner
+  const [toast, setToast] = useState('');
+  const toastRef = useRef(null);
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    if (toastRef.current) clearTimeout(toastRef.current);
+    toastRef.current = setTimeout(() => setToast(''), 2000);
+  }, []);
+
+  // after we get posts from backend, fetch accurate comment counts (skip like calls for faster loading)
+  const hydratePostData = useCallback(async (list) => {
+    try {
+      const updated = await Promise.all(
+        list.map(async (p) => {
+          try {
+            // Only fetch comment count for faster loading
+            const commentCount = await fetchCommentCountForPost(p.id);
+            
+            return {
+              ...p,
+              comments: commentCount || 0,
+              likes: p.likes || 0, // Use existing like count from backend
+            };
+          } catch (error) {
+            console.log(`[DEBUG] Error hydrating post ${p.id}:`, error);
+            return {
+              ...p,
+              comments: p.comments || 0,
+              likes: p.likes || 0,
+            };
+          }
+        })
+      );
+
+      console.log('[DEBUG hydratePostData updated]', updated);
+      setPosts(updated);
+      
+      // Skip like status checking for faster loading
+      setLiked(new Set());
+    } catch (error) {
+      console.log('[DEBUG] Error in hydratePostData:', error);
+    }
+  }, []);
+
+  // load initial feed
   const load = useCallback(async () => {
     setLoading(true);
-    const res = await fetchRandomPosts({ count: 12 });
-    setPosts(res?.success ? res.data : []);
-    setLoading(false);
-  }, []);
+
+    try {
+      const res = await fetchRandomPosts({ count: 12 });
+      if (res?.success) {
+        console.log('[DEBUG Forum fetchRandomPosts]', res.data);
+        // Show posts immediately for faster UI
+        setPosts(res.data);
+        setLiked(new Set()); // reset local like set on new load
+        setLoading(false);
+
+        // hydrate comment counts and like status in background
+        hydratePostData(res.data);
+      } else {
+        setPosts([]);
+        showToast(res?.message || 'Failed to load posts');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.log('[DEBUG] Error loading posts:', error);
+      setPosts([]);
+      showToast('Failed to load posts');
+      setLoading(false);
+    }
+  }, [showToast, hydratePostData]);
 
   useEffect(() => {
     load();
   }, [load]);
 
+  // When forum tab gains focus, if we were sent here after creating a post
+  useFocusEffect(
+    React.useCallback(() => {
+      if (route.params?.justPosted) {
+        showToast('Post published');
+        // optional: refresh to try to pull new post if backend returns it
+        // load();
+        route.params.justPosted = false;
+      }
+    }, [route.params, showToast])
+  );
+
+  // pull-to-refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    const blacklist = posts.map((p) => p.id); // simple example
+    const blacklist = posts.map((p) => p.id);
     const res = await fetchRandomPosts({ count: 12, blacklist });
-    setPosts(res?.success ? res.data : []);
+    if (res?.success) {
+      setPosts(res.data);
+      setLiked(new Set());
+      hydratePostData(res.data);
+    }
     setRefreshing(false);
-  }, [posts]);
+  }, [posts, hydratePostData]);
 
+  // local search and chronological sorting (newest first)
   const filtered = useMemo(() => {
-    if (!query.trim()) return posts;
-    const q = query.trim().toLowerCase();
-    return posts.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.body.toLowerCase().includes(q) ||
-        (p.tags || []).some((t) => String(t).toLowerCase().includes(q)),
-    );
+    let result = posts;
+    
+    // Filter by search query if provided
+    if (query.trim()) {
+      const q = query.trim().toLowerCase();
+      result = posts.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.body.toLowerCase().includes(q) ||
+          (p.tags || []).some((t) =>
+            String(t).toLowerCase().includes(q)
+          )
+      );
+    }
+    
+    // Sort chronologically: newest first (highest createdAt timestamp)
+    return result.sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      return timeB - timeA; // Descending order (newest first)
+    });
   }, [posts, query]);
 
-  const openPost = (post) => {
+  const openPost = (post) =>
     navigation.navigate('PostDetail', { postId: post.id });
+
+  const goToComments = (post) =>
+    navigation.navigate('PostDetail', { postId: post.id });
+
+  const sharePost = () => {
+    showToast('Feature under construction');
   };
 
-  const renderItem = ({ item }) => <PostCard post={item} onPress={() => openPost(item)} colors={colors} />;
+  // like toggle (optimistic only)
+  const toggleLike = async (post) => {
+    // Check if user is logged in
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      navigation.navigate('SignUp');
+      return;
+    }
+    
+    const already = liked.has(post.id);
+
+    // optimistic UI
+    setLiked((prev) => {
+      const next = new Set(prev);
+      if (already) next.delete(post.id);
+      else next.add(post.id);
+      return next;
+    });
+
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === post.id
+          ? {
+              ...p,
+              likes: Math.max(
+                0,
+                (p.likes || 0) + (already ? -1 : 1)
+              ),
+            }
+          : p
+      )
+    );
+
+    const res = already
+      ? await unlikePost(post.id)
+      : await likePost(post.id);
+
+    if (!res?.success) {
+      // revert on fail
+      setLiked((prev) => {
+        const next = new Set(prev);
+        if (already) next.add(post.id);
+        else next.delete(post.id);
+        return next;
+      });
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === post.id
+            ? {
+                ...p,
+                likes: Math.max(
+                  0,
+                  (p.likes || 0) + (already ? 1 : -1)
+                ),
+              }
+            : p
+        )
+      );
+
+      showToast(res?.message || 'Could not update like');
+    }
+  };
+
+  const renderItem = ({ item }) => (
+    <PostCard
+      post={item}
+      colors={colors}
+      liked={liked.has(item.id)}
+      onPress={() => openPost(item)}
+      onLike={() => toggleLike(item)}
+      onComment={() => goToComments(item)}
+      onShare={sharePost}
+    />
+  );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top', 'bottom', 'left', 'right']}>
-      {/* Top bar */}
-      <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-        <Text style={[styles.topTitle, { color: colors.text }]}>Forum</Text>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: colors.bg }}
+      edges={['top', 'bottom', 'left', 'right']}
+    >
+      {/* top bar */}
+      <View
+        style={[
+          styles.topBar,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.divider,
+          },
+        ]}
+      >
+        <Text style={[styles.topTitle, { color: colors.text }]}>
+          Forum
+        </Text>
+
         <View style={styles.topActions}>
           <TouchableOpacity onPress={load} style={styles.topIcon}>
-            <Ionicons name="refresh" size={20} color={colors.text} />
+            <Ionicons
+              name="refresh"
+              size={20}
+              color={colors.text}
+            />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => {}} style={styles.topIcon}>
-            <Ionicons name="create-outline" size={20} color={colors.text} />
+
+          <TouchableOpacity
+            onPress={() => {
+              const currentUser = auth().currentUser;
+              if (!currentUser) {
+                navigation.navigate('SignUp');
+              } else {
+                navigation.navigate('CreatePost');
+              }
+            }}
+            style={styles.topIcon}
+          >
+            <Ionicons
+              name="create-outline"
+              size={20}
+              color={colors.text}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Search */}
-      <View style={[styles.searchWrap, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+      {/* toast banner */}
+      {toast ? (
+        <View
+          style={[
+            styles.toast,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.divider,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              color: colors.text,
+              fontSize: 12,
+              fontWeight: '600',
+            }}
+          >
+            {toast}
+          </Text>
+        </View>
+      ) : null}
+
+      {/* search bar */}
+      <View
+        style={[
+          styles.searchWrap,
+          {
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+          },
+        ]}
+      >
         <Ionicons name="search" size={18} color={colors.textDim} />
         <TextInput
           placeholder="Search posts"
           placeholderTextColor={colors.textDim}
           value={query}
           onChangeText={setQuery}
-          style={[styles.searchInput, { color: colors.text }]}
+          style={[
+            styles.searchInput,
+            { color: colors.text },
+          ]}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {query ? (
           <TouchableOpacity onPress={() => setQuery('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textDim} />
+            <Ionicons
+              name="close-circle"
+              size={18}
+              color={colors.textDim}
+            />
           </TouchableOpacity>
         ) : null}
       </View>
 
-      {/* List */}
+      {/* list */}
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.accent} />
@@ -106,7 +373,10 @@ export default function Forum({ navigation }) {
           ItemSeparatorComponent={() => (
             <View style={{ height: 10 }} />
           )}
-          contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 24,
+          }}
           refreshing={refreshing}
           onRefresh={onRefresh}
         />
@@ -115,50 +385,88 @@ export default function Forum({ navigation }) {
   );
 }
 
-function Avatar({ name, colors }) {
-  const initials =
-    (name?.split(' ')?.[0]?.[0] || '').toUpperCase() + (name?.split(' ')?.[1]?.[0] || '').toUpperCase();
-  return (
-    <View style={[styles.avatar, { backgroundColor: colors.surfaceAlt, borderColor: colors.divider }]}>
-      <Text style={{ color: colors.textDim, fontWeight: '800', fontSize: 12 }}>{initials || 'U'}</Text>
-    </View>
-  );
-}
+/* ----------------------------- card ----------------------------- */
 
-function Tag({ text, colors }) {
-  return (
-    <View style={[styles.tag, { backgroundColor: colors.surfaceAlt, borderColor: colors.divider }]}>
-      <Text style={{ color: colors.textDim, fontSize: 11, fontWeight: '700' }}>#{text}</Text>
-    </View>
-  );
-}
-
-function PostCard({ post, onPress, colors }) {
+function PostCard({
+  post,
+  colors,
+  liked,
+  onPress,
+  onLike,
+  onComment,
+  onShare,
+}) {
   const time = timeAgo(post.createdAt);
 
+  const displayTitle =
+    (post.title && post.title.trim()) ||
+    (post.body || '').slice(0, 70) ||
+    'Untitled';
+
+  console.log('[DEBUG Forum card title]', {
+    id: post.id,
+    title: post.title,
+  });
+
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.divider,
+        },
+      ]}
+    >
       {/* header */}
       <View style={styles.cardHeader}>
         <Avatar name={post.author?.name} colors={colors} />
         <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={[styles.author, { color: colors.text }]}>{post.author?.name || 'User'}</Text>
-          <Text style={[styles.meta, { color: colors.textDim }]}>{time}</Text>
+          <Text
+            numberOfLines={1}
+            style={[styles.author, { color: colors.text }]}
+          >
+            {post.author?.name || 'User'}
+          </Text>
+          <Text
+            style={[styles.meta, { color: colors.textDim }]}
+          >
+            {time}
+          </Text>
         </View>
-        <Ionicons name="ellipsis-horizontal" color={colors.textDim} size={18} />
+
+        <Ionicons
+          name="ellipsis-horizontal"
+          color={colors.textDim}
+          size={18}
+        />
       </View>
 
-      {/* title/body */}
-      <Text style={[styles.title, { color: colors.text }]}>{post.title}</Text>
+      {/* title */}
+      <Text style={[styles.title, { color: colors.text }]}>
+        {displayTitle}
+      </Text>
+
+      {/* body snippet */}
       {!!post.body && (
-        <Text style={[styles.body, { color: colors.textDim }]} numberOfLines={4}>
+        <Text
+          style={[styles.body, { color: colors.textDim }]}
+          numberOfLines={4}
+        >
           {post.body}
         </Text>
       )}
 
-      {/* optional image (grey placeholder for now) */}
+      {/* placeholder for future images */}
       {post.imageUrl ? (
-        <View style={[styles.imagePlaceholder, { backgroundColor: '#555' }]} />
+        <View
+          style={[
+            styles.imagePlaceholder,
+            { backgroundColor: '#555' },
+          ]}
+        />
       ) : null}
 
       {/* tags */}
@@ -170,97 +478,256 @@ function PostCard({ post, onPress, colors }) {
         </View>
       )}
 
-      {/* actions */}
-      <View style={[styles.actionsRow, { borderTopColor: colors.divider }]}>
-        <RowAction icon="heart-outline" text={String(post.likes ?? 0)} colors={colors} />
-        <RowAction icon="chatbubble-ellipses-outline" text={String(post.comments ?? 0)} colors={colors} />
-        <RowAction icon="share-social-outline" text="Share" colors={colors} />
+      {/* actions row */}
+      <View
+        style={[
+          styles.actionsRow,
+          { borderTopColor: colors.divider },
+        ]}
+      >
+        <RowAction
+          icon={liked ? 'heart' : 'heart-outline'}
+          text={String(post.likes ?? 0)}
+          colors={colors}
+          onPress={onLike}
+          active={liked}
+        />
+        <RowAction
+          icon="chatbubble-ellipses-outline"
+          text={String(post.comments ?? 0)}
+          colors={colors}
+          onPress={onComment}
+        />
+        <RowAction
+          icon="share-social-outline"
+          text="Share"
+          colors={colors}
+          onPress={onShare}
+        />
       </View>
     </TouchableOpacity>
   );
 }
 
-function RowAction({ icon, text, colors }) {
+/* ----------------------- small UI helpers ----------------------- */
+
+function Avatar({ name, colors }) {
+  const parts = String(name || '').trim().split(/\s+/);
+  const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
   return (
-    <TouchableOpacity activeOpacity={0.7} style={styles.actionBtn}>
-      <Ionicons name={icon} size={18} color={colors.textDim} />
-      <Text style={[styles.actionText, { color: colors.textDim }]}>{text}</Text>
+    <View
+      style={[
+        styles.avatar,
+        {
+          backgroundColor: colors.surfaceAlt,
+          borderColor: colors.divider,
+        },
+      ]}
+    >
+      <Text
+        style={{
+          color: colors.textDim,
+          fontWeight: '800',
+          fontSize: 12,
+        }}
+      >
+        {(initials || 'U').toUpperCase()}
+      </Text>
+    </View>
+  );
+}
+
+function Tag({ text, colors }) {
+  return (
+    <View
+      style={[
+        styles.tag,
+        {
+          backgroundColor: colors.surfaceAlt,
+          borderColor: colors.divider,
+        },
+      ]}
+    >
+      <Text
+        style={{
+          color: colors.textDim,
+          fontSize: 11,
+          fontWeight: '700',
+        }}
+      >
+        #{text}
+      </Text>
+    </View>
+  );
+}
+
+function RowAction({ icon, text, colors, onPress, active }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={styles.rowAction}
+      activeOpacity={0.85}
+    >
+      <Ionicons
+        name={icon}
+        size={16}
+        color={active ? colors.accent : colors.textDim}
+      />
+      {!!text && (
+        <Text
+          style={[
+            styles.rowActionText,
+            { color: active ? colors.accent : colors.textDim },
+          ]}
+        >
+          {text}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 }
 
 function timeAgo(ts) {
-  if (!ts) return '';
-  const s = Math.floor((Date.now() - ts) / 1000);
-  if (s < 60) return `${s}s`;
+  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+  if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
+  if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
+  if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
-  return `${d}d`;
+  return `${d}d ago`;
 }
+
+/* ------------------------------ styles ------------------------------ */
 
 const styles = StyleSheet.create({
   topBar: {
-    height: 56,
+    height: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'space-between',
   },
-  topTitle: { fontSize: 16, fontWeight: '800', letterSpacing: 0.3, flex: 1 },
-  topActions: { flexDirection: 'row', gap: 10 },
-  topIcon: { padding: 6, borderRadius: 8 },
+  topTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  topActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  topIcon: {
+    padding: 6,
+  },
+
+  toast: {
+    position: 'absolute',
+    top: 56,
+    left: 16,
+    right: 16,
+    zIndex: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+  },
 
   searchWrap: {
-    margin: 16,
-    paddingHorizontal: 12,
-    height: 42,
-    borderRadius: 10,
-    borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    margin: 16,
     gap: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  searchInput: { flex: 1, fontSize: 14 },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+  },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   card: {
-    borderWidth: 1,
-    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
     padding: 12,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  avatar: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1,
+  cardHeader: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 6,
   },
-  author: { fontWeight: '800', fontSize: 13 },
-  meta: { fontSize: 11 },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  author: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  meta: {
+    fontSize: 11,
+  },
 
-  title: { fontSize: 15, fontWeight: '800', marginTop: 4 },
-  body: { fontSize: 13, marginTop: 6, lineHeight: 18 },
+  title: {
+    marginTop: 6,
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  body: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
+  },
 
   imagePlaceholder: {
-    marginTop: 10,
-    width: '100%',
-    aspectRatio: 16 / 9,
+    height: 160,
     borderRadius: 10,
+    marginTop: 10,
   },
 
-  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  tag: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
 
   actionsRow: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingTop: 10,
-    marginTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    justifyContent: 'space-around',
   },
-  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionText: { fontWeight: '700', fontSize: 12 },
+
+  rowAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  rowActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

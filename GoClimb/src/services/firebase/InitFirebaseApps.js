@@ -110,7 +110,7 @@ const InitFirebaseApps = async () => {
     rnfbProvider.configure({
       android: {
         provider: __DEV__ ? 'debug' : 'playIntegrity',
-        debugToken: 'EF346947-BDAD-436D-A3EE-45178EC50E39',
+        debugToken: '7FCE2587-63B8-4E4C-8EDB-017358A9DE84',
       },
       apple: {
         provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
@@ -132,7 +132,7 @@ const InitFirebaseApps = async () => {
       isTokenAutoRefreshEnabled: true,
     });
 
-    const token =  getToken(appCheckInstance, true);
+    const token = await getToken(appCheckInstance, true);
     if (!token || token.length === 0) {
       console.log(`${TAG}: Local AppCheck verification failed`);
       return false;
@@ -157,7 +157,7 @@ const InitFirebaseApps = async () => {
     } else {
       console.log(
         `${TAG}: Backend AppCheck verification failed.\n` +
-          request.logResponse(),
+        request.logResponse(),
       );
       return false;
     }
@@ -189,28 +189,28 @@ const InitFirebaseApps = async () => {
       );
 
       // In dev mode, log in with test user for testing
-      if (__DEV__) {
-        console.log(`${TAG}: Try log in with testuser...`);
+      // DISABLED: Auto-login removed to test guest features
+      // if (__DEV__) {
+      //   console.log(`${TAG}: Try log in with testuser...`);
 
-        const TestUserEmail = 'testuser001@gmail.com';
-        const TestUserPassword = 'testuser001';
+      //   const TestUserEmail = 'testuser001@gmail.com';
+      //   const TestUserPassword = 'testuser001';
 
-        await signInWithEmailAndPassword(
-          getAuth(),
-          TestUserEmail,
-          TestUserPassword,
-        );
+      //   await signInWithEmailAndPassword(
+      //     getAuth(),
+      //     TestUserEmail,
+      //     TestUserPassword,
+      //   );
 
-        if (getAuth().currentUser == null) {
-          console.log(`${TAG}: currentUser stil null after log in...`);
-        } else {
-          console.log(
-            `${TAG}: Firebase Auth initialized, currentUser: ${
-              getAuth().currentUser.email
-            }`,
-          );
-        }
-      }
+      //   if (getAuth().currentUser == null) {
+      //     console.log(`${TAG}: currentUser stil null after log in...`);
+      //   } else {
+      //     console.log(
+      //       `${TAG}: Firebase Auth initialized, currentUser: ${getAuth().currentUser.email
+      //       }`,
+      //     );
+      //   }
+      // }
     } else {
       let idToken = await getIdToken(getAuth().currentUser, false);
       console.log(
@@ -223,7 +223,7 @@ const InitFirebaseApps = async () => {
     );
     return false;
   }
-  console.log(`${TAG}: Firebase Apps initialized`);
+  console.log(`${TAG}: Firebase Apps initialized`);  console.log(`${TAG}: Firebase Apps initialized`);
   return true;
 };
 

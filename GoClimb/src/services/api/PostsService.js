@@ -1,101 +1,499 @@
 // GoClimb/src/services/api/PostsService.js
-// Mock API for forum posts + comments. Swap to real endpoints later.
-// Real endpoints (when backend is ready):
-//  - GET  post/get_post/?post_id=...                 → 1 post (with comments if your API supports)
-//  - POST post/get_random_post/                      → feed ({ count, blacklist })
-//  - POST post/get_post_by_user_id/                  → posts by user ({ id_token })
 
-// ===== MOCK DATA =====
-const MOCK_POSTS = [
-  {
-    id: 'p001',
-    author: { id: 'u001', name: 'Aly', avatar: null },
-    title: 'Best shoes for granite slabs?',
-    body: 'Been slipping on the turtle again 🙃 Any shoe suggestions for Singapore granite? Short list so far: Katana, Kubo, Theory…',
-    createdAt: Date.now() - 3600 * 1000 * 2, // 2h
-    tags: ['gear', 'boulder'],
-    imageUrl: null, // text-only post
-    likes: 12,
-    comments: 3,
-  },
-  {
-    id: 'p002',
-    author: { id: 'u002', name: 'Ben', avatar: null },
-    title: 'Beta for “Shredder” 6B+',
-    body: 'Finally linked the middle section. Right hand crimp → left bump to the dish, toe hook helps a ton.',
-    createdAt: Date.now() - 3600 * 1000 * 5,
-    tags: ['beta', 'dairy-farm'],
-    imageUrl: 'placeholder://grey', // image post → grey placeholder in UI
-    likes: 31,
-    comments: 7,
-  },
-  {
-    id: 'p003',
-    author: { id: 'u003', name: 'Cheryl', avatar: null },
-    title: 'Morning circuit @ Yawning Turtle',
-    body: 'Fun mileage today. Conditions were crisp. Anyone down for Saturday 7am?',
-    createdAt: Date.now() - 3600 * 1000 * 8,
-    tags: ['partner', 'session'],
-    imageUrl: null,
-    likes: 9,
-    comments: 1,
-  },
-  {
-    id: 'p004',
-    author: { id: 'u004', name: 'Dee', avatar: null },
-    title: 'Rocksteady send!',
-    body: 'Big thanks to everyone for the spot 🙌',
-    createdAt: Date.now() - 3600 * 1000 * 12,
-    tags: ['send', 'video'],
-    imageUrl: 'placeholder://grey',
-    likes: 54,
-    comments: 12,
-  },
-];
+import auth from '@react-native-firebase/auth';
+import {
+  RequestMethod,
+  BaseApiPayload,
+  BaseApiResponse,
+  CustomApiRequest,
+} from './ApiHelper';
+import { API_ENDPOINTS } from '../../constants/api';
 
-const MOCK_COMMENTS = {
-  p001: [
-    { id: 'c1', author: { id: 'u010', name: 'JR' }, text: 'Katana Lace grips well on slick granite.', createdAt: Date.now() - 3600 * 1000 * 1.6 },
-    { id: 'c2', author: { id: 'u011', name: 'Ming' }, text: 'Try soft rubber + good footwork. Theory is nice.', createdAt: Date.now() - 3600 * 1000 * 1.2 },
-  ],
-  p002: [
-    { id: 'c3', author: { id: 'u012', name: 'Pao' }, text: 'Toe hook beta saved me too!', createdAt: Date.now() - 3600 * 1000 * 3.5 },
-  ],
-  p003: [
-    { id: 'c4', author: { id: 'u013', name: 'Iqbal' }, text: 'Sat 7am I’m in.', createdAt: Date.now() - 3600 * 1000 * 7.7 },
-  ],
-  p004: [
-    { id: 'c5', author: { id: 'u014', name: 'Wei' }, text: 'Huge send! Congrats!', createdAt: Date.now() - 3600 * 1000 * 10.3 },
-    { id: 'c6', author: { id: 'u015', name: 'SW' }, text: 'Video or it didn’t happen 😜', createdAt: Date.now() - 3600 * 1000 * 9.8 },
-  ],
-};
+/* ----------------------------- helpers ----------------------------- */
 
-function delay(ms) { return new Promise((res) => setTimeout(res, ms)); }
-
-// Feed (pretend: post/get_random_post/)
-export async function fetchRandomPosts({ count = 10, blacklist = [] } = {}) {
-  await delay(300);
-  const pool = MOCK_POSTS.filter((p) => !blacklist.includes(p.id));
-  const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, Math.min(count, pool.length));
-  return { success: true, data: shuffled, message: 'ok' };
+function numericPostId(postId) {
+  if (typeof postId === 'number') return postId;
+  if (!postId) return null;
+  const digits = String(postId).replace(/\D/g, '');
+  return digits ? Number(digits) : null;
 }
 
-// Single post (pretend: post/get_post/?post_id=...)
+function toTs(value) {
+  try {
+    return value ? Date.parse(value) : Date.now();
+  } catch {
+    return Date.now();
+  }
+}
+
+/* -------------------------- model mapping -------------------------- */
+
+function getAuthorName(rawUser) {
+  // backend may send user as UID string OR object { user_id, username, email }
+  if (!rawUser) return 'User';
+  if (typeof rawUser === 'string') return 'User';
+  if (rawUser.username) return rawUser.username;
+  if (rawUser.email) return rawUser.email;
+  return 'User';
+}
+
+function mapPostJsonToUi(raw) {
+  if (!raw) return null;
+
+  console.log('[DEBUG mapPostJsonToUi raw]', raw);
+
+  const postId = String(raw.post_id ?? '');
+  const authorName = getAuthorName(raw.user);
+  const createdTs = toTs(raw.created_at);
+
+  // prefer serialized title; fallback to content snippet
+  let uiTitle = '';
+  if (typeof raw.title === 'string' && raw.title.trim()) {
+    uiTitle = raw.title.trim();
+  } else if (typeof raw.content === 'string' && raw.content.trim()) {
+    const trimmed = raw.content.trim();
+    uiTitle = trimmed.length > 70 ? trimmed.slice(0, 67).trim() + '…' : trimmed;
+  } else {
+    uiTitle = 'Untitled';
+  }
+
+  const likes = Number(
+    raw.likes ?? raw.likes_count ?? raw.like_count ?? 0
+  );
+  const comments = Number(
+    raw.comments ?? raw.comments_count ?? raw.comment_count ?? 0
+  );
+
+  const imageUrl =
+    Array.isArray(raw.images_urls) && raw.images_urls.length
+      ? raw.images_urls[0]
+      : null;
+
+  return {
+    id: postId,
+    author: { id: String(raw.user?.user_id ?? ''), name: authorName },
+    title: uiTitle,
+    body: raw.content || '',
+    tags: raw.tags || [],
+    createdAt: createdTs,
+    likes,
+    comments, // fallback until we hydrate with fetchCommentCountForPost
+    imageUrl,
+  };
+}
+
+function mapCommentJsonToUi(raw) {
+  if (!raw) return null;
+
+  console.log('[DEBUG mapCommentJsonToUi raw]', raw);
+
+  const authorName = getAuthorName(raw.user);
+  return {
+    id: String(raw.comment_id ?? raw.id ?? ''),
+    author: { id: String(raw.user?.user_id ?? ''), name: authorName },
+    text: raw.content || '',
+    createdAt: toTs(raw.created_at),
+  };
+}
+
+/* ------------------------ payload/response ------------------------- */
+
+class GetRandomPostsPayload extends BaseApiPayload {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, count: 'count', blacklist: 'blacklist' };
+  }
+  constructor({ count, blacklist }) {
+    super();
+    this.count = count;
+    this.blacklist = Array.isArray(blacklist) ? blacklist : [];
+  }
+}
+
+class GetRandomPostsResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    const arr = Array.isArray(data) ? data : [];
+    this.data = arr.map(mapPostJsonToUi).filter(Boolean);
+  }
+}
+
+class GetPostResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    this.data = mapPostJsonToUi(data);
+  }
+}
+
+class GetCommentsResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    const arr = Array.isArray(data) ? data : [];
+    this.data = arr.map(mapCommentJsonToUi).filter(Boolean);
+  }
+}
+
+class CreateCommentPayload extends BaseApiPayload {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      post_id: 'post_id',
+      user_id: 'user_id',
+      content: 'content',
+    };
+  }
+  constructor({ post_id, user_id, content }) {
+    super();
+    this.post_id = post_id;
+    this.user_id = user_id;
+    this.content = content;
+  }
+}
+
+class CreateCommentResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    this.data = mapCommentJsonToUi(data);
+  }
+}
+
+/* -- CreatePost payload/response ----------------------------------- */
+
+class CreatePostPayload extends BaseApiPayload {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      user_id: 'user_id',
+      title: 'title',
+      content: 'content',
+      tags: 'tags',
+    };
+  }
+  constructor({ user_id, title, content, tags }) {
+    super();
+    this.user_id = user_id;
+    this.title = title;
+    this.content = content;
+    this.tags = tags;
+  }
+}
+
+class CreatePostResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return { ...super.fieldMapping, data: 'data' };
+  }
+  constructor({ status, success, message, errors, data }) {
+    super({ status, success, message, errors });
+    this.data = mapPostJsonToUi(data);
+  }
+}
+
+/* --------------------------- service calls -------------------------- */
+
+// FEED POSTS
+export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST.GET_RANDOM_POSTS,
+    new GetRandomPostsPayload({ count, blacklist }),
+    true
+  );
+  const ok = await req.sendRequest(GetRandomPostsResponse);
+  const res = req.Response;
+
+  console.log('[DEBUG fetchRandomPosts mapped]', res?.data);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? [],
+    errors: res?.errors ?? null,
+  };
+}
+
+// SINGLE POST
 export async function fetchPostById(postId) {
-  await delay(200);
-  const post = MOCK_POSTS.find((p) => p.id === postId);
-  if (!post) return { success: false, data: null, message: 'Not found' };
-  return { success: true, data: post };
+  const payload = { post_id: postId };
+
+  // Try POST first
+  let req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST.GET_POST,
+    payload,
+    true
+  );
+  let ok = await req.sendRequest(GetPostResponse);
+  let res = req.Response;
+
+  // fallback GET for 405/404
+  if (!ok && (res?.status === 405 || res?.status === 404)) {
+    req = new CustomApiRequest(
+      RequestMethod.GET,
+      API_ENDPOINTS.BASE_URL,
+      API_ENDPOINTS.POST.GET_POST,
+      payload,
+      true
+    );
+    ok = await req.sendRequest(GetPostResponse);
+    res = req.Response;
+  }
+
+  console.log('[DEBUG fetchPostById mapped]', res?.data);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
+  };
 }
 
-// Comments for a post (many APIs return them separately)
+// COMMENTS LIST
 export async function fetchCommentsByPostId(postId) {
-  await delay(200);
-  return { success: true, data: MOCK_COMMENTS[postId] ?? [] };
+  const payload = { post_id: postId };
+
+  // Try POST first
+  let req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.COMMENT.GET_COMMENTS_BY_POST_ID,
+    payload,
+    true
+  );
+  let ok = await req.sendRequest(GetCommentsResponse);
+  let res = req.Response;
+
+  // fallback GET on 405/404
+  if (!ok && (res?.status === 405 || res?.status === 404)) {
+    req = new CustomApiRequest(
+      RequestMethod.GET,
+      API_ENDPOINTS.BASE_URL,
+      API_ENDPOINTS.COMMENT.GET_COMMENTS_BY_POST_ID,
+      payload,
+      true
+    );
+    ok = await req.sendRequest(GetCommentsResponse);
+    res = req.Response;
+  }
+
+  console.log('[DEBUG fetchCommentsByPostId count]', res?.data?.length ?? 0);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? [],
+    errors: res?.errors ?? null,
+  };
 }
 
-// Optional: posts by user (pretend: post/get_post_by_user_id/)
-export async function fetchPostsByUserId({ id_token }) {
-  await delay(300);
-  return { success: true, data: MOCK_POSTS.slice(0, 2), message: 'ok' };
+// comment count helper for Forum
+export async function fetchCommentCountForPost(postId) {
+  const res = await fetchCommentsByPostId(postId);
+  if (res?.success) {
+    return res.data.length;
+  }
+  return 0;
+}
+
+// CREATE COMMENT
+export async function createComment({ postId, content }) {
+  const user = auth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.COMMENT.CREATE_COMMENT,
+    new CreateCommentPayload({
+      post_id: postId,
+      user_id: user.uid,
+      content,
+    }),
+    true
+  );
+  const ok = await req.sendRequest(CreateCommentResponse);
+  const res = req.Response;
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
+  };
+}
+
+// DELETE COMMENT
+export async function deleteComment(commentId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+
+  const payload = { comment_id: commentId };
+
+  console.log('[deleteComment] commentId:', commentId);
+  console.log('[deleteComment] payload:', payload);
+  console.log('[deleteComment] endpoint:', API_ENDPOINTS.COMMENT.DELETE_COMMENT);
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.COMMENT.DELETE_COMMENT,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+
+  console.log('[deleteComment] response:', res);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
+  };
+}
+
+// LIKE STATUS CHECK
+export async function checkIfUserLikedPost(postId) {
+  const user = getAuth().currentUser;
+  if (!user) return { success: false, liked: false };
+  
+  const pid = numericPostId(postId) ?? postId;
+  const payload = { post_id: pid };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST_LIKE.LIKES_USERS,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+  
+  if (ok && res?.success && res?.data?.users) {
+    const userLiked = res.data.users.some(u => u.user_id === user.uid);
+    return { success: true, liked: userLiked };
+  }
+  
+  return { success: false, liked: false };
+}
+
+// GET LIKE COUNT
+export async function getLikeCount(postId) {
+  const pid = numericPostId(postId) ?? postId;
+  const payload = { post_id: pid };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST_LIKE.LIKES_COUNT,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+  
+  if (ok && res?.success && res?.data?.count !== undefined) {
+    return { success: true, count: res.data.count };
+  }
+  
+  return { success: false, count: 0 };
+}
+
+// LIKE / UNLIKE
+export async function likePost(postId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+  const pid = numericPostId(postId) ?? postId;
+
+  const payload = { post_id: pid, user_id: user.uid };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST_LIKE.LIKE,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+  };
+}
+
+export async function unlikePost(postId) {
+  const user = getAuth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+  const pid = numericPostId(postId) ?? postId;
+
+  const payload = { post_id: pid, user_id: user.uid };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST_LIKE.UNLIKE,
+    payload,
+    true
+  );
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+  };
+}
+
+// CREATE POST
+export async function createPost({ title, content, tags }) {
+  const user = auth().currentUser;
+  if (!user) throw new Error('No Firebase session found.');
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST.CREATE_POST,
+    new CreatePostPayload({
+      user_id: user.uid,
+      title,
+      content,
+      tags,
+    }),
+    true
+  );
+
+  const ok = await req.sendRequest(CreatePostResponse);
+  const res = req.Response;
+
+  console.log('[DEBUG createPost response]', res);
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    data: res?.data ?? null,
+    errors: res?.errors ?? null,
+  };
 }

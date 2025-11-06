@@ -1,17 +1,40 @@
-// GoClimb/src/screens/SignUpScreen.js
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import auth from '@react-native-firebase/auth';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
+import { registerUserInDjango } from '../services/api/AuthApi';
 
-// Keeps your original create flow, adds SafeArea + back header + link to Login.
+// validation helpers
+function isValidEmail(str) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(str);
+}
+
+function isStrongPassword(str) {
+  if (!str || str.length < 8) return false;
+  if (/\s/.test(str)) return false;
+  if (!/[a-z]/.test(str)) return false;
+  if (!/[A-Z]/.test(str)) return false;
+  if (!/[0-9]/.test(str)) return false;
+  if (!/[^A-Za-z0-9]/.test(str)) return false;
+  return true;
+}
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
+
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
@@ -19,11 +42,57 @@ export default function SignUpScreen() {
   const [err, setErr] = useState('');
 
   async function onSignUp() {
+    // client-side checks
+    if (!displayName.trim() || !email.trim() || !pass) {
+      setErr('Please fill in all fields.');
+      return;
+    }
+
+    if (/\s/.test(displayName)) {
+      setErr('Username cannot contain spaces.');
+      return;
+    }
+
+    if (!isValidEmail(email.trim())) {
+      setErr('Please enter a valid email address.');
+      return;
+    }
+
+    if (!isStrongPassword(pass)) {
+      setErr(
+        'Password must be 8+ chars, include upper & lower case, a number, a symbol, and no spaces.'
+      );
+      return;
+    }
+
     try {
-      setBusy(true); setErr('');
-      const { user } = await auth().createUserWithEmailAndPassword(email.trim(), pass);
-      if (displayName) await user.updateProfile({ displayName });
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { screen: 'Home' } }] });
+      setBusy(true);
+      setErr('');
+
+      const { user } = await auth().createUserWithEmailAndPassword(
+        email.trim(),
+        pass
+      );
+
+      if (displayName.trim()) {
+        await user.updateProfile({ displayName: displayName.trim() });
+      }
+
+      const djangoResp = await registerUserInDjango(displayName.trim());
+
+      if (!djangoResp.ok) {
+        console.log('Django signup failed:', djangoResp.debugRaw);
+        Alert.alert(
+          'Warning',
+          djangoResp.message ||
+            'Your account was created, but the server profile could not be synced yet.'
+        );
+      }
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs', params: { screen: 'Home' } }],
+      });
     } catch (e) {
       setErr(e?.message ?? 'Could not create account.');
     } finally {
@@ -31,12 +100,25 @@ export default function SignUpScreen() {
     }
   }
 
-  const goBack = () => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs', { screen: 'Home' }));
+  const goBack = () =>
+    navigation.canGoBack()
+      ? navigation.goBack()
+      : navigation.navigate('MainTabs', { screen: 'Home' });
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: colors.bg }]} edges={['top', 'bottom', 'left', 'right']}>
-      {/* Top bar with back chevron */}
-      <View style={[styles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
+    <SafeAreaView
+      style={[styles.safe, { backgroundColor: colors.bg }]}
+      edges={['top', 'bottom', 'left', 'right']}
+    >
+      <View
+        style={[
+          styles.topBar,
+          {
+            backgroundColor: colors.surface,
+            borderBottomColor: colors.divider,
+          },
+        ]}
+      >
         <TouchableOpacity onPress={goBack} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
@@ -50,9 +132,17 @@ export default function SignUpScreen() {
           placeholderTextColor={colors.textDim}
           value={displayName}
           onChangeText={setDisplayName}
-          autoCapitalize="words"
-          style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+          autoCapitalize="none"
+          style={[
+            styles.input,
+            {
+              color: colors.text,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+            },
+          ]}
         />
+
         <TextInput
           placeholder="Email"
           placeholderTextColor={colors.textDim}
@@ -60,26 +150,61 @@ export default function SignUpScreen() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+          style={[
+            styles.input,
+            {
+              color: colors.text,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+            },
+          ]}
         />
+
         <TextInput
           placeholder="Password"
           placeholderTextColor={colors.textDim}
           value={pass}
           onChangeText={setPass}
           secureTextEntry
-          style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+          style={[
+            styles.input,
+            {
+              color: colors.text,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+            },
+          ]}
         />
 
-        <TouchableOpacity disabled={busy} onPress={onSignUp} style={[styles.cta, { backgroundColor: colors.accent, opacity: busy ? 0.6 : 1 }]}>
-          <Text style={styles.ctaText}>{busy ? 'Creating…' : 'Sign Up'}</Text>
+        <TouchableOpacity
+          disabled={busy}
+          onPress={onSignUp}
+          style={[
+            styles.cta,
+            { backgroundColor: colors.accent, opacity: busy ? 0.6 : 1 },
+          ]}
+          activeOpacity={0.8}
+        >
+          {busy ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.ctaText}>Sign Up</Text>
+          )}
         </TouchableOpacity>
 
-        {!!err && <Text style={[styles.err, { color: colors.danger }]}>{err}</Text>}
+        {!!err && (
+          <Text style={[styles.err, { color: colors.danger }]}>{err}</Text>
+        )}
 
-        <TouchableOpacity onPress={() => navigation.navigate('Login')} style={{ marginTop: 10 }}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Login')}
+          style={{ marginTop: 10 }}
+        >
           <Text style={{ textAlign: 'center', color: colors.text }}>
-            Already a member? <Text style={{ color: colors.accent, fontWeight: '700' }}>Login</Text>
+            Already a member?{' '}
+            <Text style={{ color: colors.accent, fontWeight: '700' }}>
+              Login
+            </Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -97,7 +222,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   iconBtn: { padding: 6, borderRadius: 8 },
-  topTitle: { flex: 1, textAlign: 'center', fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  topTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   content: { flex: 1, padding: 20, gap: 12 },
   input: { borderWidth: 1, borderRadius: 10, padding: 12 },
   cta: { padding: 14, borderRadius: 10, marginTop: 6 },

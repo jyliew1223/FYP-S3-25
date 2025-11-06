@@ -1,3 +1,4 @@
+// GoClimb/android/build.gradle
 buildscript {
     ext {
         buildToolsVersion = "36.0.0"
@@ -19,4 +20,6 @@ buildscript {
     }
 }
 
-apply plugin: "com.facebook.react.rootproject"
+plugins {
+  id("com.facebook.react.rootproject")
+}

@@ -4,7 +4,7 @@ import { View, TouchableOpacity, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { AuthProvider } from './src/context/AuthContext'; // keep your existing auth context
+import { AuthProvider } from './src/context/AuthContext'; 
 
 import { downloadFolderFromJson } from './src/services/firebase/FileDownloadHelper';
 import InitFirebaseApps from './src/services/firebase/InitFirebaseApps';
