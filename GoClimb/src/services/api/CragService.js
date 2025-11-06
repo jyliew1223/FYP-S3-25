@@ -77,7 +77,7 @@ function normalizeRoute(raw) {
   const numericGrade = raw?.route_grade;
   const cragData = typeof raw?.crag === 'object' ? raw.crag : null;
   const cragId = cragData?.crag_id || raw?.crag;
-  
+
   return {
     route_id: raw?.route_id ?? 'ROUTE-UNKNOWN',
     name: raw?.route_name ?? 'Unnamed Route',
@@ -141,7 +141,7 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
   await InitFirebaseApps();
 
   const payload = { crag_id: cragIdParam };
-  
+
   console.log('[fetchRoutesByCragIdGET] BASE_URL:', API_ENDPOINTS.BASE_URL);
   console.log('[fetchRoutesByCragIdGET] ENDPOINT:', API_ENDPOINTS.ROUTE.GET_ROUTES_BY_CRAG_ID);
   console.log('[fetchRoutesByCragIdGET] cragIdParam:', cragIdParam);
@@ -210,7 +210,7 @@ export async function fetchRouteByIdGET(routeId) {
 export async function fetchRandomCrags(count = 10, blacklist = []) {
   await InitFirebaseApps();
 
-  const payload = { 
+  const payload = {
     count: count.toString(),
     blacklist: blacklist
   };
@@ -246,7 +246,7 @@ export async function fetchRandomCrags(count = 10, blacklist = []) {
 export async function fetchAllCragsBootstrap() {
   console.log('[fetchAllCragsBootstrap] Using random crags endpoint');
   const randomResult = await fetchRandomCrags(10);
-  
+
   if (randomResult.success && randomResult.crags.length > 0) {
     return randomResult.crags;
   }
