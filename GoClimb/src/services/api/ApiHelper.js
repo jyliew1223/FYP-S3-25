@@ -56,6 +56,33 @@ class BaseApiModel {
 
     return new this(mappedData);
   }
+
+  wrapModel(value, ModelClass) {
+    if (value instanceof ModelClass) return value;
+    if (value && typeof value === 'object') return new ModelClass(value);
+    return null;
+  }
+
+  parseDate(value) {
+    if (value instanceof Date) return value;
+
+    if (typeof value === 'string') {
+      // Handle YYYY-MM-DD safely (treat as local date)
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [y, m, d] = value.split('-').map(Number);
+        return new Date(y, m - 1, d);
+      }
+      // ISO or other formats
+      return new Date(value);
+    }
+
+    if (typeof value === 'number') {
+      // Handle timestamp (milliseconds)
+      return new Date(value);
+    }
+
+    return null;
+  }
 }
 
 /**
@@ -99,7 +126,7 @@ class BaseApiResponse {
    * @param {*} [options.errors] - Any errors that occurred
    */
   constructor({ status, success, message, errors } = {}) {
-    this.status = status
+    this.status = status;
     this.success = success ?? false;
     this.message = message ?? null;
     this.errors = errors ?? null;
@@ -140,12 +167,15 @@ class CustomApiRequest {
   /** @type {ApiResponse = BaseApiResponse|null} Parsed response object after request completion */
   #response;
 
+  /** @type {object} */
+  #jsonObject;
+
   /**
    * Creates a new CustomWebRequest instance
    * @param {string} method - HTTP method (GET, POST, PUT, DELETE)
    * @param {string} baseUrl - Base URL for the API
    * @param {string} path - API endpoint path
-   * @param {ApiPayload = BaseApiPayload} payload - Request payload/data
+   * @param {ApiPayload = BaseApiPayload || object} payload - Request payload/data
    * @param {boolean} [attachAppCheckToken=true] - Whether to attach app check token
    */
   constructor(method, baseUrl, path, payload, attachAppCheckToken = true) {
@@ -155,6 +185,7 @@ class CustomApiRequest {
     this.#payload = payload;
     this.#attachAppCheckToken = attachAppCheckToken;
     this.#response = null;
+    this.#jsonObject;
   }
 
   /**
@@ -175,9 +206,15 @@ class CustomApiRequest {
       url += this.#toQueryString(this.#payload);
     } else if (this.#method !== 'GET' && this.#method !== 'DELETE') {
       options.headers['Content-Type'] = 'application/json';
-      options.body = this.#payload
-        ? JSON.stringify(this.#payload.toJson())
-        : '';
+      if (this.#payload) {
+        if (typeof this.#payload === 'string') {
+          options.body = this.#payload;
+        } else if (typeof this.#payload.toJson === 'function') {
+          options.body = JSON.stringify(this.#payload.toJson());
+        } else {
+          options.body = JSON.stringify(this.#payload);
+        }
+      }
     }
 
     if (this.#attachAppCheckToken) {
@@ -189,9 +226,8 @@ class CustomApiRequest {
       const res = await fetch(url, options);
       const responseText = await res.text();
 
-      let json;
       try {
-        json = JSON.parse(responseText);
+        this.#jsonObject = JSON.parse(responseText);
       } catch (err) {
         console.error(
           `Failed to parse JSON: ${err.message}\n` +
@@ -199,7 +235,7 @@ class CustomApiRequest {
         );
       }
 
-      this.#response = ResponseClass.fromJson(json);
+      this.#response = ResponseClass.fromJson(this.#jsonObject);
       this.#response.status = res.status;
 
       if (res.ok) {
@@ -329,6 +365,31 @@ class CustomApiRequest {
   get Response() {
     return this.#response;
   }
+
+  get JsonObject() {
+    return this.#jsonObject;
+  }
+}
+
+function parseDate(value) {
+  if (value instanceof Date) return value;
+
+  if (typeof value === 'string') {
+    // Handle YYYY-MM-DD safely (treat as local date)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    // ISO or other formats
+    return new Date(value);
+  }
+
+  if (typeof value === 'number') {
+    // Handle timestamp (milliseconds)
+    return new Date(value);
+  }
+
+  return null;
 }
 
 // Export classes and constants
@@ -338,4 +399,5 @@ export {
   BaseApiPayload,
   BaseApiModel,
   RequestMethod,
+  parseDate,
 };

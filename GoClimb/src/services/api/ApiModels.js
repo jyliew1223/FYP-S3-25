@@ -6,38 +6,39 @@ class UserModel extends BaseApiModel {
   static get fieldMapping() {
     return {
       user_id: 'user_id',
-      full_name: 'full_name',
+      username: 'username',
       email: 'email',
-      profile_picture: 'profile_picture',
-      role: 'role',
       status: 'status',
+      profile_picture: 'profile_picture', // filename of the file backend need to know the filename when querying storage
+      profile_picture_url: 'profile_picture_url', // the url of the image
     };
   }
 
   /**
    * @param {Object} options
    * @param {string} [options.user_id]
-   * @param {string} [options.full_name]
+   * @param {string} [options.username]
    * @param {string} [options.email]
-   * @param {string} [options.profile_picture]
-   * @param {string} [options.role] - "admin" or "member"
    * @param {boolean} [options.status]
+   * @param {string} [options.profile_picture]
+   * @param {string} [options.profile_picture_url]
    */
   constructor({
     user_id,
-    full_name,
+    username,
     email,
-    profile_picture,
-    role,
     status,
+    profile_picture,
+    profile_picture_url,
   } = {}) {
     super();
+
     this.user_id = user_id ?? null;
-    this.fullName = full_name ?? null;
+    this.username = username ?? null;
     this.email = email ?? null;
-    this.profilePicture = profile_picture ?? null;
-    this.role = role ?? null;
     this.status = status ?? false;
+    this.profile_picture = profile_picture ?? null;
+    this.profile_picture_url = profile_picture_url ?? null;
   }
 }
 
@@ -72,12 +73,12 @@ class CragModel extends BaseApiModel {
   } = {}) {
     super();
 
-    this.cragId = crag_id ?? null;
+    this.crag_id = crag_id ?? null;
     this.name = name ?? null;
-    this.locationLat = location_lat ?? null;
-    this.locationLon = location_lon ?? null;
+    this.location_lat = location_lat ?? null;
+    this.location_lon = location_lon ?? null;
     this.description = description ?? null;
-    this.imageUrls = image_urls ?? [];
+    this.image_urls = image_urls ?? [];
   }
 }
 
@@ -88,9 +89,9 @@ class PostModel extends BaseApiModel {
       user: 'user',
       content: 'content',
       tags: 'tags',
-      image_urls: 'image_urls',
       status: 'status',
       created_at: 'created_at',
+      image_urls: 'image_urls',
     };
   }
 
@@ -100,55 +101,27 @@ class PostModel extends BaseApiModel {
    * @param {UserModel|Object} [options.user]
    * @param {string} [options.content]
    * @param {string[]} [options.tags]
-   * @param {string[]} [options.image_urls]
    * @param {string} [options.status]
    * @param {Date|string} [options.created_at]
+   * @param {string[]} [options.image_urls]
    */
   constructor({
     post_id,
     user,
     content,
     tags,
-    image_urls,
     status,
     created_at,
+    image_urls,
   } = {}) {
     super();
-    this.postId = post_id ?? null;
-
-    // Handle nested UserModel object
-    if (user instanceof UserModel) {
-      this.user = user;
-    } else if (user && typeof user === 'object') {
-      this.user = new UserModel(user);
-    } else {
-      this.user = null;
-    }
-
+    this.post_id = post_id ?? null;
+    this.user = this.wrapModel(user, UserModel);
     this.content = content ?? null;
     this.tags = tags ?? [];
-    this.imageUrls = image_urls ?? [];
     this.status = status ?? null;
-
-    // Handle DateTime conversion
-    if (created_at instanceof Date) {
-      this.createdAtUtc = created_at;
-    } else if (typeof createdAtUtc === 'string') {
-      this.createdAtUtc = new Date(created_at);
-    } else {
-      this.createdAtUtc = null;
-    }
-  }
-
-  /**
-   * Gets the created date in local time (equivalent to C# CreatedAtLocal)
-   * @returns {Date|null} Local time date or null if createdAtUtc is not set
-   */
-  get createdAtLocal() {
-    if (!this.createdAtUtc) return null;
-    // JavaScript Date objects are already in local time when displayed
-    // but we can explicitly convert from UTC if needed
-    return new Date(this.createdAtUtc.getTime());
+    this.created_at = this.parseDate(created_at, Date);
+    this.image_urls = image_urls ?? [];
   }
 
   /**
@@ -172,43 +145,28 @@ class RouteModel extends BaseApiModel {
   static get fieldMapping() {
     return {
       route_id: 'route_id',
-      routeName: 'route_name',
-      routeGrade: 'route_grade',
-      routeType: 'route_type',
+      route_name: 'route_name',
+      route_grade: 'route_grade',
       crag: 'crag',
+      images_urls: 'images_urls',
     };
   }
 
   /**
    * @param {Object} options
-   * @param {number} [options.route_id]
-   * @param {string} [options.formatted_id]
-   * @param {string} [options.routeName]
-   * @param {number} [options.routeGrade]
-   * @param {string} [options.routeType]
+   * @param {string} [options.route_id]
+   * @param {string} [options.route_name]
+   * @param {number} [options.route_grade]
    * @param {CragModel|Object} [options.crag]
+   * @param {string[]} [options.images_urls]
    */
-  constructor({
-    route_id,
-    routeName,
-    routeGrade,
-    routeType,
-    crag,
-  } = {}) {
+  constructor({ route_id, route_name, route_grade, crag, images_urls } = {}) {
     super();
-    this.routeId = route_id ?? null;
-    this.routeName = routeName ?? null;
-    this.routeGrade = routeGrade ?? null;
-    this.routeType = routeType ?? null;
-
-    // Handle nested CragModel object
-    if (crag instanceof CragModel) {
-      this.crag = crag;
-    } else if (crag && typeof crag === 'object') {
-      this.crag = new CragModel(crag);
-    } else {
-      this.crag = null;
-    }
+    this.route_id = route_id ?? null;
+    this.route_name = route_name ?? null;
+    this.route_grade = route_grade ?? null;
+    this.crag = this.wrapModel(crag, CragModel);
+    this.images_urls = images_urls ?? [];
   }
 
   /**
@@ -249,45 +207,12 @@ class ClimbLogModel extends BaseApiModel {
    */
   constructor({ log_id, user, route, date_climbed, notes } = {}) {
     super();
-    this.logId = log_id ?? null;
 
-    // Handle nested UserModel object
-    if (user instanceof UserModel) {
-      this.user = user;
-    } else if (user && typeof user === 'object') {
-      this.user = new UserModel(user);
-    } else {
-      this.user = null;
-    }
-
-    // Handle nested RouteModel object
-    if (route instanceof RouteModel) {
-      this.route = route;
-    } else if (route && typeof route === 'object') {
-      this.route = new RouteModel(route);
-    } else {
-      this.route = null;
-    }
-
+    this.log_id = log_id ?? null;
+    this.user = this.wrapModel(user, UserModel);
+    this.route = this.wrapModel(route, RouteModel);
     this.notes = notes ?? null;
-
-    // Handle DateTime conversion
-    if (date_climbed instanceof Date) {
-      this.dateClimbed = date_climbed;
-    } else if (typeof date_climbed === 'string') {
-      this.dateClimbed = new Date(date_climbed);
-    } else {
-      this.dateClimbed = null;
-    }
-  }
-
-  /**
-   * Gets the climbed date in local time
-   * @returns {Date|null} Local time date or null if dateClimbed is not set
-   */
-  get dateClimbedLocal() {
-    if (!this.dateClimbed) return null;
-    return new Date(this.dateClimbed.getTime());
+    this.date_climbed = this.parseDate(date_climbed);
   }
 
   /**
@@ -312,4 +237,174 @@ class ClimbLogModel extends BaseApiModel {
   }
 }
 
-export { CragModel, UserModel, PostModel, RouteModel, ClimbLogModel };
+class PostLikeModel extends BaseApiModel {
+  static get fieldMapping() {
+    return {
+      post: 'post',
+      user: 'user',
+      created_at: 'created_at',
+    };
+  }
+
+  /**
+   * @param {Object} options
+   * @param {PostModel|Object} [options.post]
+   * @param {UserModel|Object} [options.user]
+   * @param {Date|string} [options.created_at]
+   */
+  constructor({ post, user, created_at } = {}) {
+    super();
+
+    this.post = this.wrapModel(post, PostModel);
+    this.user = this.wrapModel(user, UserModel);
+    this.created_at = this.parseDate(created_at);
+  }
+
+  /**
+   * Override fromJson to handle nested object deserialization
+   * @param {Object} jsonData - JSON data to map to instance
+   * @returns {PostLikeModel} - New instance with mapped data
+   */
+  static fromJson(jsonData = {}) {
+    const instance = super.fromJson(jsonData);
+
+    // Handle nested post object
+    if (jsonData.post && typeof jsonData.post === 'object') {
+      instance.post = PostModel.fromJson(jsonData.post);
+    }
+
+    // Handle nested user object
+    if (jsonData.user && typeof jsonData.user === 'object') {
+      instance.user = UserModel.fromJson(jsonData.user);
+    }
+
+    return instance;
+  }
+}
+
+class CragModelsModel extends BaseApiModel {
+  static get fieldMapping() {
+    return {
+      model_id: 'model_id',
+      crag: 'crag',
+      user: 'user',
+      status: 'status',
+      download_urls_json: 'download_urls_json',
+    };
+  }
+  /**
+   * @param {Object} options
+   * @param {string} [options.model_id]
+   * @param {CragModel|Object} [options.crag]
+   * @param {UserModel|Object} [options.user]
+   * @param {Boolean} [options.status]
+   * @param {string} [options.download_urls_json]
+   */
+  constructor({ model_id, crag, user, status, download_urls_json } = {}) {
+    super();
+
+    this.model_id = model_id ?? null;
+    this.crag = this.wrapModel(crag, CragModel);
+    this.user = this.wrapModel(user, UserModel);
+    this.status = status ?? null;
+    this.download_urls_json = download_urls_json ?? null;
+  }
+
+  /**
+   * Override fromJson to handle nested object deserialization
+   * @param {Object} jsonData - JSON data to map to instance
+   * @returns {CragModelsModel} - New instance with mapped data
+   */
+  static fromJson(jsonData = {}) {
+    const instance = super.fromJson(jsonData);
+
+    // Handle nested post object
+    if (jsonData.crag && typeof jsonData.crag === 'object') {
+      instance.crag = CragModel.fromJson(jsonData.crag);
+    }
+
+    // Handle nested user object
+    if (jsonData.user && typeof jsonData.user === 'object') {
+      instance.user = UserModel.fromJson(jsonData.user);
+    }
+
+    return instance;
+  }
+}
+
+class ModelsRouteDataModel extends BaseApiModel {
+  static get fieldMapping() {
+    return {
+      model_route_data_id: 'model_route_data_id',
+      model: 'model',
+      route: 'route',
+      user: 'user',
+      route_data: 'route_data',
+      status: 'status',
+    };
+  }
+
+  /**
+   * @param {Object} options
+   * @param {string} [options.model_route_data_id]
+   * @param {CragModelsModel|Object} [options.model]
+   * @param {RouteModel|Object} [options.route]
+   * @param {UserModel|Object} [options.user]
+   * @param {string} [options.route_data]
+   * @param {Boolean} [options.status]
+   */
+  constructor({
+    model_route_data_id,
+    model,
+    route,
+    user,
+    route_data,
+    status,
+  } = {}) {
+    super();
+
+    this.model_route_data_id = model_route_data_id ?? null;
+    this.model = this.wrapModel(model, CragModelsModel);
+    this.route = this.wrapModel(route, RouteModel);
+    this.user = this.wrapModel(user, UserModel);
+    this.route_data = route_data ?? null;
+    this.status = status ?? null;
+  }
+
+  /**
+   * Override fromJson to handle nested object deserialization
+   * @param {Object} jsonData - JSON data to map to instance
+   * @returns {ModelsRouteDataModel} - New instance with mapped data
+   */
+  static fromJson(jsonData = {}) {
+    const instance = super.fromJson(jsonData);
+
+    // Handle nested post object
+    if (jsonData.model && typeof jsonData.model === 'object') {
+      instance.model = CragModelsModel.fromJson(jsonData.model);
+    }
+
+    // Handle nested post object
+    if (jsonData.route && typeof jsonData.route === 'object') {
+      instance.route = RouteModel.fromJson(jsonData.route);
+    }
+
+    // Handle nested user object
+    if (jsonData.user && typeof jsonData.user === 'object') {
+      instance.user = UserModel.fromJson(jsonData.user);
+    }
+
+    return instance;
+  }
+}
+
+export {
+  CragModel,
+  UserModel,
+  PostModel,
+  RouteModel,
+  ClimbLogModel,
+  PostLikeModel,
+  CragModelsModel,
+  ModelsRouteDataModel,
+};

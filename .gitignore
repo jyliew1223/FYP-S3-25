@@ -8,3 +8,6 @@ GoClimb/android/app/google-services.json
 GoClimb/android/app/debug.keystore
 GoClimb/android/app/GoogleService-Info.plist
 /GoClimb/ios
+/GoClimb/__mocks__
+/GoClimb/android/unityLibrary
+/GoClimb/android/_UnityExport
