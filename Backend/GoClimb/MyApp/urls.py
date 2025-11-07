@@ -14,6 +14,7 @@ urlpatterns = [
     path("user/", include("MyApp.Url.user_url")),
     path("crag/", include("MyApp.Url.crag_url")),
     path("climb_log/", include("MyApp.Url.climb_log_url")),
+    path("crag_model/", include("MyApp.Url.cragmodel_url")),
     path("post/", include("MyApp.Url.post_url")),
     path("comment/", include("MyApp.Url.post_comment_url")),
     path("route/", include("MyApp.Url.route_url")),

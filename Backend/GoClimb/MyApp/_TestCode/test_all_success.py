@@ -2,10 +2,9 @@
 
 import json
 from datetime import datetime
-from unittest.mock import patch, MagicMock
-from django.test import TestCase, Client
+from unittest.mock import patch
+from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth.models import User as DjangoUser
 from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
 from MyApp.Entity.post import Post
@@ -13,6 +12,7 @@ from MyApp.Entity.climblog import ClimbLog
 from MyApp.Entity.route import Route
 from MyApp.Entity.post_likes import PostLike
 from MyApp.Entity.post_comment import PostComment
+from MyApp.Entity.crag_model import CragModel
 from rest_framework.test import APIClient
 from rest_framework import status
 
@@ -74,6 +74,10 @@ class AllEndpointsSuccessTestCase(TestCase):
 
         self.test_post_like = PostLike.objects.create(
             user=self.test_user, post=self.test_post
+        )
+
+        self.test_crag_model = CragModel.objects.create(
+            crag=self.test_crag, user=self.test_user, status="active"
         )
 
         # Mock authentication headers for Firebase App Check
@@ -471,7 +475,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             "user_id": self.test_user.user_id,
             "post_id": self.test_post.formatted_id,
         }
-        PostLike.objects.filter(post = self.test_post).delete()
+        PostLike.objects.filter(post=self.test_post).delete()
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - LIKE", url, response, data)
 
@@ -712,13 +716,8 @@ class AllEndpointsSuccessTestCase(TestCase):
             response_json["data"]["route_name"], self.test_route.route_name
         )
 
-    def tearDown(self):
-        """Clean up after tests"""
-        pass
-
     @patch("firebase_admin.app_check.verify_token")
     def test_28_crag_get_random(self, mock_verify_app_check):
-        """Test get random posts endpoint: POST /post/get_random_posts/"""
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_random_crag")
@@ -729,7 +728,22 @@ class AllEndpointsSuccessTestCase(TestCase):
         # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
-        response_data = response_data = response.json()
+        response_data = response.json()
         self.assertTrue(response_data.get("success"))
         self.assertIn("data", response_data)
         self.assertIsInstance(response_data["data"], list)
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_29_get_crag_model_by_id(self, mock_verify_app_check):
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("get_models_by_crag_id")
+        params = {"crag_id": self.test_crag.crag_id}
+        response = self.client.get(url, params)
+        self.print_endpoint_result(
+            "CRAG MODEL - GET MODELS BY CRAG ID", url, response, params
+        )
+        
+        response_data =  response.json()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response_data["data"][0].model_id, self.test_crag_model.formatted_id)
