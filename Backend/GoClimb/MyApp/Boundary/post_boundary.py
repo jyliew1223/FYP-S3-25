@@ -731,7 +731,7 @@ def create_post_view(request):
         )
 
     try:
-        success: bool = create_post(user_id, request.data)
+        success = create_post(user_id, request.data)
 
         if success:
             return Response(

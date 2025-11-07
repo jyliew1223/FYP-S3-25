@@ -1,6 +1,7 @@
 # MyApp/_TestCode/test_all_success.py
 
 import json
+from datetime import datetime
 from unittest.mock import patch, MagicMock
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -59,12 +60,20 @@ class AllEndpointsSuccessTestCase(TestCase):
             status="active",
         )
 
-        self.teste_post_comment = PostComment.objects.create(
+        self.test_post_comment = PostComment.objects.create(
             post=self.test_post, user=self.test_user, content="some content"
         )
 
         self.test_route = Route.objects.create(
             crag=self.test_crag, route_name="Test Route", route_grade="6"
+        )
+
+        self.test_climb_log = ClimbLog.objects.create(
+            user=self.test_user, route=self.test_route, date_climbed=datetime.now()
+        )
+
+        self.test_post_like = PostLike.objects.create(
+            user=self.test_user, post=self.test_post
         )
 
         # Mock authentication headers for Firebase App Check
@@ -458,7 +467,11 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("like_post")
-        data = {"user_id": self.test_user.user_id, "post_id": self.test_post.post_id}
+        data = {
+            "user_id": self.test_user.user_id,
+            "post_id": self.test_post.formatted_id,
+        }
+        PostLike.objects.filter(post = self.test_post).delete()
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - LIKE", url, response, data)
 
@@ -477,10 +490,10 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("unlike_post")
-        # First like the post
-        PostLike.objects.create(user=self.test_user, post=self.test_post)
-
-        data = {"user_id": self.test_user.user_id, "post_id": self.test_post.post_id}
+        data = {
+            "user_id": self.test_user.user_id,
+            "post_id": self.test_post.formatted_id,
+        }
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - UNLIKE", url, response, data)
 

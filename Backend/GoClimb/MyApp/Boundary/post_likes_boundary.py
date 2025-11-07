@@ -7,17 +7,10 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from MyApp.Entity.post import Post
-from MyApp.Entity.post_likes import PostLike  
+from MyApp.Entity.post_likes import PostLike
+from MyApp.Serializer.serializers import PostLikeSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token  # app-check
-from MyApp.Firebase.helpers import parse_prefixed_int  # we already added this helper
-
-
-
-def _get_post_id(value: Any) -> Optional[int]:
-    """
-    Accepts 123 or 'POST-123'. Returns int or None.
-    """
-    return parse_prefixed_int(value, "POST")
+from MyApp.Utils.helper import PrefixedIDConverter
 
 
 @api_view(["POST"])
@@ -26,7 +19,7 @@ def like_post_view(request):
     INPUT:  { "post_id": 123 | "POST-123", "user_id": "<uuid or string>" }
     OUTPUT: 200 OK on success
     """
-    # 1) App Check
+
     auth = authenticate_app_check_token(request)
     if not auth.get("success"):
         return Response(
@@ -34,8 +27,8 @@ def like_post_view(request):
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    post_id = _get_post_id(request.data.get("post_id"))
-    user_id = request.data.get("user_id")
+    post_id = request.data.get("post_id")
+    user_id = request.data.get("user_id").strip()
 
     if post_id is None or not isinstance(user_id, str) or not user_id.strip():
         return Response(
@@ -50,26 +43,42 @@ def like_post_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # 2) Ensure post exists
     try:
-        post = Post.objects.get(pk=post_id)
+        serializer = PostLikeSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"success": True, "data": {}, "message": "Post liked", "errors": []},
+                status=status.HTTP_200_OK,
+            )
+
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": serializer.errors,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     except Post.DoesNotExist:
         return Response(
-            {"success": False, "message": "Post not found.", "errors": {"post_id": "Invalid ID."}},
+            {
+                "success": False,
+                "message": "Post not found.",
+                "errors": {"post_id": "Invalid ID."},
+            },
             status=status.HTTP_404_NOT_FOUND,
         )
-
-    # 3) Create like idempotently
-    try:
-        PostLike.objects.get_or_create(post=post, user_id=user_id.strip())
-    except IntegrityError:
-        # unique_together(post, user) might throw under race; treat as success
-        pass
-
-    return Response(
-        {"success": True, "data": {}, "message": "Post liked", "errors": []},
-        status=status.HTTP_200_OK,
-    )
+    except IntegrityError as ie:
+        return Response(
+            {
+                "success": False,
+                "message": "IntegrityError",
+                "errors": ie,
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])
@@ -85,7 +94,7 @@ def unlike_post_view(request):
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    post_id = _get_post_id(request.data.get("post_id"))
+    post_id = request.data.get("post_id")
     user_id = request.data.get("user_id")
 
     if post_id is None or not isinstance(user_id, str) or not user_id.strip():
@@ -101,7 +110,7 @@ def unlike_post_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Delete any matching records (idempotent)
+    post_id = PrefixedIDConverter.to_raw_id(post_id)
     PostLike.objects.filter(post_id=post_id, user_id=user_id.strip()).delete()
 
     return Response(
@@ -123,7 +132,7 @@ def post_likes_count_view(request):
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    post_id = _get_post_id(request.query_params.get("post_id"))
+    post_id = request.query_params.get("post_id")
     if post_id is None:
         return Response(
             {
@@ -154,7 +163,7 @@ def post_likes_users_view(request):
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    post_id = _get_post_id(request.query_params.get("post_id"))
+    post_id = request.query_params.get("post_id")
     if post_id is None:
         return Response(
             {
@@ -166,7 +175,9 @@ def post_likes_users_view(request):
         )
 
     # Fetch user_ids and wrap each as an object to match the test expectation
-    user_ids = PostLike.objects.filter(post_id=post_id).values_list("user_id", flat=True)
+    user_ids = PostLike.objects.filter(post_id=post_id).values_list(
+        "user_id", flat=True
+    )
     users: List[Dict[str, str]] = [{"user_id": uid} for uid in user_ids]
 
     return Response(
