@@ -19,67 +19,75 @@ def like_post_view(request):
     INPUT:  { "post_id": 123 | "POST-123", "user_id": "<uuid or string>" }
     OUTPUT: 200 OK on success
     """
-
-    auth = authenticate_app_check_token(request)
-    if not auth.get("success"):
-        return Response(
-            {"success": False, "message": auth.get("message", "Unauthorized.")},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
-
-    post_id = request.data.get("post_id")
-    user_id = request.data.get("user_id").strip()
-
-    if post_id is None or not isinstance(user_id, str) or not user_id.strip():
-        return Response(
-            {
-                "success": False,
-                "message": "Invalid input.",
-                "errors": {
-                    "post_id": "Must be an integer or 'POST-<int>'.",
-                    "user_id": "Must be a non-empty string.",
-                },
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     try:
-        serializer = PostLikeSerializer(data=request.data)
-
-        if serializer.is_valid():
-            serializer.save()
+        auth = authenticate_app_check_token(request)
+        if not auth.get("success"):
             return Response(
-                {"success": True, "data": {}, "message": "Post liked", "errors": []},
-                status=status.HTTP_200_OK,
+                {"success": False, "message": auth.get("message", "Unauthorized.")},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        return Response(
-            {
-                "success": False,
-                "message": "Invalid input.",
-                "errors": serializer.errors,
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except Post.DoesNotExist:
-        return Response(
-            {
-                "success": False,
-                "message": "Post not found.",
-                "errors": {"post_id": "Invalid ID."},
-            },
-            status=status.HTTP_404_NOT_FOUND,
-        )
-    except IntegrityError as ie:
-        return Response(
-            {
-                "success": False,
-                "message": "IntegrityError",
-                "errors": ie,
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+        post_id = request.data.get("post_id")
+        user_id = request.data.get("user_id").strip()
 
+        if post_id is None or not isinstance(user_id, str) or not user_id.strip():
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid input.",
+                    "errors": {
+                        "post_id": "Must be an integer or 'POST-<int>'.",
+                        "user_id": "Must be a non-empty string.",
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            serializer = PostLikeSerializer(data=request.data)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(
+                    {"success": True, "data": {}, "message": "Post liked", "errors": []},
+                    status=status.HTTP_200_OK,
+                )
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid input.",
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Post.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Post not found.",
+                    "errors": {"post_id": "Invalid ID."},
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except IntegrityError as ie:
+            return Response(
+                {
+                    "success": False,
+                    "message": "IntegrityError",
+                    "errors": ie,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+    except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "message": "IntegrityError",
+                    "errors": e,
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 @api_view(["POST"])
 def unlike_post_view(request):

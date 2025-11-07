@@ -480,12 +480,13 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.print_endpoint_result("POST - LIKE", url, response, data)
 
         # Assertions
-        count = PostLike.objects.filter(post_id=self.test_post.post_id)
+        count = PostLike.objects.filter(post_id=self.test_post.post_id).count()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertTrue(response_data.get("success"))
         self.assertEqual(response_data.get("message"), "Post liked")
+        print("liked count: " + str(count))
         self.assertFalse(count == 0)
 
     @patch("firebase_admin.app_check.verify_token")
