@@ -1,9 +1,6 @@
-# MyApp/Entity/climblog.py
-
 from django.db import models
 from MyApp.Entity.user import User
 from MyApp.Entity.route import Route
-
 
 class ClimbLog(models.Model):
     class Meta:
@@ -25,5 +22,5 @@ class ClimbLog(models.Model):
 
     @property
     def formatted_id(self) -> str:
-        """Return id with prefix."""
+
         return f"CLIMBLOG-{self.log_id:06d}"

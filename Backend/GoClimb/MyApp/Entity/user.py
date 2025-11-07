@@ -1,10 +1,7 @@
-# MyApp/Entity/user_model.py
-
 from typing import Any, Tuple, Dict, Optional
 from django.db import models
 
 from MyApp.Firebase.helpers import delete_bucket_folder, get_download_url
-
 
 class User(models.Model):
     class Meta:
@@ -21,9 +18,7 @@ class User(models.Model):
         return f"{self.username} | {self.email}"
 
     def delete(self, *args, **kwargs) -> Tuple[int, Dict[Any, int]]:
-        """
-        Delete the actual file in bucket before deleting DB record
-        """
+
         folder_path = self.bucket_path
         if folder_path:
             try:
@@ -35,17 +30,12 @@ class User(models.Model):
 
     @property
     def bucket_path(self):
-        """
-        Returns the full bucket path for this user
-        """
+
         return f"users/{self.user_id}"
 
     @property
     def images_bucket_path(self):
-        """
-        Returns the full bucket path for this user's uploaded image.
-        Example: 'users/<user_id>/images/'
-        """
+
         if not self.bucket_path:
             return None
         return f"{self.bucket_path}/images"
@@ -55,7 +45,7 @@ class User(models.Model):
         try:
             if not self.profile_picture or not self.images_bucket_path:
                 return None
-            
+
             return get_download_url(f"{self.images_bucket_path}/{self.profile_picture}")
         except Exception as e:
             print(

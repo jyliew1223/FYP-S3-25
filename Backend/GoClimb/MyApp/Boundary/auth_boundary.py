@@ -1,4 +1,4 @@
-from typing import cast, Any
+from typing import Any
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.decorators import api_view
@@ -8,39 +8,53 @@ from firebase_admin import auth
 
 from MyApp.Serializer.serializers import UserSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token, verify_id_token
-from MyApp.Controller.user_controller import (
-    signup_user,
-)
-
+from MyApp.Controller import user_controller
 from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
-
 
 @api_view(["POST"])
 def signup_view(request: Request) -> Response:
-    """
-    INPUT:{
-        "id_token": str,
-        "username": str,
-        "email": str
-    }
-    OUTPUT:{
-        "success": bool,
-        "message": str
-        "errors": dict[str, Any]  # Only if success is False
-    }
-    """
-    result: dict = authenticate_app_check_token(request)
 
-    if not result.get("success"):
-        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    data: dict[str, Any] = request.data if isinstance(request.data, dict) else {}
+    data = request.data if isinstance(request.data, dict) else {}
 
-    allowed_fields: list = ["username", "email"]
-    filtered_data: dict = {k: v for k, v in data.items() if k in allowed_fields}
+    id_token = data.get("id_token", "").strip() if isinstance(data.get("id_token"), str) else ""
+    username = data.get("username", "").strip() if isinstance(data.get("username"), str) else ""
+    email = data.get("email", "").strip() if isinstance(data.get("email"), str) else ""
 
-    serializer = UserSerializer(data=filtered_data)
+    if not id_token:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"id_token": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
+    if not username:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"username": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not email:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"email": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    serializer = UserSerializer(data={"username": username, "email": email})
     if not serializer.is_valid():
         return Response(
             {
@@ -51,106 +65,87 @@ def signup_view(request: Request) -> Response:
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    validated_data: dict = cast(dict[str, Any], serializer.validated_data)
-
-    id_token: str = str(data.get("id_token", ""))
-    username = str(validated_data.get("username", ""))
-    email = str(validated_data.get("email", ""))
-
-    required_fields: dict = {
-        "id_token": id_token,
-        "username": username,
-        "email": email,
-    }
-
-    for field_name, value in required_fields.items():
-        if not value:
-            return Response(
-                {
-                    "success": False,
-                    "message": f"{field_name} is required.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
     try:
-        signup_result = signup_user(id_token, username, email)
-        if signup_result:
-            serializer = UserSerializer(signup_result)
-            return Response(
-                {
-                    "success": True,
-                    "message": "User created successfully.",
-                    "data": serializer.data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
+
+        user = user_controller.signup_user(id_token, username, email)
+
+        user_serializer = UserSerializer(user)
+
+        return Response(
+            {
+                "success": True,
+                "message": "User created successfully.",
+                "data": user_serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    except UserAlreadyExistsError as e:
         return Response(
             {
                 "success": False,
-                "message": "Failed to create user.",
+                "message": str(e),
+                "errors": {"email": "Email already in use."},
             },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
-    except UserAlreadyExistsError as e:
-        return Response(
-            {"success": False, "message": str(e)},
             status=status.HTTP_400_BAD_REQUEST,
         )
     except InvalidUIDError as e:
         return Response(
-            {"success": False, "message": str(e)},
+            {
+                "success": False,
+                "message": str(e),
+                "errors": {"id_token": "Invalid user ID from token."},
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
     except auth.InvalidIdTokenError:
         return Response(
-            {"success": False, "message": "Invalid Firebase ID token."},
+            {
+                "success": False,
+                "message": "Invalid Firebase ID token.",
+                "errors": {"id_token": "Token verification failed."},
+            },
             status=status.HTTP_401_UNAUTHORIZED,
         )
     except Exception as e:
         return Response(
-            {"success": False, "message": str(e)},
+            {
+                "success": False,
+                "message": "An error occurred during signup.",
+                "errors": {"exception": str(e)},
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-
 @api_view(["GET"])
 def verify_app_check_token_view(request: Request) -> Response:
-    """
-    INPUT: NIL
-    OUTPUT:{
-        "success": bool,
-        "message": str
-        "errors": dict[str, Any]  # Only if success is False
-    }
-    """
-    result: dict = authenticate_app_check_token(request)
+
+    result = authenticate_app_check_token(request)
 
     if not result.get("success"):
         return Response(result, status=status.HTTP_401_UNAUTHORIZED)
 
     return Response(result, status=status.HTTP_200_OK)
 
-
 @api_view(["POST"])
 def verify_id_token_view(request: Request) -> Response:
-    """
-    INPUT: {
-        'id_token' : str
-    }
-    OUTPUT:{
-        "success": bool,
-        "message": str
-        "errors": dict[str, Any]  # Only if success is False
-    }
-    """
-    result: dict = authenticate_app_check_token(request)
 
-    if not result.get("success"):
-        return Response(result, status=status.HTTP_401_UNAUTHORIZED)
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    request_data = cast(dict[str, Any], request.data)
-    id_token = request_data.get("id_token", "")
+    data = request.data if isinstance(request.data, dict) else {}
+    id_token = data.get("id_token", "").strip() if isinstance(data.get("id_token"), str) else ""
+
+    if not id_token:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"id_token": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     result = verify_id_token(id_token)
 

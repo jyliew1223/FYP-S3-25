@@ -1,5 +1,3 @@
-# MyApp/Entity/post.py
-
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from MyApp.Entity.user import User
@@ -8,7 +6,6 @@ from MyApp.Firebase.helpers import (
     delete_bucket_folder,
     get_download_urls_in_folder,
 )
-
 
 class Post(models.Model):
     class Meta:
@@ -31,9 +28,7 @@ class Post(models.Model):
         return f"Post by {self.user} at {self.created_at}"
 
     def delete(self, *args, **kwargs) -> Tuple[int, Dict[Any, int]]:
-        """
-        Delete the actual file in bucket before deleting DB record
-        """
+
         folder_path = self.bucket_path
         if folder_path:
             try:
@@ -45,32 +40,24 @@ class Post(models.Model):
 
     @property
     def formatted_id(self) -> str:
-        """Return id with prefix."""
+
         return f"POST-{self.post_id:06d}"
 
     @property
     def bucket_path(self):
-        """
-        Returns the full bucket path for this user
-        """
+
         return f"users/{self.user.user_id}/posts/{self.formatted_id}"
 
     @property
     def images_bucket_path(self):
-        """
-        Returns the full bucket path for this user's uploaded image.
-        Example: 'users/<user_id>/images/'
-        """
+
         if not self.bucket_path:
             return None
         return f"{self.bucket_path}/images"
 
     @property
     def images_download_urls(self):
-        """
-        Returns the download URL for the user's profile picture.
-        Returns None if no profile picture is set.
-        """
+
         if not self.images_bucket_path:
             return None
         try:

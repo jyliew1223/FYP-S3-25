@@ -1,5 +1,3 @@
-# MyApp/Entity/crag.py
-
 import json
 import requests
 from django.conf import settings
@@ -10,13 +8,12 @@ from MyApp.Firebase.helpers import (
     get_download_urls_in_folder,
 )
 
-
 class Crag(models.Model):
     class Meta:
         db_table = "crag"
         managed = True
 
-    crag_id = models.AutoField(primary_key=True)  # auto-increment integer
+    crag_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     location_lat = models.FloatField()
     location_lon = models.FloatField()
@@ -26,9 +23,7 @@ class Crag(models.Model):
         return f"{self.name} | {self.crag_id}"
 
     def delete(self, *args, **kwargs) -> Tuple[int, Dict[Any, int]]:
-        """
-        Delete the actual file in bucket before deleting DB record
-        """
+
         folder_path = self.bucket_path
         if folder_path:
             try:
@@ -40,10 +35,7 @@ class Crag(models.Model):
 
     @property
     def location_details(self):
-        """
-        Returns location detail (country, state, city) as JSON string
-        using Google Maps Geocoding API.
-        """
+
         if not self.location_lat or not self.location_lon:
             return json.dumps({})
 
@@ -71,32 +63,24 @@ class Crag(models.Model):
 
     @property
     def formatted_id(self) -> str:
-        """Return id with prefix."""
+
         return f"CRAG-{self.crag_id:06d}"
 
     @property
     def bucket_path(self):
-        """
-        Returns the full bucket path for this user
-        """
+
         return f"crags/{self.formatted_id}"
 
     @property
     def images_bucket_path(self):
-        """
-        Returns the full bucket path for this user's uploaded image.
-        Example: 'users/<user_id>/images/'
-        """
+
         if not self.bucket_path:
             return None
         return f"{self.bucket_path}/images"
 
     @property
     def images_download_urls(self):
-        """
-        Returns the download URL for the user's profile picture.
-        Returns None if no profile picture is set.
-        """
+
         if not self.images_bucket_path:
             return None
         try:

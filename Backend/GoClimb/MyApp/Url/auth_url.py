@@ -1,5 +1,3 @@
-# Url/auth_url.py
-
 from django.urls import path
 
 from MyApp.Boundary.auth_boundary import (

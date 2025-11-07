@@ -6,15 +6,13 @@ from MyApp.Entity.climblog import ClimbLog
 from django.db.models import Count
 from MyApp.Utils.helper import PrefixedIDConverter
 
-
 def get_crag_info(crag_id: str) -> Optional[Crag]:
-    """Fetch a single crag object"""
+
     raw_id = PrefixedIDConverter.to_raw_id(crag_id)
     return Crag.objects.filter(crag_id=raw_id).first()
 
-
 def get_monthly_ranking(count: int) -> list:
-    """Fetch top crags by number of climbs in the past month"""
+
     if count < 1:
         raise ValueError("count must be a positive integer")
 
@@ -33,7 +31,6 @@ def get_monthly_ranking(count: int) -> list:
         if crag_obj:
             crag_list.append(crag_obj)
     return crag_list
-
 
 def get_trending_crags(count: int) -> list[dict[str, Any]]:
     if count < 1:
@@ -89,10 +86,8 @@ def get_trending_crags(count: int) -> list[dict[str, Any]]:
                 }
             )
 
-    # Sort by growth_rate descending and limit to requested count
     trending_list.sort(key=lambda x: x["growth_rate"], reverse=True)
     return trending_list[:count]
-
 
 def get_random_crag(count: int = 10, blacklist: list[str] | None = None):
 

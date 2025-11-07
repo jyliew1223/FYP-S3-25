@@ -1,5 +1,3 @@
-# Url/crag_url.py
-
 from django.urls import path
 
 from MyApp.Boundary.crag_boundary import (

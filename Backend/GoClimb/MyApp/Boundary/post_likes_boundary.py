@@ -1,206 +1,242 @@
-# MyApp/Boundary/post_likes_boundary.py
-
-from typing import Any, Dict, Optional, List
+from typing import List, Dict
 from django.db import IntegrityError
 from rest_framework.decorators import api_view
+from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status
 
 from MyApp.Entity.post import Post
-from MyApp.Entity.post_likes import PostLike
+from MyApp.Controller import post_likes_controller
 from MyApp.Serializer.serializers import PostLikeSerializer
-from MyApp.Firebase.helpers import authenticate_app_check_token  # app-check
-from MyApp.Utils.helper import PrefixedIDConverter
-
+from MyApp.Firebase.helpers import authenticate_app_check_token
 
 @api_view(["POST"])
-def like_post_view(request):
-    """
-    INPUT:  { "post_id": 123 | "POST-123", "user_id": "<uuid or string>" }
-    OUTPUT: 200 OK on success
-    """
+def like_post_view(request: Request) -> Response:
+
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    post_id = request.data.get("post_id")
+    user_id = request.data.get("user_id", "").strip() if isinstance(request.data.get("user_id"), str) else ""
+
+    if post_id is None or not user_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {
+                    "post_id": "This field is required." if post_id is None else None,
+                    "user_id": "This field is required." if not user_id else None,
+                },
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     try:
-        auth = authenticate_app_check_token(request)
-        if not auth.get("success"):
-            return Response(
-                {"success": False, "message": auth.get("message", "Unauthorized.")},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
 
-        post_id = request.data.get("post_id")
-        user_id = request.data.get("user_id").strip()
+        post_like = post_likes_controller.like_post(post_id, user_id)
 
-        if post_id is None or not isinstance(user_id, str) or not user_id.strip():
-            return Response(
-                {
-                    "success": False,
-                    "message": "Invalid input.",
-                    "errors": {
-                        "post_id": "Must be an integer or 'POST-<int>'.",
-                        "user_id": "Must be a non-empty string.",
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            serializer = PostLikeSerializer(data=request.data)
-
-            if serializer.is_valid():
-                serializer.save()
-                return Response(
-                    {"success": True, "data": {}, "message": "Post liked", "errors": []},
-                    status=status.HTTP_200_OK,
-                )
-
-            return Response(
-                {
-                    "success": False,
-                    "message": "Invalid input.",
-                    "errors": serializer.errors,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        except Post.DoesNotExist:
-            return Response(
-                {
-                    "success": False,
-                    "message": "Post not found.",
-                    "errors": {"post_id": "Invalid ID."},
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        except IntegrityError as ie:
-            return Response(
-                {
-                    "success": False,
-                    "message": "IntegrityError",
-                    "errors": ie,
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-    except Exception as e:
-            return Response(
-                {
-                    "success": False,
-                    "message": "IntegrityError",
-                    "errors": e,
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-@api_view(["POST"])
-def unlike_post_view(request):
-    """
-    INPUT:  { "post_id": 123 | "POST-123", "user_id": "<uuid or string>" }
-    OUTPUT: 200 OK even if like didn’t exist (idempotent)
-    """
-    try:
-        auth = authenticate_app_check_token(request)
-        if not auth.get("success"):
-            return Response(
-                {"success": False, "message": auth.get("message", "Unauthorized.")},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
-
-        post_id = request.data.get("post_id")
-        user_id = request.data.get("user_id")
-
-        if post_id is None or not isinstance(user_id, str) or not user_id.strip():
-            return Response(
-                {
-                    "success": False,
-                    "message": "Invalid input.",
-                    "errors": {
-                        "post_id": "Must be an integer or 'POST-<int>'.",
-                        "user_id": "Must be a non-empty string.",
-                    },
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        post_id = PrefixedIDConverter.to_raw_id(post_id)
-        PostLike.objects.filter(post_id=post_id, user_id=user_id.strip()).delete()
+        serializer = PostLikeSerializer(post_like)
 
         return Response(
-            {"success": True, "data": {}, "message": "Post unliked", "errors": []},
+            {
+                "success": True,
+                "message": "Post liked successfully.",
+                "data": serializer.data,
+            },
             status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"validation": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Post.DoesNotExist:
+        return Response(
+            {
+                "success": False,
+                "message": "Post not found.",
+                "errors": {"post_id": "Invalid ID."},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except IntegrityError:
+        return Response(
+            {
+                "success": False,
+                "message": "Post already liked by this user.",
+                "errors": {"duplicate": "Like already exists."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
     except Exception as e:
         return Response(
             {
                 "success": False,
-                "message": str(e),
-                "errors": {"Exception": str(e)},
+                "message": "An error occurred while liking post.",
+                "errors": {"exception": str(e)},
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+@api_view(["POST"])
+def unlike_post_view(request: Request) -> Response:
 
-@api_view(["GET"])
-def post_likes_count_view(request):
-    """
-    QUERY:  ?post_id=123 or ?post_id=POST-123
-    OUTPUT: { "count": <int> }
-    """
-    auth = authenticate_app_check_token(request)
-    if not auth.get("success"):
-        return Response(
-            {"success": False, "message": auth.get("message", "Unauthorized.")},
-            status=status.HTTP_401_UNAUTHORIZED,
-        )
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    post_id = request.query_params.get("post_id")
-    if post_id is None:
+    post_id = request.data.get("post_id")
+    user_id = request.data.get("user_id", "").strip() if isinstance(request.data.get("user_id"), str) else ""
+
+    if post_id is None or not user_id:
         return Response(
             {
                 "success": False,
-                "message": "Invalid post_id.",
-                "errors": {"post_id": "Must be an integer or 'POST-<int>'."},
+                "message": "Invalid input.",
+                "errors": {
+                    "post_id": "This field is required." if post_id is None else None,
+                    "user_id": "This field is required." if not user_id else None,
+                },
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    raw_id = PrefixedIDConverter.to_raw_id(post_id)
-    count = PostLike.objects.filter(post_id=raw_id).count()
-    return Response(
-        {"success": True, "data": {"count": count}, "message": "OK", "errors": []},
-        status=status.HTTP_200_OK,
-    )
+    try:
 
+        post_likes_controller.unlike_post(post_id, user_id)
 
-@api_view(["GET"])
-def post_likes_users_view(request):
-    """
-    QUERY:  ?post_id=123 (or POST-123)
-    OUTPUT: { "users": [ {"user_id": "u-1"}, {"user_id": "u-2"}, ... ] }
-    """
-    auth = authenticate_app_check_token(request)
-    if not auth.get("success"):
         return Response(
-            {"success": False, "message": auth.get("message", "Unauthorized.")},
-            status=status.HTTP_401_UNAUTHORIZED,
+            {
+                "success": True,
+                "message": "Post unliked successfully.",
+            },
+            status=status.HTTP_200_OK,
         )
 
-    post_id = request.query_params.get("post_id")
-    if post_id is None:
+    except ValueError as ve:
         return Response(
             {
                 "success": False,
-                "message": "Invalid post_id.",
-                "errors": {"post_id": "Must be an integer or 'POST-<int>'."},
+                "message": "Invalid input.",
+                "errors": {"validation": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while unliking post.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@api_view(["GET"])
+def post_likes_count_view(request: Request) -> Response:
+
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    post_id = request.query_params.get("post_id", "").strip()
+    if not post_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"post_id": "This field is required."},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Fetch user_ids and wrap each as an object to match the test expectation    
-    raw_id = PrefixedIDConverter.to_raw_id(post_id)
-    user_ids = PostLike.objects.filter(post_id=raw_id).values_list(
-        "user_id", flat=True
-    )
-    users: List[Dict[str, str]] = [{"user_id": uid} for uid in user_ids]
+    try:
 
-    return Response(
-        {"success": True, "data": {"users": users}, "message": "OK", "errors": []},
-        status=status.HTTP_200_OK,
-    )
+        count = post_likes_controller.get_post_likes_count(post_id)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Likes count fetched successfully.",
+                "data": {"count": count},
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"post_id": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while fetching likes count.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@api_view(["GET"])
+def post_likes_users_view(request: Request) -> Response:
+
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    post_id = request.query_params.get("post_id", "").strip()
+    if not post_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"post_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+
+        user_ids = post_likes_controller.get_post_likes_users(post_id)
+
+        users: List[Dict[str, str]] = [{"user_id": uid} for uid in user_ids]
+
+        return Response(
+            {
+                "success": True,
+                "message": "Likes users fetched successfully.",
+                "data": {"users": users},
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"post_id": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while fetching likes users.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

@@ -1,22 +1,18 @@
-# MyApp/Serializer/serializers.py
-
 from rest_framework import serializers
 from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
 from MyApp.Entity.climblog import ClimbLog
 from MyApp.Entity.post import Post
 from MyApp.Entity.route import Route
-from MyApp.Entity.post_likes import PostLike
-from MyApp.Entity.crag_model import CragModel
-from MyApp.Entity.model_route_data import ModelRouteData
-
+from MyApp.Entity.postlikes import PostLike
+from MyApp.Entity.cragmodel import CragModel
+from MyApp.Entity.modelroutedata import ModelRouteData
 
 from MyApp.Utils.helper import PrefixedIDConverter
 
-
 class FormattedPKRelatedField(serializers.PrimaryKeyRelatedField):
     def to_internal_value(self, data):
-        # convert formatted ID like "POST-000002" -> raw int 2
+
         if isinstance(data, str) and "-" in data:
             try:
                 raw_id = PrefixedIDConverter.to_raw_id(data)
@@ -24,7 +20,6 @@ class FormattedPKRelatedField(serializers.PrimaryKeyRelatedField):
             except ValueError:
                 raise serializers.ValidationError("Invalid formatted ID")
         return super().to_internal_value(data)
-
 
 class UserSerializer(serializers.ModelSerializer):
     profile_picture_url = serializers.ReadOnlyField(
@@ -45,16 +40,15 @@ class UserSerializer(serializers.ModelSerializer):
 
         read_only_fields = ["user_id", "profile_picture_url"]
 
-
 class CragSerializer(serializers.ModelSerializer):
-    crag_id = serializers.SerializerMethodField()  # return formatted_id
+    crag_id = serializers.SerializerMethodField()
     images_urls = serializers.SerializerMethodField()
     location_details = serializers.JSONField()
 
     class Meta:
         model = Crag
         fields = [
-            "crag_id",  # formatted ID
+            "crag_id",
             "name",
             "location_lat",
             "location_lon",
@@ -65,11 +59,11 @@ class CragSerializer(serializers.ModelSerializer):
         read_only_fields = ["crag_id", "images_urls"]
 
     def get_crag_id(self, obj):
-        """Return the formatted ID instead of raw crag_id"""
+
         return obj.formatted_id
 
     def get_images_urls(self, obj):
-        """Return a list of download URLs for the crag images"""
+
         urls = obj.images_download_urls
         if urls is None:
             return []
@@ -77,7 +71,6 @@ class CragSerializer(serializers.ModelSerializer):
 
     def get_location_details(self, obj):
         return obj.location_details
-
 
 class RouteSerializer(serializers.ModelSerializer):
     crag_id = FormattedPKRelatedField(
@@ -91,7 +84,7 @@ class RouteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
         fields = [
-            "route_id",  # this will return formatted_id
+            "route_id",
             "route_name",
             "route_grade",
             "crag",
@@ -109,9 +102,8 @@ class RouteSerializer(serializers.ModelSerializer):
             return []
         return urls
 
-
 class ClimbLogSerializer(serializers.ModelSerializer):
-    log_id = serializers.SerializerMethodField()  # formatted ID
+    log_id = serializers.SerializerMethodField()
 
     user = UserSerializer(read_only=True)
     route = RouteSerializer(read_only=True)
@@ -126,7 +118,7 @@ class ClimbLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClimbLog
         fields = [
-            "log_id",  # formatted
+            "log_id",
             "user",
             "route",
             "date_climbed",
@@ -138,7 +130,6 @@ class ClimbLogSerializer(serializers.ModelSerializer):
 
     def get_log_id(self, obj):
         return obj.formatted_id
-
 
 class PostSerializer(serializers.ModelSerializer):
     post_id = serializers.SerializerMethodField()
@@ -153,7 +144,7 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = [
-            "post_id",  # will return formatted_id
+            "post_id",
             "user",
             "title",
             "content",
@@ -174,7 +165,6 @@ class PostSerializer(serializers.ModelSerializer):
             return []
         return urls
 
-
 class PostLikeSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     post = PostSerializer(read_only=True)
@@ -189,7 +179,7 @@ class PostLikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostLike
         fields = [
-            "id",  # automatically generated PK
+            "id",
             "post",
             "user",
             "created_at",
@@ -198,9 +188,8 @@ class PostLikeSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at", "post", "user"]
 
-
 class CragModelSerializer(serializers.ModelSerializer):
-    model_id = serializers.SerializerMethodField()  # return formatted_id
+    model_id = serializers.SerializerMethodField()
 
     user = UserSerializer(read_only=True)
     crag = CragSerializer(read_only=True)
@@ -217,7 +206,7 @@ class CragModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = CragModel
         fields = [
-            "model_id",  # formatted
+            "model_id",
             "crag",
             "user",
             "status",
@@ -236,11 +225,10 @@ class CragModelSerializer(serializers.ModelSerializer):
             return {}
         return urls
 
-
 class ModelRouteDataSerializer(serializers.ModelSerializer):
     model_route_data_id = (
         serializers.SerializerMethodField()
-    )  # will return formatted_id
+    )
 
     user = UserSerializer(read_only=True)
     route = RouteSerializer(read_only=True)
@@ -261,7 +249,7 @@ class ModelRouteDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModelRouteData
         fields = [
-            "model_route_data_id",  # formatted
+            "model_route_data_id",
             "model",
             "route",
             "user",
@@ -281,12 +269,10 @@ class ModelRouteDataSerializer(serializers.ModelSerializer):
     def get_model_route_data_id(self, obj):
         return obj.formatted_id
 
-
-from MyApp.Entity.post_comment import PostComment
-
+from MyApp.Entity.postcomment import PostComment
 
 class PostCommentSerializer(serializers.ModelSerializer):
-    comment_id = serializers.SerializerMethodField()  # will return formatted_id
+    comment_id = serializers.SerializerMethodField()
 
     post = PostSerializer(read_only=True)
     user = UserSerializer(read_only=True)
@@ -301,7 +287,7 @@ class PostCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostComment
         fields = [
-            "comment_id",  # formatted
+            "comment_id",
             "post",
             "user",
             "content",

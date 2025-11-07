@@ -1,19 +1,11 @@
-# MyApp/Utils/helper.py
 from typing import Any, Dict
 from rest_framework.request import Request
 
-# Firebase Admin SDK imports
 import firebase_admin
 from firebase_admin import auth, credentials
 
-
-# ------------------------------
-# Firebase ID Token verification
-# ------------------------------
 def verify_id_token(id_token: str) -> Dict[str, Any]:
-    """
-    Verifies Firebase ID token and returns UID and status.
-    """
+
     if not id_token or not isinstance(id_token, str):
         return {
             "success": False,
@@ -57,7 +49,6 @@ def verify_id_token(id_token: str) -> Dict[str, Any]:
             "message": f"Failed to verify token: {str(e)}",
             "errors": {},
         }
-
 
 class PrefixedIDConverter:
     @staticmethod

@@ -1,5 +1,3 @@
-# Entity/post_likes.py
-
 from django.db import models
 from MyApp.Entity.user import User
 from MyApp.Entity.post import Post
@@ -12,7 +10,7 @@ class PostLike(models.Model):
     class Meta:
         db_table = "post_like"
         managed = True
-        unique_together = ("post", "user")  # prevent duplicate likes
+        unique_together = ("post", "user")
         indexes = [
-            models.Index(fields=["post", "user"]),  # fast lookup for likes
+            models.Index(fields=["post", "user"]),
         ]

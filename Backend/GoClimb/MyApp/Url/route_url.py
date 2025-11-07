@@ -1,5 +1,3 @@
-# Url/post_comment_url.py
-
 from django.urls import path
 
 from MyApp.Boundary.route_boundary import (

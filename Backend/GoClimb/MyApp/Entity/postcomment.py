@@ -1,9 +1,6 @@
-# Entity/post_comment.py
-
 from django.db import models
 from MyApp.Entity.user import User
 from MyApp.Entity.post import Post
-
 
 class PostComment(models.Model):
     comment_id = models.AutoField(primary_key=True)
@@ -17,12 +14,12 @@ class PostComment(models.Model):
 
     @property
     def formatted_id(self) -> str:
-        """Return id with prefix."""
+
         return f"COMMENT-{self.comment_id:06d}"
 
     class Meta:
         db_table = "post_comment"
         managed = True
         indexes = [
-            models.Index(fields=["post", "user"]),  # fast lookup for likes
+            models.Index(fields=["post", "user"]),
         ]

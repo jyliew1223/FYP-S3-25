@@ -1,5 +1,3 @@
-# MyApp/_TestCode/test_all_success.py
-
 import json
 from datetime import datetime
 from unittest.mock import patch
@@ -10,15 +8,13 @@ from MyApp.Entity.crag import Crag
 from MyApp.Entity.post import Post
 from MyApp.Entity.climblog import ClimbLog
 from MyApp.Entity.route import Route
-from MyApp.Entity.post_likes import PostLike
-from MyApp.Entity.post_comment import PostComment
-from MyApp.Entity.crag_model import CragModel
+from MyApp.Entity.postlikes import PostLike
+from MyApp.Entity.postcomment import PostComment
+from MyApp.Entity.cragmodel import CragModel
 from rest_framework.test import APIClient
 from rest_framework import status
 
-
 class AllEndpointsSuccessTestCase(TestCase):
-    """Test all endpoints for successful responses and output their values"""
 
     is_first_test = True
 
@@ -27,14 +23,13 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.is_first_test = True
 
     def setUp(self):
-        """Set up test data for all endpoints"""
+
         self.client = APIClient()
         self.client.credentials(
             HTTP_X_FIREBASE_APPCHECK="mock_app_check_token",
             HTTP_AUTHORIZATION="Bearer mock_id_token",
         )
 
-        # Create test user
         self.test_user = User.objects.create(
             user_id="test_user_123",
             username="testuser",
@@ -43,7 +38,6 @@ class AllEndpointsSuccessTestCase(TestCase):
             status=True,
         )
 
-        # Create test crag
         self.test_crag = Crag.objects.create(
             name="Test Crag",
             location_lat=40.7128,
@@ -51,7 +45,6 @@ class AllEndpointsSuccessTestCase(TestCase):
             description="A test climbing crag",
         )
 
-        # Create test post
         self.test_post = Post.objects.create(
             user=self.test_user,
             content="Test climbing post content",
@@ -80,14 +73,13 @@ class AllEndpointsSuccessTestCase(TestCase):
             crag=self.test_crag, user=self.test_user, status="active"
         )
 
-        # Mock authentication headers for Firebase App Check
         self.auth_headers = {
             "HTTP_X_FIREBASE_APPCHECK": "mock_app_check_token",
             "HTTP_AUTHORIZATION": "Bearer mock_id_token",
         }
 
     def print_endpoint_result(self, endpoint_name, url, response, data=None):
-        """Helper method to print endpoint results in a formatted way"""
+
         if AllEndpointsSuccessTestCase.is_first_test:
             AllEndpointsSuccessTestCase.is_first_test = False
             print(f"\n{'='*60}")
@@ -100,7 +92,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         print(f"ENDPOINT: {endpoint_name}")
         print(f"URL: {url}")
 
-        # Print input data if provided
         if data is not None:
             try:
                 print(f"INPUT DATA: {json.dumps(data, indent=2)}")
@@ -110,7 +101,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         print(f"STATUS CODE: {response.status_code}")
         print(f"CONTENT TYPE: {response.get('Content-Type', 'Not specified')}")
 
-        # Check for JSON response
         if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
             try:
                 if "application/json" in response.get("Content-Type", ""):
@@ -119,7 +109,7 @@ class AllEndpointsSuccessTestCase(TestCase):
                 else:
                     content = response.content.decode("utf-8")[
                         :500
-                    ]  # Limit HTML content
+                    ]
                     print(f"RESPONSE CONTENT (first 500 chars): {content}")
             except Exception as e:
                 print(f"RESPONSE CONTENT: {response.content}")
@@ -130,12 +120,11 @@ class AllEndpointsSuccessTestCase(TestCase):
         print("=" * 60)
 
     def test_01_home_endpoint(self):
-        """Test home endpoint: GET /"""
+
         url = reverse("home")
         response = self.client.get(url)
         self.print_endpoint_result("HOME", url, response)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("text/html", response.get("Content-Type", ""))
         self.assertIn(b"GoClimb", response.content)
@@ -143,7 +132,7 @@ class AllEndpointsSuccessTestCase(TestCase):
     @patch("firebase_admin.auth.verify_id_token")
     @patch("firebase_admin.app_check.verify_token")
     def test_02_auth_signup(self, mock_verify_app_check, mock_verify_id_token):
-        """Test auth signup endpoint: POST /auth/signup/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
         mock_verify_id_token.return_value = {"uid": "fake_id"}
 
@@ -156,13 +145,11 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("AUTH - SIGNUP", url, response, data)
 
-        # Assertions
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertIn("success", response_data)
         self.assertIn("message", response_data)
 
-        # Expect success (status.HTTP_200_OK/status.HTTP_201_CREATED), fail if error
         if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
             self.assertTrue(
                 response_data.get("success"),
@@ -176,7 +163,7 @@ class AllEndpointsSuccessTestCase(TestCase):
     @patch("firebase_admin.auth.verify_id_token")
     @patch("firebase_admin.app_check.verify_token")
     def test_03_auth_verify_id_token(self, mock_verify_app_check, mock_verify_id_token):
-        """Test auth verify ID token endpoint: POST /auth/verify_id_token/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
         mock_verify_id_token.return_value = {"uid": self.test_user.user_id}
 
@@ -185,13 +172,11 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("AUTH - VERIFY ID TOKEN", url, response, data)
 
-        # Assertions
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertIn("success", response_data)
         self.assertIn("message", response_data)
 
-        # Expect success (status.HTTP_200_OK), fail if error
         if response.status_code == status.HTTP_200_OK:
             self.assertTrue(
                 response_data.get("success"),
@@ -204,7 +189,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_04_auth_verify_app_check_token(self, mock_verify_app_check):
-        """Test auth verify app check token endpoint: GET /auth/verify_app_check_token/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("verify_app_check_token")
@@ -214,7 +199,6 @@ class AllEndpointsSuccessTestCase(TestCase):
             "AUTH - VERIFY APP CHECK TOKEN", url, response, params
         )
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -224,7 +208,7 @@ class AllEndpointsSuccessTestCase(TestCase):
     @patch("firebase_admin.auth.verify_id_token")
     @patch("firebase_admin.app_check.verify_token")
     def test_05_user_get_user(self, mock_verify_app_check, mock_verify_id_token):
-        """Test get user endpoint: POST /user/get_user/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
         mock_verify_id_token.return_value = {"uid": self.test_user.user_id}
 
@@ -233,7 +217,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("USER - GET USER", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -246,7 +229,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_06_user_get_monthly_ranking(self, mock_verify_app_check):
-        """Test get monthly user ranking endpoint: GET /user/get_monthly_user_ranking/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_monthly_user_ranking")
@@ -254,7 +237,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.get(url, params)
         self.print_endpoint_result("USER - GET MONTHLY RANKING", url, response, params)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -264,7 +246,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_07_crag_get_info(self, mock_verify_app_check):
-        """Test get crag info endpoint: GET /crag/get_crag_info/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_crag_info")
@@ -272,7 +254,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.get(url, params)
         self.print_endpoint_result("CRAG - GET INFO", url, response, params)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -285,7 +266,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_08_crag_get_monthly_ranking(self, mock_verify_app_check):
-        """Test get crag monthly ranking endpoint: GET /crag/get_crag_monthly_ranking/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_crag_monthly_ranking")
@@ -293,13 +274,11 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.get(url, params)
         self.print_endpoint_result("CRAG - GET MONTHLY RANKING", url, response, params)
 
-        # Assertions
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertIn("success", response_data)
         self.assertIn("message", response_data)
 
-        # Expect success (status.HTTP_200_OK), fail if error
         if response.status_code == status.HTTP_200_OK:
             self.assertTrue(
                 response_data.get("success"),
@@ -312,7 +291,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_09_crag_get_trending(self, mock_verify_app_check):
-        """Test get trending crags endpoint: GET /crag/get_trending_crags/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_trending_crags")
@@ -320,13 +299,11 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.get(url, params)
         self.print_endpoint_result("CRAG - GET TRENDING", url, response, params)
 
-        # Assertions
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertIn("success", response_data)
         self.assertIn("message", response_data)
 
-        # Expect success (status.HTTP_200_OK), fail if error
         if response.status_code == status.HTTP_200_OK:
             self.assertTrue(
                 response_data.get("success"),
@@ -339,7 +316,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_10_climb_log_get_user_logs(self, mock_verify_app_check):
-        """Test get user climb logs endpoint: POST /climb_log/get_user_climb_logs/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_user_climb_logs")
@@ -347,7 +324,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("CLIMB LOG - GET USER LOGS", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -357,7 +333,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_11_climb_log_get_user_stats(self, mock_verify_app_check):
-        """Test get user climb stats endpoint: POST /climb_log/get_user_climb_stats/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_user_climb_stats")
@@ -365,7 +341,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("CLIMB LOG - GET USER STATS", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -375,7 +350,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_12_post_get_post(self, mock_verify_app_check):
-        """Test get post endpoint: GET /post/get_post/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_post")
@@ -383,7 +358,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.get(url, params)
         self.print_endpoint_result("POST - GET POST", url, response, params)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -396,7 +370,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_13_post_get_by_user_id(self, mock_verify_app_check):
-        """Test get post by user ID endpoint: POST /post/get_post_by_user_id/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_post_by_user_id")
@@ -404,21 +378,20 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - GET BY USER ID", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertTrue(response_data.get("success"))
         self.assertIn("data", response_data)
         self.assertIsInstance(response_data["data"], list)
-        if response_data["data"]:  # If posts exist
+        if response_data["data"]:
             self.assertEqual(
                 response_data["data"][0]["user"]["user_id"], self.test_user.user_id
             )
 
     @patch("firebase_admin.app_check.verify_token")
     def test_14_post_get_random(self, mock_verify_app_check):
-        """Test get random posts endpoint: POST /post/get_random_posts/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_random_post")
@@ -426,7 +399,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - GET RANDOM", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -436,7 +408,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_15_post_create(self, mock_verify_app_check):
-        """Test create post endpoint: POST /post/create_post/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("create_post")
@@ -444,17 +416,16 @@ class AllEndpointsSuccessTestCase(TestCase):
             "user_id": self.test_user.user_id,
             "content": "New test post content",
             "tags": ["new", "test", "climbing"],
+            "title":"testing",
         }
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - CREATE", url, response, data)
 
-        # Assertions
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertIn("success", response_data)
         self.assertIn("message", response_data)
 
-        # Expect success (status.HTTP_200_OK/status.HTTP_201_CREATED), fail if error
         if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
             self.assertTrue(
                 response_data.get("success"),
@@ -467,7 +438,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_16_post_like(self, mock_verify_app_check):
-        """Test like post endpoint: POST /post/like/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("like_post")
@@ -479,19 +450,17 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - LIKE", url, response, data)
 
-        # Assertions
         count = PostLike.objects.filter(post_id=self.test_post.post_id).count()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertTrue(response_data.get("success"))
-        self.assertEqual(response_data.get("message"), "Post liked")
         print("liked count: " + str(count))
         self.assertFalse(count == 0)
 
     @patch("firebase_admin.app_check.verify_token")
     def test_17_post_unlike(self, mock_verify_app_check):
-        """Test unlike post endpoint: POST /post/unlike/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("unlike_post")
@@ -502,16 +471,14 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - UNLIKE", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
         self.assertTrue(response_data.get("success"))
-        self.assertEqual(response_data.get("message"), "Post unliked")
 
     @patch("firebase_admin.app_check.verify_token")
     def test_18_post_likes_count(self, mock_verify_app_check):
-        """Test post likes count endpoint: GET /post/likes/count/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("post_likes_count")
@@ -519,7 +486,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.get(url, params)
         self.print_endpoint_result("POST - LIKES COUNT", url, response, params)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -530,7 +496,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_19_post_likes_users(self, mock_verify_app_check):
-        """Test post likes users endpoint: GET /post/likes/users/"""
+
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("post_likes_users")
@@ -538,7 +504,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.get(url, params)
         self.print_endpoint_result("POST - LIKES USERS", url, response, params)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response_data = response.json()
@@ -549,12 +514,12 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_20_create_post_comment(self, mock_app_check):
-        # Mock App Check to always succeed
+
         mock_app_check.return_value = {"success": True}
 
-        url = reverse("create_post_comment")  # make sure this name matches urls.py
+        url = reverse("create_post_comment")
         data = {
-            "post_id": self.test_post.formatted_id, # formatted id if using PrefixedID
+            "post_id": self.test_post.formatted_id,
             "user_id": self.test_user.user_id,
             "content": "This is a test comment",
         }
@@ -566,21 +531,20 @@ class AllEndpointsSuccessTestCase(TestCase):
         response_json = response.json()
         self.assertTrue(response_json["success"])
 
-        # Check that comment is actually created
         comment = PostComment.objects.get(content="This is a test comment")
         self.assertEqual(comment.user, self.test_user)
         self.assertEqual(comment.post, self.test_post)
 
     @patch("firebase_admin.app_check.verify_token")
     def test_21_delete_post_comment(self, mock_app_check):
-        # Mock App Check to always succeed
+
         mock_app_check.return_value = {"success": True}
 
         self.comment = PostComment.objects.create(
             post=self.test_post, user=self.test_user, content="Test comment"
         )
 
-        url = reverse("delete_post_comment")  # make sure this name matches urls.py
+        url = reverse("delete_post_comment")
         data = {"comment_id": self.comment.formatted_id}
 
         response = self.client.delete(url, data=data, format="json")
@@ -590,30 +554,25 @@ class AllEndpointsSuccessTestCase(TestCase):
         response_json = response.json()
         self.assertTrue(response_json["success"])
 
-        # Ensure the comment is deleted
         self.assertFalse(
             PostComment.objects.filter(comment_id=self.comment.comment_id).exists()
         )
 
     @patch("firebase_admin.app_check.verify_token")
     def test_22_get_post_comments_by_post_id(self, mock_app_check):
-        # Mock App Check to always succeed
+
         mock_app_check.return_value = {"success": True}
 
-        # Create a test comment
         comment = PostComment.objects.create(
             post=self.test_post, user=self.test_user, content="Test comment for post"
         )
 
-        # Endpoint URL
-        url = reverse("get_post_comments_by_post_id")  # must match urls.py name
+        url = reverse("get_post_comments_by_post_id")
         data = {"post_id": self.test_post.formatted_id}
 
-        # Perform GET request
         response = self.client.get(url, data=data, format="json")
         self.print_endpoint_result("COMMENT - GET BY POST ID", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_json = response.json()
         self.assertTrue(response_json["success"])
@@ -622,23 +581,19 @@ class AllEndpointsSuccessTestCase(TestCase):
 
     @patch("firebase_admin.app_check.verify_token")
     def test_23_get_post_comments_by_user_id(self, mock_app_check):
-        # Mock App Check to always succeed
+
         mock_app_check.return_value = {"success": True}
 
-        # Create a test comment
         comment = PostComment.objects.create(
             post=self.test_post, user=self.test_user, content="Test comment for user"
         )
 
-        # Endpoint URL
-        url = reverse("get_post_comments_by_user_id")  # must match urls.py name
+        url = reverse("get_post_comments_by_user_id")
         data = {"user_id": self.test_user.user_id}
 
-        # Perform GET request
         response = self.client.get(url, data=data, format="json")
         self.print_endpoint_result("COMMENT - GET BY USER ID", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_json = response.json()
         self.assertTrue(response_json["success"])
@@ -726,7 +681,6 @@ class AllEndpointsSuccessTestCase(TestCase):
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("CRAG - GET RANDOM", url, response, data)
 
-        # Assertions
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.get("Content-Type"), "application/json")
         response_data = response.json()

@@ -1,15 +1,12 @@
-# MyApp/Entity/model_route_data.py
-
 from django.db import models
 from MyApp.Entity.user import User
-from MyApp.Entity.crag_model import CragModel
+from MyApp.Entity.cragmodel import CragModel
 from MyApp.Entity.route import Route
 from typing import Tuple, Dict, Any
 from MyApp.Firebase.helpers import (
     delete_bucket_folder,
     get_download_urls_json_in_folder,
 )
-
 
 class ModelRouteData(models.Model):
     class Meta:
@@ -28,7 +25,7 @@ class ModelRouteData(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        related_name="model_route_data",  # so can do user.crag_models.all()
+        related_name="model_route_data",
     )
 
     route = models.ForeignKey(
@@ -48,5 +45,5 @@ class ModelRouteData(models.Model):
 
     @property
     def formatted_id(self) -> str:
-        """Return id with prefix."""
+
         return f"ROUTE_DATA-{self.model_route_data_id:06d}"

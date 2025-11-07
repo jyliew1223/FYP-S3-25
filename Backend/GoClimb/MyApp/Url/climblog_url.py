@@ -1,5 +1,3 @@
-# Url/climb_log_url.py
-
 from django.urls import path
 
 from MyApp.Boundary.climblog_boundary import (

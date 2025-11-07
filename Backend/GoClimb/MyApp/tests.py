@@ -3,14 +3,11 @@ import django
 import unittest
 from datetime import datetime
 
-# Ensure Django is setup
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "MyApp.settings")
 django.setup()
 
-# Import all test classes from _TestCode
-from MyApp._TestCode import *  
+from MyApp._TestCode import *
 
-# Collect TestCase classes
 test_classes = [
     obj for name, obj in globals().items()
     if isinstance(obj, type) and issubclass(obj, unittest.TestCase)
