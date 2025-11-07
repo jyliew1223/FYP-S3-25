@@ -11,7 +11,7 @@ class BaseApiPayload {
    * Field mapping configuration for JSON deserialization
    * Override this in subclasses to change JSON key mappings
    */
-  static get fieldMapping() {}
+  static get fieldMapping() { }
 
   /**
    * Converts this instance to JSON using field mapping
@@ -39,7 +39,7 @@ class BaseApiModel {
    * Field mapping configuration for JSON deserialization
    * Override this in subclasses to change JSON key mappings
    */
-  static get fieldMapping() {}
+  static get fieldMapping() { }
 
   /**
    * Creates a new BaseApiResponse instance from JSON data
@@ -240,7 +240,7 @@ class CustomApiRequest {
       } catch (err) {
         console.error(
           `Failed to parse JSON: ${err.message}\n` +
-            `Raw response: ${responseText}`,
+          `Raw response: ${responseText}`,
         );
       }
 
@@ -248,44 +248,170 @@ class CustomApiRequest {
       this.#response.status = res.status;
 
       if (res.ok) {
+        console.log(
+          `Request Success:\n` + `${this.logFullJsonResponse()}`,
+        );
         return true;
       } else {
         console.error(
-          `Request Failed:\n` + `${this.logResponse(res, ResponseClass)}`,
+          `Request Success:\n` + `${this.logFullJsonResponse()}`,
         );
         return false;
       }
     } catch (error) {
       console.error(
         `Network error: ${error.message || error}\n` +
-          `Details: ${error.stack || 'No stack trace available'}`,
+        `Details: ${error.stack || 'No stack trace available'}`,
       );
       return false;
     }
   }
 
+  logFullJsonResponse(prefix = this.constructor.name) {
+    const divider = '─'.repeat(60);
+    let log = `\n${divider}\n`;
+    log += `📡 ${prefix}: Full HTTP Request & Response Log\n`;
+    log += `${divider}\n`;
+    log += `  Method        : ${this.#method}\n`;
+    log += `  Base URL      : ${this.#baseUrl}\n`;
+    log += `  Endpoint Path : ${this.#path}\n`;
+
+    const fullUrl = `${this.#baseUrl.replace(/\/$/, '')}/${this.#path.replace(
+      /^\//,
+      '',
+    )}`;
+    log += `  Full URL      : ${fullUrl}\n`;
+    log += `  Attach Token  : ${this.#attachAppCheckToken}\n`;
+
+    // Payload section
+    if (this.#payload) {
+      try {
+        const jsonStr =
+          typeof this.#payload === 'string'
+            ? this.#payload
+            : JSON.stringify(
+              typeof this.#payload.toJson === 'function'
+                ? this.#payload.toJson()
+                : this.#payload,
+              null,
+              2,
+            );
+        log += `  Payload       : ${jsonStr.replace(
+          /\n/g,
+          '\n                 ',
+        )}\n`;
+      } catch (err) {
+        log += `  Payload       : [Error stringifying payload: ${err.message}]\n`;
+      }
+    } else {
+      log += `  Payload       : (none)\n`;
+    }
+
+    log += `${divider}\n`;
+    log += `📬 Response Summary:\n`;
+
+    if (!this.#response) {
+      log += `  (Response object is null)\n`;
+      log += `${divider}\n`;
+    } else {
+      log += `  StatusCode    : ${this.#response.status}\n`;
+      log += `  Success       : ${this.#response.success ?? 'N/A'}\n`;
+      log += `  Message       : ${this.#response.message ?? 'No message'}\n`;
+      log += `  Errors        : ${this.#formatErrors(this.#response.errors)}\n`;
+
+      // Log child properties
+      // log += this.#logChildProperties(this.#response);
+    }
+
+    // Include raw JSON body at the end
+    log += `${divider}\n`;
+    log += `📦 Raw JSON Object:\n`;
+    if (this.#jsonObject) {
+      try {
+        log += JSON.stringify(this.#jsonObject, null, 2)
+          .split('\n')
+          .map(line => '  ' + line)
+          .join('\n');
+      } catch (err) {
+        log += `  [Error stringifying JSON: ${err.message}]\n`;
+      }
+    } else {
+      log += `  (No JSON object found)\n`;
+    }
+
+    log += `\n${divider}\n`;
+
+    return log;
+  }
+
+
   /**
-   * Logs the response details in a formatted way
-   * @param {Response} res - Fetch Response object
+   * Logs detailed request and response info in a formatted way
    * @param {string} [prefix=this.constructor.name] - Prefix for log messages
    * @returns {string} - Formatted log string
    */
   logResponse(prefix = this.constructor.name) {
-    if (!this.#response) return `${prefix}: Response is null.`;
+    const divider = '─'.repeat(60);
+    let log = `\n${divider}\n`;
+    log += `📡 ${prefix}: HTTP Request Summary\n`;
+    log += `${divider}\n`;
+    log += `  Method        : ${this.#method}\n`;
+    log += `  Base URL      : ${this.#baseUrl}\n`;
+    log += `  Endpoint Path : ${this.#path}\n`;
 
-    let log = `${prefix}: Response:\n`;
-    log += `\t${'StatusCode'.padEnd(12)}: ${this.#response.status}\n`;
-    log += `\t${'Success'.padEnd(12)}: ${
-      this.#response.success || 'Success not stated'
-    }\n`;
-    log += `\t${'Message'.padEnd(12)}: ${
-      this.#response.message || 'No message'
-    }\n`;
+    // Build and show full URL
+    const fullUrl = `${this.#baseUrl.replace(/\/$/, '')}/${this.#path.replace(
+      /^\//,
+      '',
+    )}`;
+    log += `  Full URL      : ${fullUrl}\n`;
+
+    log += `  Attach Token  : ${this.#attachAppCheckToken}\n`;
+
+    // Show payload (if any)
+    if (this.#payload) {
+      try {
+        const jsonStr =
+          typeof this.#payload === 'string'
+            ? this.#payload
+            : JSON.stringify(
+              typeof this.#payload.toJson === 'function'
+                ? this.#payload.toJson()
+                : this.#payload,
+              null,
+              2,
+            );
+        log += `  Payload       : ${jsonStr.replace(
+          /\n/g,
+          '\n                 ',
+        )}\n`;
+      } catch (err) {
+        log += `  Payload       : [Error stringifying payload: ${err.message}]\n`;
+      }
+    } else {
+      log += `  Payload       : (none)\n`;
+    }
+
+    log += `${divider}\n`;
+    log += `📬 Response:\n`;
+
+    if (!this.#response) {
+      log += `  (Response object is null)\n`;
+      log += `${divider}\n`;
+      return log;
+    }
+
+    log += `  StatusCode    : ${this.#response.status}\n`;
+    log += `  Success       : ${this.#response.success ?? 'N/A'}\n`;
+    log += `  Message       : ${this.#response.message ?? 'No message'}\n`;
+
+    // Log any child properties beyond the base response
     log += this.#logChildProperties(this.#response);
-    log += `\t${'Errors'.padEnd(12)}: ${this.#formatErrors(
-      this.#response.errors,
-    )}\n`;
 
+    // Include errors if any
+    log += `  Errors        : ${this.#formatErrors(this.#response.errors)}\n`;
+
+    log += `${divider}\n`;
     return log;
   }
 

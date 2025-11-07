@@ -60,4 +60,7 @@ export const API_ENDPOINTS = {
     GET_ROUTE_BY_ID: 'get_route_by_id',
     GET_ROUTES_BY_CRAG_ID: 'get_route_by_crag_id',
   }),
+  CRAG_MODEL: withBase('crag_model/',{
+    GET_MODELS_BY_CRAG_ID: 'get_models_by_crag_id'
+  })
 };

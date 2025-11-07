@@ -8,12 +8,14 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 
 import {
   fetchCommentsByPostId,
@@ -52,7 +54,7 @@ export default function PostDetail() {
 
   // watch auth state
   useEffect(() => {
-    const sub = auth().onAuthStateChanged((u) => setIsLoggedIn(!!u));
+    const sub = getAuth().onAuthStateChanged((u) => setIsLoggedIn(!!u));
     return sub;
   }, []);
 
@@ -62,7 +64,7 @@ export default function PostDetail() {
     (async () => {
       setLoading(true);
 
-      // fetch post + comments (skip like calls for faster loading)
+      // fetch post + comments + like status + like count
       const [pRes, cRes] = await Promise.all([
         fetchPostById(postId),
         fetchCommentsByPostId(postId)
@@ -76,11 +78,27 @@ export default function PostDetail() {
 
       if (!alive) return;
 
-      // Use post data as-is (like count from backend)
-      const updatedPost = pData;
+      if (pData) {
+        // Get current like count and user like status
+        const [likeCountRes, userLikedRes] = await Promise.all([
+          getLikeCount(pData.id),
+          checkIfUserLikedPost(pData.id)
+        ]);
 
-      setPost(updatedPost);
-      setLiked(false); // Default to not liked for faster loading
+        const currentLikes = likeCountRes.success ? likeCountRes.count : pData.likes || 0;
+        
+        const updatedPost = {
+          ...pData,
+          likes: currentLikes,
+        };
+
+        setPost(updatedPost);
+        setLiked(userLikedRes);
+      } else {
+        setPost(null);
+        setLiked(false);
+      }
+
       // Sort comments chronologically: oldest first (ascending order)
       const sortedComments = cData.sort((a, b) => {
         const timeA = a.createdAt || 0;
@@ -108,7 +126,7 @@ export default function PostDetail() {
       navigation.navigate('SignUp');
       return;
     }
-    
+
     if (!post) return;
     const wasLiked = liked;
 
@@ -116,12 +134,12 @@ export default function PostDetail() {
     setPost((p) =>
       p
         ? {
-            ...p,
-            likes: Math.max(
-              0,
-              (p.likes || 0) + (wasLiked ? -1 : 1)
-            ),
-          }
+          ...p,
+          likes: Math.max(
+            0,
+            (p.likes || 0) + (wasLiked ? -1 : 1)
+          ),
+        }
         : p,
     );
 
@@ -133,12 +151,12 @@ export default function PostDetail() {
       setPost((p) =>
         p
           ? {
-              ...p,
-              likes: Math.max(
-                0,
-                (p.likes || 0) + (wasLiked ? 1 : -1)
-              ),
-            }
+            ...p,
+            likes: Math.max(
+              0,
+              (p.likes || 0) + (wasLiked ? 1 : -1)
+            ),
+          }
           : p,
       );
       showToast(res?.message || 'Could not update like');
@@ -175,7 +193,7 @@ export default function PostDetail() {
   }
 
   async function handleDeleteComment(commentId) {
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     if (!currentUser) {
       showToast('You must be logged in to delete comments');
       return;
@@ -199,82 +217,82 @@ export default function PostDetail() {
   const [menuVisible, setMenuVisible] = useState(null);
 
   const renderComment = ({ item }) => {
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     const isOwnComment = currentUser && item.author?.id === currentUser.uid;
     const isMenuOpen = menuVisible === item.id;
 
     return (
-    <View style={[styles.cRow, { borderBottomColor: colors.divider }]}>
-      <View
-        style={[
-          styles.cAvatar,
-          {
-            backgroundColor: colors.surfaceAlt,
-            borderColor: colors.divider,
-          },
-        ]}
-      >
-        <Text
-          style={{
-            color: colors.textDim,
-            fontWeight: '800',
-            fontSize: 12,
-          }}
+      <View style={[styles.cRow, { borderBottomColor: colors.divider }]}>
+        <View
+          style={[
+            styles.cAvatar,
+            {
+              backgroundColor: colors.surfaceAlt,
+              borderColor: colors.divider,
+            },
+          ]}
         >
-          {initials(item.author?.name)}
-        </Text>
-      </View>
-      <View style={{ flex: 1 }}>
-        <View style={styles.commentHeader}>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={[styles.cAuthor, { color: colors.text }]}
-            >
-              {item.author?.name ?? 'User'}
-            </Text>
-            <Text
-              style={{
-                color: colors.textDim,
-                fontSize: 12,
-                marginBottom: 2,
-              }}
-            >
-              {timeAgo(item.createdAt)}
-            </Text>
-          </View>
-          {isOwnComment && (
-            <View>
-              <TouchableOpacity
-                onPress={() => setMenuVisible(isMenuOpen ? null : item.id)}
-                style={styles.menuBtn}
-              >
-                <Ionicons
-                  name="ellipsis-horizontal"
-                  size={18}
-                  color={colors.textDim}
-                />
-              </TouchableOpacity>
-              {isMenuOpen && (
-                <View style={[styles.commentMenu, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setMenuVisible(null);
-                      handleDeleteComment(item.id);
-                    }}
-                    style={styles.menuItem}
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
-                    <Text style={[styles.menuText, { color: '#FF6B6B' }]}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          )}
+          <Text
+            style={{
+              color: colors.textDim,
+              fontWeight: '800',
+              fontSize: 12,
+            }}
+          >
+            {initials(item.author?.name)}
+          </Text>
         </View>
-        <Text style={{ color: colors.text }}>{item.text}</Text>
+        <View style={{ flex: 1 }}>
+          <View style={styles.commentHeader}>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={[styles.cAuthor, { color: colors.text }]}
+              >
+                {item.author?.name ?? 'User'}
+              </Text>
+              <Text
+                style={{
+                  color: colors.textDim,
+                  fontSize: 12,
+                  marginBottom: 2,
+                }}
+              >
+                {timeAgo(item.createdAt)}
+              </Text>
+            </View>
+            {isOwnComment && (
+              <View>
+                <TouchableOpacity
+                  onPress={() => setMenuVisible(isMenuOpen ? null : item.id)}
+                  style={styles.menuBtn}
+                >
+                  <Ionicons
+                    name="ellipsis-horizontal"
+                    size={18}
+                    color={colors.textDim}
+                  />
+                </TouchableOpacity>
+                {isMenuOpen && (
+                  <View style={[styles.commentMenu, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setMenuVisible(null);
+                        handleDeleteComment(item.id);
+                      }}
+                      style={styles.menuItem}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                      <Text style={[styles.menuText, { color: '#FF6B6B' }]}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+          <Text style={{ color: colors.text }}>{item.text}</Text>
+        </View>
       </View>
-    </View>
-  );
+    );
   };
 
   if (loading) {
@@ -358,11 +376,25 @@ export default function PostDetail() {
         </Text>
       )}
 
-      {/* (future) images */}
-      {post.imageUrl ? (
-        <View
-          style={[styles.imagePh, { backgroundColor: '#555' }]}
-        />
+      {/* images */}
+      {post.images && post.images.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.imagesContainer}
+          contentContainerStyle={styles.imagesContent}>
+          {post.images.map((imgUrl, index) => (
+            <Image
+              key={index}
+              source={{ uri: imgUrl }}
+              style={[
+                styles.imagePh,
+                index < post.images.length - 1 && { marginRight: 10 },
+              ]}
+              resizeMode="cover"
+            />
+          ))}
+        </ScrollView>
       ) : null}
 
       {/* tags */}
@@ -411,7 +443,7 @@ export default function PostDetail() {
           icon="chatbubble-ellipses-outline"
           text={String(comments.length)}
           colors={colors}
-          onPress={() => {}}
+          onPress={() => { }}
         />
         <RowAction
           icon="share-social-outline"
@@ -496,8 +528,8 @@ export default function PostDetail() {
             {
               backgroundColor:
                 !isLoggedIn ||
-                sending ||
-                (isLoggedIn && !draft.trim())
+                  sending ||
+                  (isLoggedIn && !draft.trim())
                   ? colors.surfaceAlt
                   : colors.accent,
             },
@@ -508,8 +540,8 @@ export default function PostDetail() {
             size={18}
             color={
               !isLoggedIn ||
-              sending ||
-              (isLoggedIn && !draft.trim())
+                sending ||
+                (isLoggedIn && !draft.trim())
                 ? colors.textDim
                 : 'white'
             }
@@ -685,10 +717,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  imagePh: {
-    height: 180,
-    borderRadius: 10,
+  imagesContainer: {
     marginTop: 10,
+  },
+  imagesContent: {
+    paddingRight: 0,
+  },
+  imagePh: {
+    width: 300,
+    height: 200,
+    borderRadius: 10,
   },
 
   tagsRow: {

@@ -1,16 +1,17 @@
 // GoClimb/App.js
-import React, { useEffect, useRef } from 'react';
-import { View, TouchableOpacity, Text } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { AuthProvider } from './src/context/AuthContext'; 
+import { AuthProvider } from './src/context/AuthContext';
 
 import { downloadFolderFromJson } from './src/services/firebase/FileDownloadHelper';
 import InitFirebaseApps from './src/services/firebase/InitFirebaseApps';
 import UnityView from '@azesmway/react-native-unity';
 import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import { UNSTABLE_UnhandledLinkingContext } from '@react-navigation/native';
+import ModelPicker from './src/components/ModelPicker';
 
 const downloadJson = `
 {
@@ -107,25 +108,25 @@ const Unity = () => {
 
   const sendMessageToUnity = () => {
     if (unityRef?.current) {
-      console.log("Sending message to Unity...");
-      
+      console.log('Sending message to Unity...');
+
       // Send the 3 parameters as separate calls or combine them
       const path = jsonData.path;
       const normalizationJson = JSON.stringify(jsonData.normalizationJson);
       const routeJson = JSON.stringify(jsonData.routeJson);
-      
+
       // Combine all 3 parameters into one message
       const combinedMessage = JSON.stringify(jsonData);
-      
+
       unityRef.current.postMessage(
         'UnityReceiverManager',
         'OnModelReceivedPath',
-        combinedMessage
+        combinedMessage,
       );
-      
-      console.log("Message sent to Unity:", combinedMessage);
+
+      console.log('Message sent to Unity:', combinedMessage);
     } else {
-      console.log("Unity ref not available");
+      console.log('Unity ref not available');
     }
   };
 
@@ -148,15 +149,15 @@ const Unity = () => {
         }}
       />
       {/* Test button - remove this in production */}
-      <TouchableOpacity 
-        style={{ 
-          position: 'absolute', 
-          top: 50, 
-          right: 20, 
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          top: 50,
+          right: 20,
           zIndex: 1000,
-          padding: 10, 
-          backgroundColor: '#007AFF', 
-          borderRadius: 5 
+          padding: 10,
+          backgroundColor: '#007AFF',
+          borderRadius: 5,
         }}
         onPress={sendMessageToUnity}
       >
@@ -168,30 +169,42 @@ const Unity = () => {
 
 function AppInner() {
   const { navTheme } = useTheme();
-
-  useEffect(() => {
-    const run = async () => {
-      await InitFirebaseApps();
-      console.log("Start downloading")
-      const data = JSON.parse(downloadJson);
-      await downloadFolderFromJson(data);
-    };
-
-    run();
-
-    return;
-  }, []);
-
   return <RootNavigator navTheme={navTheme} />;
 }
 
 export default function App() {
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        await InitFirebaseApps();
+      } catch (err) {
+        console.error('App initialization failed:', err);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    initializeApp();
+  }, []);
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
+
+  // render your app after initialization
   return (
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <Unity />
-          <AppInner/>
+          {/* <Unity /> */}
+          <ModelPicker cragId={'CRAG-000004'} />
+          <AppInner />
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
