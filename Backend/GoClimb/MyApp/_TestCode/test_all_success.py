@@ -738,7 +738,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_models_by_crag_id")
-        params = {"crag_id": self.test_crag.crag_id}
+        params = {"crag_id": self.test_crag.formatted_id}
         response = self.client.get(url, params)
         self.print_endpoint_result(
             "CRAG MODEL - GET MODELS BY CRAG ID", url, response, params
