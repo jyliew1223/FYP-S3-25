@@ -87,36 +87,46 @@ def unlike_post_view(request):
     INPUT:  { "post_id": 123 | "POST-123", "user_id": "<uuid or string>" }
     OUTPUT: 200 OK even if like didn’t exist (idempotent)
     """
-    auth = authenticate_app_check_token(request)
-    if not auth.get("success"):
+    try:
+        auth = authenticate_app_check_token(request)
+        if not auth.get("success"):
+            return Response(
+                {"success": False, "message": auth.get("message", "Unauthorized.")},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        post_id = request.data.get("post_id")
+        user_id = request.data.get("user_id")
+
+        if post_id is None or not isinstance(user_id, str) or not user_id.strip():
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid input.",
+                    "errors": {
+                        "post_id": "Must be an integer or 'POST-<int>'.",
+                        "user_id": "Must be a non-empty string.",
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        post_id = PrefixedIDConverter.to_raw_id(post_id)
+        PostLike.objects.filter(post_id=post_id, user_id=user_id.strip()).delete()
+
         return Response(
-            {"success": False, "message": auth.get("message", "Unauthorized.")},
-            status=status.HTTP_401_UNAUTHORIZED,
+            {"success": True, "data": {}, "message": "Post unliked", "errors": []},
+            status=status.HTTP_200_OK,
         )
-
-    post_id = request.data.get("post_id")
-    user_id = request.data.get("user_id")
-
-    if post_id is None or not isinstance(user_id, str) or not user_id.strip():
+    except Exception as e:
         return Response(
             {
                 "success": False,
-                "message": "Invalid input.",
-                "errors": {
-                    "post_id": "Must be an integer or 'POST-<int>'.",
-                    "user_id": "Must be a non-empty string.",
-                },
+                "message": str(e),
+                "errors": {"Exception": str(e)},
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-    post_id = PrefixedIDConverter.to_raw_id(post_id)
-    PostLike.objects.filter(post_id=post_id, user_id=user_id.strip()).delete()
-
-    return Response(
-        {"success": True, "data": {}, "message": "Post unliked", "errors": []},
-        status=status.HTTP_200_OK,
-    )
 
 
 @api_view(["GET"])
