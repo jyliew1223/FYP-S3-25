@@ -743,7 +743,9 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.print_endpoint_result(
             "CRAG MODEL - GET MODELS BY CRAG ID", url, response, params
         )
-        
-        response_data =  response.json()
+
+        response_data = response.json()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response_data["data"][0].model_id, self.test_crag_model.formatted_id)
+        self.assertEqual(
+            response_data["data"][0]["model_id"], self.test_crag_model.formatted_id
+        )
