@@ -19,6 +19,8 @@ import AR from '../screens/AR';
 import Forum from '../screens/Forum';
 import PostDetail from '../screens/PostDetail';
 import CreatePostScreen from '../screens/CreatePostScreen';
+import RankingOptionsScreen from '../screens/RankingOptionsScreen';
+import RankingListScreen from '../screens/RankingListScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -36,7 +38,7 @@ function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen
         name="Rankings"
-        component={SettingsScreen}
+        component={RankingOptionsScreen}
         options={{ title: 'Rankings' }}
       />
       <Tab.Screen name="Map" component={MapScreen} />
@@ -71,6 +73,13 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="AR" component={AR} />
+
+        {/* Ranking-related */}
+        <Stack.Screen
+          name="RankingList"
+          component={RankingListScreen}
+          options={{ headerShown: false }}
+        />
 
         {/* Forum-related */}
         <Stack.Screen name="PostDetail" component={PostDetail} />

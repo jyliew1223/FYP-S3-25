@@ -230,7 +230,7 @@ export async function fetchPostById(postId) {
 
   // Try POST first
   let req = new CustomApiRequest(
-    RequestMethod.POST,
+    RequestMethod.GET,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST.GET_POST,
     payload,
@@ -238,19 +238,6 @@ export async function fetchPostById(postId) {
   );
   let ok = await req.sendRequest(GetPostResponse);
   let res = req.Response;
-
-  // fallback GET for 405/404
-  if (!ok && (res?.status === 405 || res?.status === 404)) {
-    req = new CustomApiRequest(
-      RequestMethod.GET,
-      API_ENDPOINTS.BASE_URL,
-      API_ENDPOINTS.POST.GET_POST,
-      payload,
-      true
-    );
-    ok = await req.sendRequest(GetPostResponse);
-    res = req.Response;
-  }
 
   console.log('[DEBUG fetchPostById mapped]', res?.data);
 
@@ -269,7 +256,7 @@ export async function fetchCommentsByPostId(postId) {
 
   // Try POST first
   let req = new CustomApiRequest(
-    RequestMethod.POST,
+    RequestMethod.GET,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.COMMENT.GET_COMMENTS_BY_POST_ID,
     payload,
@@ -277,19 +264,6 @@ export async function fetchCommentsByPostId(postId) {
   );
   let ok = await req.sendRequest(GetCommentsResponse);
   let res = req.Response;
-
-  // fallback GET on 405/404
-  if (!ok && (res?.status === 405 || res?.status === 404)) {
-    req = new CustomApiRequest(
-      RequestMethod.GET,
-      API_ENDPOINTS.BASE_URL,
-      API_ENDPOINTS.COMMENT.GET_COMMENTS_BY_POST_ID,
-      payload,
-      true
-    );
-    ok = await req.sendRequest(GetCommentsResponse);
-    res = req.Response;
-  }
 
   console.log('[DEBUG fetchCommentsByPostId count]', res?.data?.length ?? 0);
 
@@ -375,7 +349,7 @@ export async function deleteComment(commentId) {
 export async function checkIfUserLikedPost(postId) {
   const user = getAuth().currentUser;
   if (!user) return { success: false, liked: false };
-  
+
   const pid = numericPostId(postId) ?? postId;
   const payload = { post_id: pid };
 
@@ -388,12 +362,12 @@ export async function checkIfUserLikedPost(postId) {
   );
   const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
-  
+
   if (ok && res?.success && res?.data?.users) {
     const userLiked = res.data.users.some(u => u.user_id === user.uid);
     return { success: true, liked: userLiked };
   }
-  
+
   return { success: false, liked: false };
 }
 
@@ -411,11 +385,11 @@ export async function getLikeCount(postId) {
   );
   const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
-  
+
   if (ok && res?.success && res?.data?.count !== undefined) {
     return { success: true, count: res.data.count };
   }
-  
+
   return { success: false, count: 0 };
 }
 
