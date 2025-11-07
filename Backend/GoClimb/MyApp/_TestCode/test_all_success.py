@@ -268,7 +268,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_crag_info")
-        params = {"crag_id": self.test_crag.crag_id}
+        params = {"crag_id": self.test_crag.formatted_id}
         response = self.client.get(url, params)
         self.print_endpoint_result("CRAG - GET INFO", url, response, params)
 
@@ -379,7 +379,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("get_post")
-        params = {"post_id": self.test_post.post_id}
+        params = {"post_id": self.test_post.formatted_id}
         response = self.client.get(url, params)
         self.print_endpoint_result("POST - GET POST", url, response, params)
 
@@ -515,7 +515,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("post_likes_count")
-        params = {"post_id": self.test_post.post_id}
+        params = {"post_id": self.test_post.formatted_id}
         response = self.client.get(url, params)
         self.print_endpoint_result("POST - LIKES COUNT", url, response, params)
 
@@ -534,7 +534,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
         url = reverse("post_likes_users")
-        params = {"post_id": self.test_post.post_id}
+        params = {"post_id": self.test_post.formatted_id}
         response = self.client.get(url, params)
         self.print_endpoint_result("POST - LIKES USERS", url, response, params)
 
@@ -554,7 +554,7 @@ class AllEndpointsSuccessTestCase(TestCase):
 
         url = reverse("create_post_comment")  # make sure this name matches urls.py
         data = {
-            "post_id": f"POST-{self.test_post.post_id:06d}",  # formatted id if using PrefixedID
+            "post_id": self.test_post.formatted_id, # formatted id if using PrefixedID
             "user_id": self.test_user.user_id,
             "content": "This is a test comment",
         }

@@ -161,7 +161,8 @@ def post_likes_count_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    count = PostLike.objects.filter(post_id=post_id).count()
+    raw_id = PrefixedIDConverter.to_raw_id(post_id)
+    count = PostLike.objects.filter(post_id=raw_id).count()
     return Response(
         {"success": True, "data": {"count": count}, "message": "OK", "errors": []},
         status=status.HTTP_200_OK,
@@ -192,8 +193,9 @@ def post_likes_users_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Fetch user_ids and wrap each as an object to match the test expectation
-    user_ids = PostLike.objects.filter(post_id=post_id).values_list(
+    # Fetch user_ids and wrap each as an object to match the test expectation    
+    raw_id = PrefixedIDConverter.to_raw_id(post_id)
+    user_ids = PostLike.objects.filter(post_id=raw_id).values_list(
         "user_id", flat=True
     )
     users: List[Dict[str, str]] = [{"user_id": uid} for uid in user_ids]
