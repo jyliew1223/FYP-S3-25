@@ -156,3 +156,132 @@ def delete_profile(profile_id: str) -> Dict[str, Any]:
 # ADMIN - 3 (end)
 # ----------------
 '''
+
+# ---------------
+# USER_02 (start)
+# ---------------
+
+from typing import Dict, Any
+from django.db import transaction
+from django.db.models import ProtectedError
+from MyApp.Entity.user import User
+
+# If you have a helper for storage cleanup, keep it optional:
+try:
+    import MyApp.Utils.helper as helper  # may have delete_bucket_folder
+except Exception:  # pragma: no cover
+    helper = None  # type: ignore
+
+def delete_user_account(user_id: str) -> Dict[str, Any]:
+    user_id = str(user_id or "").strip()
+    if not user_id:
+        return {
+            "success": False,
+            "message": "Invalid user_id.",
+            "errors": {"user_id": "Must be provided."},
+        }
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return {
+            "success": False,
+            "message": "User not found.",
+            "errors": {},
+        }
+
+    try:
+        with transaction.atomic():
+            # Delete the user (FKs with CASCADE will be removed automatically)
+            user.delete()
+
+        # Best-effort storage cleanup (non-blocking)
+        if helper and hasattr(helper, "delete_bucket_folder"):
+            try:
+                helper.delete_bucket_folder(f"users/{user_id}")
+            except Exception:
+                # Ignore cleanup failures; core operation already succeeded
+                pass
+
+        return {
+            "success": True,
+            "message": "Account deleted successfully.",
+            "errors": [],
+        }
+
+    except ProtectedError as e:
+        return {
+            "success": False,
+            "message": "Account cannot be deleted due to protected related data.",
+            "errors": {"detail": str(e)},
+        }
+
+# -------------
+# USER_02 (end)
+# -------------
+
+
+
+# ---------------
+# USER_03 (start) 
+# ---------------
+
+from typing import Any, Dict, Tuple
+from MyApp.Entity.user import User
+from MyApp.Serializer.serializers import UserSerializer
+
+ALLOWED_USER_FIELDS = {"username", "email", "profile_picture", "status"}
+
+def update_user_field(user_id: str, field: str, value: Any) -> Tuple[bool, Dict[str, Any]]:
+    """
+    Update a single field on User and return (ok, payload).
+    payload always has "success", "message", and optionally "errors"/"data".
+    """
+    if field not in ALLOWED_USER_FIELDS:
+        return False, {
+            "success": False,
+            "message": "Invalid input.",
+            "errors": {"field": "Must be one of: username, email, profile_picture, status."},
+        }
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return False, {"success": False, "message": "User not found.", "errors": []}
+
+    # normalize a couple fields
+    if field == "username" and isinstance(value, str):
+        value = value.strip()
+    if field == "email" and isinstance(value, str):
+        value = value.strip().lower()
+    if field == "status":
+        if isinstance(value, str):
+            value = value.strip().lower() in {"1", "true", "yes"}
+        value = bool(value)
+
+    ser = UserSerializer(instance=user, data={field: value}, partial=True)
+    if not ser.is_valid():
+        return False, {
+            "success": False,
+            "message": "Invalid input.",
+            "errors": ser.errors,
+        }
+
+    ser.save()
+
+    return True, {
+        "success": True,
+        "message": "User info updated successfully.",
+        "data": {
+            "user_id": user.user_id,
+            "username": ser.data.get("username"),
+            "email": ser.data.get("email"),
+            "profile_picture": ser.data.get("profile_picture"),
+            "status": ser.data.get("status"),
+        },
+        "errors": [],
+    }
+
+# -------------
+# USER_03 (end)
+# -------------

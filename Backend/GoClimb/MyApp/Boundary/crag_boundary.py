@@ -18,6 +18,7 @@ from MyApp.Controller.crag_controller import (
 )
 
 
+
 @api_view(["GET"])
 def get_crag_info_view(request: Request) -> Response:
     """GET /crag_info?crag_id=str"""
@@ -207,3 +208,72 @@ def get_trending_crags_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+# --------------------
+# CREATING_01 (start)
+# --------------------
+
+from MyApp.Controller.crag_controller import create_crag
+
+@api_view(["POST"])
+def create_crag_view(request):
+    """
+    INPUT (JSON, minimal set to match current CragSerializer/model):
+    {
+      "name": "Bukit Takun",
+      "location_lat": 3.288,
+      "location_lon": 101.650,
+      "description": "optional"
+    }
+    """
+    # 1) App Check
+    auth = authenticate_app_check_token(request)
+    if not auth.get("success"):
+        return Response(
+            {"success": False, "message": auth.get("message", "Unauthorized.")},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    body = request.data or {}
+    required = ["name", "location_lat", "location_lon"]
+    missing = [k for k in required if k not in body or body.get(k) in ("", None)]
+
+    if missing:
+        return Response(
+            {
+                "success": False,
+                "message": "Missing or invalid required fields.",
+                "errors": {k: "This field is required." for k in missing},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        crag_obj = create_crag(
+            name=body.get("name"),
+            location_lat=body.get("location_lat"),
+            location_lon=body.get("location_lon"),
+            description=body.get("description", ""),
+        )
+    except ValueError as e:
+        return Response(
+            {"success": False, "message": str(e), "errors": {"ValueError": str(e)}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {"success": False, "message": "Failed to create crag.", "errors": {"Exception": str(e)}},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    # 2) Serialize with your CURRENT serializer (unchanged)
+    data = CragSerializer(crag_obj).data
+    return Response(
+        {"success": True, "message": "Crag created successfully", "data": data, "errors": []},
+        status=status.HTTP_200_OK,
+    )
+
+# ------------------
+# CREATING_01 (end)
+# ------------------

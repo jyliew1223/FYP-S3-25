@@ -13,6 +13,7 @@ from MyApp.Boundary.post_boundary import (
     # post_likes_count_view,
     # post_likes_users_view,
     create_post_view,
+    delete_post_view,
 )
 
 from MyApp.Boundary.post_likes_boundary import (
@@ -42,4 +43,5 @@ urlpatterns = [
     path("unlike/", unlike_post_view, name="unlike_post"),          # MEMBER - 2
     path("likes/count/", post_likes_count_view, name="post_likes_count"),   # MEMBER - 2
     path("likes/users/", post_likes_users_view, name="post_likes_users"),   # MEMBER - 2
+    path("delete", delete_post_view, name="delete_post"),   # DELETE_03
 ]

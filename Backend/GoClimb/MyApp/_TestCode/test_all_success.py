@@ -14,6 +14,8 @@ from MyApp.Entity.post_likes import PostLike
 from MyApp.Entity.post_comment import PostComment
 from rest_framework.test import APIClient
 from rest_framework import status
+import uuid
+
 
 
 class AllEndpointsSuccessTestCase(TestCase):
@@ -700,3 +702,673 @@ class AllEndpointsSuccessTestCase(TestCase):
     def tearDown(self):
         """Clean up after tests"""
         pass
+
+
+
+# -------------------
+# CREATING_01 (start)
+# -------------------
+
+class CreateCragViewTestCase(TestCase):
+    def setUp(self):
+        self.url = reverse("create_crag")
+
+    def _pretty(self, resp):
+        try:
+            print(json.dumps(resp.json(), indent=2))
+        except Exception:
+            print("(non-json)", getattr(resp, "content", b"")[:200])
+
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_unauthorized(self, mock_auth):
+        mock_auth.return_value = {"success": False, "message": "Invalid token."}
+        resp = self.client.post(
+            self.url,
+            {"name": "Bukit Takun", "location_lat": 3.288, "location_lon": 101.650},
+            content_type="application/json",
+        )
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(resp.json().get("success"))
+
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_missing_fields(self, mock_auth):
+        mock_auth.return_value = {"success": True}
+        resp = self.client.post(
+            self.url,
+            {"location_lat": 3.288, "location_lon": 101.650},  # name missing
+            content_type="application/json",
+        )
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        body = resp.json()
+        self.assertFalse(body["success"])
+        self.assertIn("name", body["errors"])
+
+    @patch("MyApp.Boundary.crag_boundary.authenticate_app_check_token")
+    def test_success(self, mock_auth):
+        mock_auth.return_value = {"success": True}
+        payload = {
+            "name": "Bukit Takun",
+            "location_lat": 3.288,
+            "location_lon": 101.650,
+            "description": "A beautiful limestone crag with multi-pitch routes.",
+        }
+        resp = self.client.post(self.url, payload, content_type="application/json")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["message"], "Crag created successfully")
+
+        # row exists
+        self.assertEqual(Crag.objects.count(), 1)
+        crag = Crag.objects.first()
+        self.assertEqual(crag.name, payload["name"])
+
+        # shape matches CURRENT serializer (no additions)
+        data = body["data"]
+        for key in ["crag_id", "name", "location_lat", "location_lon", "description", "images_urls"]:
+            self.assertIn(key, data)
+
+        # optional: location_details if your model provides it
+        # if "location_details" in data:  # keep flexible
+        #     self.assertIsInstance(data["location_details"], (dict, list))
+
+# -----------------
+# CREATING_01 (end)
+# -----------------
+
+
+
+# -------------------
+# CREATING_02 (start)
+# -------------------
+
+import uuid
+
+class CreateClimbLogViewTestCase(TestCase):
+    def setUp(self):
+        # Create a minimal valid User for your current model fields
+        self.user = User.objects.create(
+            # keep your external string id if your model has it; if not, this is harmless
+            user_id=str(uuid.uuid4()),
+            username="jen",
+            email="jen@example.com",
+            profile_picture=None,
+            status=True,
+        )
+
+        # Simple crag + route so the route FK exists
+        self.crag = Crag.objects.create(
+            name="Bukit Takun",
+            location_lat=3.288,
+            location_lon=101.65,
+            description="test",
+        )
+        self.route = Route.objects.create(
+            crag=self.crag,
+            route_name="Classic",
+            route_grade=6,
+            # status="active",
+        )
+
+        self.url = reverse("create_climb_log")
+
+    def _pretty(self, resp):
+        try:
+            print(json.dumps(resp.json(), indent=2))
+        except Exception:
+            print("(non-JSON):", getattr(resp, "content", b"")[:200])
+
+    @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
+    def test_success(self, mock_auth):
+        mock_auth.return_value = {"success": True}
+        payload = {
+            # IMPORTANT: pass the integer PK for user_id
+            "user_id": self.user.user_id,
+            # Route id can be formatted or raw int – formatted is fine
+            "route_id": self.route.formatted_id,
+            "date_climbed": "2025-10-29",
+            "notes": "Onsight",
+        }
+        resp = self.client.post(self.url, payload, content_type="application/json")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.json().get("success"))
+        self.assertEqual(resp.json()["data"]["route"]["route_id"], self.route.formatted_id)
+
+    @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
+    def test_missing_fields(self, mock_auth):
+        mock_auth.return_value = {"success": True}
+        payload = {
+            "user_id": self.user.user_id,
+            # route_id missing on purpose
+            "date_climbed": "2025-10-29",
+        }
+        resp = self.client.post(self.url, payload, content_type="application/json")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(resp.json().get("success"))
+        self.assertIn("route_id", resp.json()["errors"])
+
+    @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
+    def test_unauthorized(self, mock_auth):
+        mock_auth.return_value = {"success": False, "message": "Invalid token."}
+        payload = {
+            "user_id": self.user.user_id,
+            "route_id": self.route.formatted_id,
+            "date_climbed": "2025-10-29",
+        }
+        resp = self.client.post(self.url, payload, content_type="application/json")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+# -----------------
+# CREATING_02 (end)
+# -----------------
+
+
+
+# -------------------
+# CREATING_03 (start)
+# -------------------
+
+import uuid
+
+class CreateRouteTestCase(TestCase):
+    def setUp(self):
+        self.url = reverse("create_route")
+
+        # seed user (not actually needed by endpoint body, but keeps parity with others)
+        self.user = User.objects.create(
+            user_id=str(uuid.uuid4()),
+            username="maker",
+            email="maker@example.com",
+            status=True,
+            profile_picture=None,
+        )
+
+        # seed crag
+        self.crag = Crag.objects.create(
+            name="Bukit Takun",
+            location_lat=3.288,
+            location_lon=101.65,
+            description="demo crag",
+            # location_details={"city": None, "country": None},
+        )
+
+    def _pretty(self, resp):
+        try:
+            print(json.dumps(resp.json(), indent=2))
+        except Exception:
+            print("(non-JSON)", getattr(resp, "content", b"")[:200])
+
+    @patch("MyApp.Boundary.route_boundary.authenticate_app_check_token")
+    def test_missing_fields(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        resp = self.client.post(self.url, data={"route_name": "Classic"}, content_type="application/json")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("route_grade", resp.json().get("errors", {}))
+        self.assertIn("crag_id", resp.json().get("errors", {}))
+
+    @patch("MyApp.Boundary.route_boundary.authenticate_app_check_token")
+    def test_success(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        payload = {
+            "route_name": "Classic",
+            "route_grade": 6,
+            "crag_id": self.crag.formatted_id,  # "CRAG-00000X" works via serializer
+        }
+        resp = self.client.post(self.url, data=payload, content_type="application/json")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["message"], "Route created successfully")
+        self.assertEqual(body["data"]["route_name"], "Classic")
+        self.assertEqual(body["data"]["route_grade"], 6)
+        self.assertTrue(body["data"]["route_id"].startswith("ROUTE-"))
+
+    @patch("MyApp.Boundary.route_boundary.authenticate_app_check_token")
+    def test_unauthorized(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": False, "message": "Invalid token."}
+        payload = {"route_name": "Classic", "route_grade": 6, "crag_id": self.crag.pk}
+        resp = self.client.post(self.url, data=payload, content_type="application/json")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+# -----------------
+# CREATING_03 (end)
+# -----------------
+
+
+
+# ------------------
+# DEELETE_01 (start)
+# ------------------
+
+from datetime import date
+
+
+class DeleteClimbLogViewTestCase(TestCase):
+    def setUp(self):
+        # minimal entities to own a log
+        self.user = User.objects.create(
+            user_id="u-1",
+            username="jen",
+            email="jen@example.com",
+            profile_picture=None,
+            status=True,
+        )
+        self.crag = Crag.objects.create(
+            name="Bukit Takun",
+            location_lat=3.288,
+            location_lon=101.65,
+            description="demo",
+        )
+        self.route = Route.objects.create(
+            route_name="Classic",
+            route_grade=6,
+            crag=self.crag,
+        )
+        self.log = ClimbLog.objects.create(
+            user=self.user,
+            route=self.route,
+            date_climbed=date(2025, 10, 29),
+            notes="demo",
+        )
+
+        # url name you added in climb_log_url.py
+        self.url = reverse("delete_climb_log")
+
+    def _pretty(self, resp):
+        try:
+            import json
+            print(json.dumps(resp.json(), indent=2))
+        except Exception:
+            print("(non-JSON)", getattr(resp, "content", b"")[:200])
+
+    @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
+    def test_success_with_formatted_id(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+
+        # accept formatted like "CLIMBLOG-000001"
+        resp = self.client.delete(f"{self.url}?log_id={self.log.formatted_id}")
+        self._pretty(resp)
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.json().get("success"))
+        self.assertFalse(ClimbLog.objects.filter(pk=self.log.pk).exists())
+
+    @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
+    def test_bad_request_missing_id(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+
+        resp = self.client.delete(self.url)  # no query param
+        self._pretty(resp)
+
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(resp.json().get("success"))
+
+    @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
+    def test_not_found(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+
+        # id that does not exist
+        resp = self.client.delete(f"{self.url}?log_id=CLIMBLOG-999999")
+        self._pretty(resp)
+
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("MyApp.Boundary.climblog_boundary.authenticate_app_check_token")
+    def test_unauthorized(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": False, "message": "Invalid token."}
+
+        resp = self.client.delete(f"{self.url}?log_id={self.log.pk}")
+        self._pretty(resp)
+
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+# ---------------
+# DELETE_01 (end)
+# ---------------
+
+
+
+# -----------------
+# DELETE_02 (start)
+# -----------------
+
+class DeleteRouteViewTestCase(TestCase):
+    def setUp(self):
+        self.url = reverse("delete_route")
+
+        self.user = User.objects.create(
+            user_id=str(uuid.uuid4()),
+            username="tester",
+            email="tester@example.com",
+            status=True,
+            profile_picture=None,
+        )
+        self.crag = Crag.objects.create(
+            name="Bukit Takun",
+            location_lat=3.288,
+            location_lon=101.65,
+            description="test",
+        )
+        self.route = Route.objects.create(
+            route_name="Classic",
+            route_grade=6,
+            crag=self.crag,
+        )
+
+    def _pretty(self, resp):
+        try:
+            import json; print(json.dumps(resp.json(), indent=2))
+        except Exception:
+            print(getattr(resp, "content", b"")[:200])
+
+    @patch("MyApp.Boundary.route_boundary.authenticate_app_check_token")
+    def test_missing_fields(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        # no route_id anywhere
+        resp = self.client.delete(self.url)
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("route_id", resp.json().get("errors", {}))
+
+    @patch("MyApp.Boundary.route_boundary.authenticate_app_check_token")
+    def test_not_found(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        # send as query param to avoid body parsing ambiguity
+        resp = self.client.delete(f"{self.url}?route_id=ROUTE-999999")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch("MyApp.Boundary.route_boundary.authenticate_app_check_token")
+    def test_success(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": True}
+        rid = f"ROUTE-{self.route.pk:06d}"   # <-- use pk, not id
+        resp = self.client.delete(f"{self.url}?route_id={rid}")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.json().get("success"))
+
+    @patch("MyApp.Boundary.route_boundary.authenticate_app_check_token")
+    def test_unauthorized(self, mock_appcheck):
+        mock_appcheck.return_value = {"success": False, "message": "Invalid token."}
+        rid = f"ROUTE-{self.route.pk:06d}"   # <-- use pk, not id
+        resp = self.client.delete(f"{self.url}?route_id={rid}")
+        self._pretty(resp)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+# ---------------
+# DELETE_02 (end)
+# ---------------
+
+
+
+# -----------------
+# DELETE_03 (start)
+# -----------------
+
+from unittest import mock
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+
+from MyApp.Entity.user import User
+from MyApp.Entity.post import Post
+# from MyApp.Entity.crag import Crag  # not needed here; you can remove
+
+class DeletePostViewTestCase(APITestCase):
+    def setUp(self):
+        # two users
+        self.owner = User.objects.create(
+            user_id="11111111-1111-1111-1111-111111111111",
+            username="owner",
+            email="owner@example.com",
+            status=True,
+        )
+        self.other = User.objects.create(
+            user_id="22222222-2222-2222-2222-222222222222",
+            username="other",
+            email="other@example.com",
+            status=True,
+        )
+        # a post by owner
+        self.post = Post.objects.create(
+            user=self.owner, title="Hello", content="World", tags=[]
+        )
+        self.url = reverse("delete_post")
+
+    def _auth_ok(self, m_verify):
+        m_verify.return_value = {"success": True, "message": "OK"}
+
+    def _formatted_post_id(self, post_pk: int) -> str:
+        return f"POST-{post_pk:06d}"
+
+    @mock.patch("MyApp.Firebase.helpers.verify_app_check_token")
+    def test_missing_fields(self, m_verify):
+        self._auth_ok(m_verify)
+        resp = self.client.delete(self.url, data={}, format="json",
+                                  HTTP_X_FIREBASE_APPCHECK="t")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        body = resp.json()
+        self.assertFalse(body["success"])
+        # Both fields should be flagged
+        self.assertIn("post_id", body.get("errors", {}))
+        self.assertIn("user_id", body.get("errors", {}))
+
+    @mock.patch("MyApp.Firebase.helpers.verify_app_check_token")
+    def test_not_found(self, m_verify):
+        self._auth_ok(m_verify)
+        payload = {"post_id": "POST-999999", "user_id": self.owner.user_id}
+        resp = self.client.delete(self.url, data=payload, format="json",
+                                  HTTP_X_FIREBASE_APPCHECK="t")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertFalse(resp.json()["success"])
+
+    @mock.patch("MyApp.Firebase.helpers.verify_app_check_token")
+    def test_forbidden_not_owner(self, m_verify):
+        self._auth_ok(m_verify)
+        payload = {
+            "post_id": self._formatted_post_id(self.post.pk),
+            "user_id": self.other.user_id,
+        }
+        resp = self.client.delete(self.url, data=payload, format="json",
+                                  HTTP_X_FIREBASE_APPCHECK="t")
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(resp.json()["success"])
+
+    @mock.patch("MyApp.Firebase.helpers.verify_app_check_token")
+    def test_success(self, m_verify):
+        self._auth_ok(m_verify)
+        payload = {
+            "post_id": self._formatted_post_id(self.post.pk),
+            "user_id": self.owner.user_id,
+        }
+        # Pre-check exists
+        self.assertTrue(Post.objects.filter(pk=self.post.pk).exists())
+        resp = self.client.delete(self.url, data=payload, format="json",
+                                  HTTP_X_FIREBASE_APPCHECK="t")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.json()["success"])
+        # Post should be gone
+        self.assertFalse(Post.objects.filter(pk=self.post.pk).exists())
+
+    def test_unauthorized(self):
+        # No App Check header -> 401 (helper returns missing token)
+        payload = {
+            "post_id": self._formatted_post_id(self.post.pk),
+            "user_id": self.owner.user_id,
+        }
+        resp = self.client.delete(self.url, data=payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(resp.json()["success"])
+
+# ---------------
+# DELETE_03 (end)
+# ---------------
+
+
+
+# ---------------
+# USER_02 (start)
+# ---------------
+
+from unittest.mock import patch
+from rest_framework import status
+from rest_framework.test import APITestCase
+from MyApp.Entity.user import User
+
+class DeleteUserAccountViewTestCase(APITestCase):
+
+    @patch("MyApp.Utils.helper.authenticate_app_check_token")
+    @patch("MyApp.Utils.helper.verify_id_token")
+    def test_success(self, mock_verify, mock_auth):
+        mock_auth.return_value = {"success": True}
+        mock_verify.return_value = {"success": True, "uid": "USER123"}
+        User.objects.create(user_id="USER123", username="testuser", email="test@example.com")
+
+        resp = self.client.delete("/user/delete", {"id_token": "validtoken"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.data["success"])
+
+    @patch("MyApp.Utils.helper.authenticate_app_check_token")
+    def test_missing_field(self, mock_auth):
+        mock_auth.return_value = {"success": True}
+        resp = self.client.delete("/user/delete", {}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("MyApp.Utils.helper.authenticate_app_check_token")
+    @patch("MyApp.Utils.helper.verify_id_token")
+    def test_not_found(self, mock_verify, mock_auth):
+        mock_auth.return_value = {"success": True}
+        mock_verify.return_value = {"success": True, "uid": "NON_EXISTENT"}
+        resp = self.client.delete("/user/delete", {"id_token": "token"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(resp.data["success"])
+
+    @patch("MyApp.Utils.helper.authenticate_app_check_token")
+    def test_unauthorized_appcheck(self, mock_auth):
+        mock_auth.return_value = {"success": False, "message": "Invalid app check token"}
+        resp = self.client.delete("/user/delete", {"id_token": "token"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @patch("MyApp.Utils.helper.authenticate_app_check_token")
+    @patch("MyApp.Utils.helper.verify_id_token")
+    def test_invalid_id_token(self, mock_verify, mock_auth):
+        mock_auth.return_value = {"success": True}
+        mock_verify.return_value = {"success": False, "message": "Invalid token"}
+        resp = self.client.delete("/user/delete", {"id_token": "badtoken"}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @patch("MyApp.Utils.helper.authenticate_app_check_token")
+    @patch("MyApp.Utils.helper.verify_id_token")
+    def test_success_with_query_param(self, mock_verify, mock_auth):
+        mock_auth.return_value = {"success": True}
+        mock_verify.return_value = {"success": True, "uid": "USER123"}
+        User.objects.create(user_id="USER123", username="queryuser", email="query@example.com")
+
+        # Call using query parameter instead of JSON body
+        resp = self.client.delete("/user/delete?id_token=validtoken")
+
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertTrue(resp.data["success"])
+        self.assertFalse(User.objects.filter(pk="USER123").exists())
+
+# -------------
+# USER_02 (end)
+# -------------
+
+
+
+# ---------------
+# USER_03 (start) 
+# ---------------
+
+from unittest.mock import patch
+from django.test import TestCase
+from rest_framework.test import APIClient
+from rest_framework import status
+
+from MyApp.Entity.user import User
+
+USER_PATH = "/user/update"
+
+class UpdateUserInfoViewTestCase(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create(
+            user_id="UID-1",
+            username="jen",
+            email="jen@example.com",
+            status=True,
+        )
+
+    # Happy path
+    @patch("MyApp.Boundary.user_boundary.helper.verify_user_id", return_value={"success": True, "user_id": "UID-1"})
+    @patch("MyApp.Boundary.user_boundary.helper.authenticate_app_check_token", return_value={"success": True})
+    def test_success_update_username(self, *_):
+        resp = self.client.post(
+            USER_PATH,
+            {"id_token": "token", "field": "username", "data": "jen_new"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        body = resp.json()
+        self.assertTrue(body["success"])
+        self.assertEqual(body["data"]["username"], "jen_new")
+
+    # Invalid field name
+    @patch("MyApp.Boundary.user_boundary.helper.verify_user_id", return_value={"success": True, "user_id": "UID-1"})
+    @patch("MyApp.Boundary.user_boundary.helper.authenticate_app_check_token", return_value={"success": True})
+    def test_invalid_field_name(self, *_):
+        resp = self.client.post(
+            USER_PATH,
+            {"id_token": "token", "field": "bad_field", "data": "x"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(resp.json()["success"])
+
+    # Missing required fields
+    @patch("MyApp.Boundary.user_boundary.helper.authenticate_app_check_token", return_value={"success": True})
+    def test_missing_fields(self, *_):
+        resp = self.client.post(USER_PATH, {}, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        j = resp.json()
+        self.assertIn("id_token", j["errors"])
+        self.assertIn("field", j["errors"])
+        self.assertIn("data", j["errors"])
+
+    # Unauthorized: bad id_token
+    @patch("MyApp.Boundary.user_boundary.helper.verify_user_id", return_value={"success": False})
+    @patch("MyApp.Boundary.user_boundary.helper.authenticate_app_check_token", return_value={"success": True})
+    def test_unauthorized_bad_token(self, *_):
+        resp = self.client.post(
+            USER_PATH,
+            {"id_token": "bad", "field": "username", "data": "x"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    # App Check failed
+    @patch("MyApp.Boundary.user_boundary.helper.authenticate_app_check_token", return_value={"success": False, "message": "Invalid token."})
+    def test_app_check_failed(self, *_):
+        resp = self.client.post(
+            USER_PATH,
+            {"id_token": "token", "field": "username", "data": "x"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+# -------------
+# USER_03 (end)
+# -------------
+
+

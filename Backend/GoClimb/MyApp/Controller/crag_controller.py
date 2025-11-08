@@ -92,3 +92,36 @@ def get_trending_crags(count: int) -> list[dict[str, Any]]:
     # Sort by growth_rate descending and limit to requested count
     trending_list.sort(key=lambda x: x["growth_rate"], reverse=True)
     return trending_list[:count]
+
+
+# --------------------
+# CREATING_01 (start)
+# --------------------
+
+def create_crag(*, name, location_lat, location_lon, description=""):
+    """
+    Create and return a Crag row.
+    Only uses fields that exist in your current CragSerializer.
+    """
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("Invalid name")
+
+    try:
+        lat = float(location_lat)
+        lon = float(location_lon)
+    except (TypeError, ValueError):
+        raise ValueError("Invalid coordinates")
+
+    crag = Crag.objects.create(
+        name=name.strip(),
+        location_lat=lat,
+        location_lon=lon,
+        description=description or "",
+        # If your model has `location_details` and you want to accept it:
+        # location_details=location_details or {},
+    )
+    return crag
+
+# ------------------
+# CREATING_01 (end)
+# ------------------

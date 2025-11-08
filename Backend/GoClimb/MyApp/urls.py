@@ -18,6 +18,8 @@ urlpatterns = [
     path("comment/", include("MyApp.Url.post_comment_url")),
     path("route/", include("MyApp.Url.route_url")),
     # path("api/admin/", include("MyApp.Url.admin_urls")),   # ADMIN - 2
+    path("user/", include("MyApp.Url.user_url")),   # USER_02
+    path("user/", include("MyApp.Url.user_url")),   # USER_03
 ]
 
 # Static (development only)

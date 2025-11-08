@@ -304,3 +304,181 @@ def delete_profile_view(request) -> Response:
 # ADMIN - 3 (end)
 # ---------------
 '''
+
+
+# ---------------
+# USER_02 (start)
+# ---------------
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.request import Request
+
+import MyApp.Utils.helper as helper
+from MyApp.Controller.user_controller import delete_user_account
+
+@api_view(["DELETE"])
+def delete_user_account_view(request: Request) -> Response:
+    """
+    DELETE /user/delete
+    Input:
+      - id_token (Firebase ID token)
+    Output:
+      {
+        "success": bool,
+        "message": str,
+        "errors": dict | []
+      }
+    """
+
+    # 1. App Check
+    auth = helper.authenticate_app_check_token(request)
+    if not auth.get("success"):
+        return Response(
+            {"success": False, "message": auth.get("message", "Invalid token.")},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    # 2. Get id_token
+    id_token = request.data.get("id_token") or request.query_params.get("id_token")
+    if not id_token or not isinstance(id_token, str):
+        return Response(
+            {
+                "success": False,
+                "message": "Missing required fields.",
+                "errors": {"id_token": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 3. Verify ID token → get UID
+    verified = helper.verify_id_token(id_token)
+    if not verified or not verified.get("success") or not verified.get("uid"):
+        return Response(
+            {"success": False, "message": verified.get("message", "Invalid token.")},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    user_id = verified["uid"]
+
+    # 4. Call controller
+    result = delete_user_account(user_id)
+
+    # 5. Return appropriate HTTP status
+    return Response(
+        result,
+        status=status.HTTP_200_OK if result.get("success") else status.HTTP_400_BAD_REQUEST,
+    )
+
+# -------------
+# USER_02 (end)
+# -------------
+
+
+
+# ---------------
+# USER_03 (start) 
+# ---------------
+
+from typing import Any, Dict, Optional
+
+from rest_framework.decorators import api_view
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework import status
+
+# use shim module so tests can patch these
+import MyApp.Utils.helper as helper
+from MyApp.Controller.user_controller import update_user_field
+
+ALLOWED_USER_FIELDS = {"username", "email", "profile_picture", "status"}
+
+def _extract_uid_from_token(id_token: Any) -> Optional[str]:
+    """
+    Ask helper to verify the Firebase ID token and return user_id/uid.
+    Your tests will patch helper.verify_user_id(...) or helper.verify_id_token(...).
+    """
+    if not isinstance(id_token, str) or not id_token.strip():
+        return None
+
+    # Prefer verify_user_id if present, otherwise fall back to verify_id_token
+    if hasattr(helper, "verify_user_id"):
+        res = helper.verify_user_id(id_token)  # type: ignore[attr-defined]
+        if res and res.get("success") and res.get("user_id"):
+            return str(res["user_id"])
+        return None
+
+    if hasattr(helper, "verify_id_token"):
+        res = helper.verify_id_token(id_token)  # type: ignore[attr-defined]
+        uid = (res or {}).get("uid") or (res or {}).get("user_id")
+        return str(uid) if (res and res.get("success") and uid) else None
+
+    return None
+
+
+@api_view(["POST"])
+def update_user_info_view(request: Request) -> Response:
+    """
+    POST /user/update
+    Body:
+      - id_token : str  (Firebase ID token)
+      - field    : str  (username|email|profile_picture|status)
+      - data     : any  (new value)
+    """
+    # 1) App Check first
+    app_res: Dict[str, Any] = helper.authenticate_app_check_token(request)
+    if not app_res.get("success"):
+        return Response(app_res, status=status.HTTP_401_UNAUTHORIZED)
+
+    # 2) Basic validation
+    id_token = request.data.get("id_token")
+    field = request.data.get("field")
+    value = request.data.get("data", None)
+
+    missing = {}
+    if not id_token:
+        missing["id_token"] = "This field is required."
+    if not field:
+        missing["field"] = "This field is required."
+    if "data" not in request.data:
+        missing["data"] = "This field is required."
+
+    if missing:
+        return Response(
+            {"success": False, "message": "Missing required fields.", "errors": missing},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 3) Verify id_token → get user_id
+    user_id = _extract_uid_from_token(id_token)
+    if not user_id:
+        return Response(
+            {"success": False, "message": "Invalid or expired id_token."},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 4) Hard validation on field name
+    if field not in ALLOWED_USER_FIELDS:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"field": "Must be one of: username, email, profile_picture, status."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 5) Delegate to controller
+    ok, payload = update_user_field(user_id, field, value)
+    if not ok:
+        # choose HTTP code based on message
+        if payload.get("message") == "User not found.":
+            return Response(payload, status=status.HTTP_404_NOT_FOUND)
+        return Response(payload, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(payload, status=status.HTTP_200_OK)
+
+# -------------
+# USER_03 (end)
+# -------------

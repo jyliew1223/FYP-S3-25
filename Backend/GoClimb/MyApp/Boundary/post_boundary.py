@@ -8,8 +8,10 @@ from rest_framework.decorators import api_view
 from rest_framework import status
 
 from MyApp.Controller import post_controller
-from MyApp.Firebase.helpers import authenticate_app_check_token, verify_id_token
+from MyApp.Firebase.helpers import authenticate_app_check_token, parse_prefixed_int  # POST-000123 or 123
 from MyApp.Serializer.serializers import PostSerializer
+
+from MyApp.Entity.post import Post
 
 
 @api_view(["GET"])
@@ -761,3 +763,85 @@ def create_post_view(request):
             {"success": False, "message": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+
+# -----------------
+# DELETE_03 (start)
+# -----------------
+
+from typing import Optional, Dict
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+from MyApp.Entity.post import Post
+from MyApp.Firebase.helpers import parse_prefixed_int
+
+# keep this shim import so unit tests can patch correctly
+import MyApp.Utils.helper as helper
+
+
+def _get_post_id_any(src) -> Optional[int]:
+    """Accepts raw int-like or 'POST-<int>'. Returns int or None."""
+    return parse_prefixed_int(src, "POST")
+
+
+def _missing_fields_errors(post_id: Optional[int], req_user_id: Optional[str]) -> Dict[str, str]:
+    errors: Dict[str, str] = {}
+    if post_id is None:
+        errors["post_id"] = "This field is required."
+    if not isinstance(req_user_id, str) or not req_user_id.strip():
+        errors["user_id"] = "This field is required."
+    return errors
+
+
+@api_view(["DELETE"])
+def delete_post_view(request):
+    # 1) App Check via shim
+    auth = helper.authenticate_app_check_token(request)
+    if not auth.get("success"):
+        return Response(
+            {"success": False, "message": auth.get("message", "Invalid token.")},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    # 2) Inputs (accept body or query)
+    raw_post_id = request.data.get("post_id") or request.query_params.get("post_id")
+    req_user_id = request.data.get("user_id") or request.query_params.get("user_id")
+    post_id = _get_post_id_any(raw_post_id)
+
+    errors = _missing_fields_errors(post_id, req_user_id)
+    if errors:
+        return Response(
+            {"success": False, "message": "Missing required fields.", "errors": errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # 3) Fetch post
+    try:
+        post = Post.objects.select_related("user").get(pk=post_id)
+    except Post.DoesNotExist:
+        return Response(
+            {"success": False, "message": "Post not found.", "errors": []},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    # 4) Ownership check
+    if post.user.user_id != req_user_id.strip():
+        return Response(
+            {"success": False, "message": "Forbidden: you can only delete your own post.", "errors": []},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    # 5) Delete
+    post.delete()
+    return Response(
+        {"success": True, "message": "Post deleted successfully", "errors": []},
+        status=status.HTTP_200_OK,
+    )
+
+# ---------------
+# DELETE_03 (end)
+# ---------------

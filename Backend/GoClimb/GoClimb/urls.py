@@ -20,4 +20,5 @@ from django.urls import path, include
 urlpatterns = [
    # path("admin/", admin_site.urls),
     path("", include("MyApp.urls")),
+    path("crag/", include("MyApp.Url.crag_url")),   # CREATING_01
 ]
