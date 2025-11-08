@@ -2,12 +2,12 @@
 
 /**
  * Download all files from a JSON folder structure.
- * 
+ *
  * this will only use for download a model to local(phone)
  * the backend will return a json which contains the download urls of every file in that folder
  * just directly pass in that json to this file, and it will download to ExternalDirectoryPath
- * 
- * -> 
+ *
+ * ->
  *
  * JSON example:
  * {
@@ -29,24 +29,29 @@
 
 import RNFS from 'react-native-fs';
 
-import { LOCAL_DIR } from '../constants/folder_path';
+import { LOCAL_DIR } from '../../constants/folder_path';
 
-export { downloadFolderFromJson };
+/**
+ *
+ * @param {JSON} json
+ * @param {Boolean} skipExisting
+ * @returns
+ */
+export const downloadFolderFromJson = async (json, skipExisting) => {
+  console.log('in func');
 
-const downloadFolderFromJson = async (
-  json,
-  options = { skipExisting: false },
-) => {
   if (!json || !json.files || json.files.length === 0) {
     console.warn('No files to download.');
     return;
   }
 
+  const folder = json.folder.replace(/\/$/, '');
+
   for (const file of json.files) {
     try {
       // Preserve nested structure
       const relativePath = file.path.replace(`${json.folder}`, ''); // e.g., "documents/resume.pdf"
-      const localDest = `${LOCAL_DIR.BASE_DIR}/${json.folder}/${relativePath}`;
+      const localDest = `${LOCAL_DIR.BASE_DIR}/${folder}/${relativePath}`;
 
       // Extract folder path and create it
       const localDir = localDest.substring(0, localDest.lastIndexOf('/'));
@@ -56,7 +61,7 @@ const downloadFolderFromJson = async (
 
       // Check if file exists
       const exists = await RNFS.exists(localDest);
-      if (exists && options.skipExisting) {
+      if (exists && skipExisting) {
         console.log(`Skipped existing file: ${localDest}`);
         continue;
       }

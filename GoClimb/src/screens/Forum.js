@@ -15,11 +15,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
+  ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useTheme } from '../context/ThemeContext';
-import { useRoute, useFocusEffect } from '@react-navigation/native';
+import {useTheme} from '../context/ThemeContext';
+import {useRoute, useFocusEffect} from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 
 import {
@@ -31,223 +33,207 @@ import {
   getLikeCount,
 } from '../services/api/PostsService';
 
-export default function Forum({ navigation }) {
+export default function Forum({navigation}) {
   const route = useRoute();
-  const { colors } = useTheme();
+  const {colors} = useTheme();
 
   const [query, setQuery] = useState('');
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  // track which posts current user has liked (session-local only)
-  const [liked, setLiked] = useState(() => new Set());
+  const [likedPosts, setLikedPosts] = useState(new Set());
 
   // toast banner
   const [toast, setToast] = useState('');
   const toastRef = useRef(null);
-  const showToast = useCallback((msg) => {
+  const showToast = useCallback(msg => {
     setToast(msg);
     if (toastRef.current) clearTimeout(toastRef.current);
     toastRef.current = setTimeout(() => setToast(''), 2000);
   }, []);
 
-  // after we get posts from backend, fetch accurate comment counts (skip like calls for faster loading)
-  const hydratePostData = useCallback(async (list) => {
-    try {
-      const updated = await Promise.all(
-        list.map(async (p) => {
-          try {
-            // Only fetch comment count for faster loading
-            const commentCount = await fetchCommentCountForPost(p.id);
-            
-            return {
-              ...p,
-              comments: commentCount || 0,
-              likes: p.likes || 0, // Use existing like count from backend
-            };
-          } catch (error) {
-            console.log(`[DEBUG] Error hydrating post ${p.id}:`, error);
-            return {
-              ...p,
-              comments: p.comments || 0,
-              likes: p.likes || 0,
-            };
-          }
-        })
-      );
+  // Load posts and their like status
+  const loadPosts = useCallback(
+    async (blacklist = []) => {
+      try {
+        const res = await fetchRandomPosts({count: 12, blacklist});
+        if (!res?.success) {
+          showToast(res?.message || 'Failed to load posts');
+          return [];
+        }
 
-      console.log('[DEBUG hydratePostData updated]', updated);
-      setPosts(updated);
-      
-      // Skip like status checking for faster loading
-      setLiked(new Set());
-    } catch (error) {
-      console.log('[DEBUG] Error in hydratePostData:', error);
-    }
-  }, []);
+        console.log('[DEBUG Forum] Fetched posts:', res.data.length);
 
-  // load initial feed
+        // Check like status for each post
+        const likedSet = new Set();
+        const postsWithData = await Promise.all(
+          res.data.map(async post => {
+            try {
+              // Check if user liked this post
+              const isLiked = await checkIfUserLikedPost(post.id);
+              if (isLiked) {
+                likedSet.add(post.id);
+              }
+
+              // Get comment count
+              const commentCount = await fetchCommentCountForPost(post.id);
+
+              // Get current like count
+              const likeCountRes = await getLikeCount(post.id);
+              const currentLikes = likeCountRes.success ? likeCountRes.count : post.likes || 0;
+
+              return {
+                ...post,
+                comments: commentCount || 0,
+                likes: currentLikes,
+              };
+            } catch (error) {
+              console.log(`[DEBUG] Error processing post ${post.id}:`, error);
+              return post;
+            }
+          }),
+        );
+
+        console.log('[DEBUG Forum] Liked posts:', Array.from(likedSet));
+        setLikedPosts(likedSet);
+        return postsWithData;
+      } catch (error) {
+        console.log('[DEBUG] Error in loadPosts:', error);
+        showToast('Failed to load posts');
+        return [];
+      }
+    },
+    [showToast],
+  );
+
+  // Initial load
   const load = useCallback(async () => {
     setLoading(true);
-
-    try {
-      const res = await fetchRandomPosts({ count: 12 });
-      if (res?.success) {
-        console.log('[DEBUG Forum fetchRandomPosts]', res.data);
-        // Show posts immediately for faster UI
-        setPosts(res.data);
-        setLiked(new Set()); // reset local like set on new load
-        setLoading(false);
-
-        // hydrate comment counts and like status in background
-        hydratePostData(res.data);
-      } else {
-        setPosts([]);
-        showToast(res?.message || 'Failed to load posts');
-        setLoading(false);
-      }
-    } catch (error) {
-      console.log('[DEBUG] Error loading posts:', error);
-      setPosts([]);
-      showToast('Failed to load posts');
-      setLoading(false);
-    }
-  }, [showToast, hydratePostData]);
+    const postsData = await loadPosts();
+    setPosts(postsData);
+    setLoading(false);
+  }, [loadPosts]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // When forum tab gains focus, if we were sent here after creating a post
+  // When forum tab gains focus after creating a post
   useFocusEffect(
     React.useCallback(() => {
       if (route.params?.justPosted) {
         showToast('Post published');
-        // optional: refresh to try to pull new post if backend returns it
-        // load();
         route.params.justPosted = false;
       }
-    }, [route.params, showToast])
+    }, [route.params, showToast]),
   );
 
-  // pull-to-refresh
+  // Pull-to-refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    const blacklist = posts.map((p) => p.id);
-    const res = await fetchRandomPosts({ count: 12, blacklist });
-    if (res?.success) {
-      setPosts(res.data);
-      setLiked(new Set());
-      hydratePostData(res.data);
-    }
+    const blacklist = posts.map(p => p.id);
+    const postsData = await loadPosts(blacklist);
+    setPosts(postsData);
     setRefreshing(false);
-  }, [posts, hydratePostData]);
+  }, [posts, loadPosts]);
 
-  // local search and chronological sorting (newest first)
+  // Local search and chronological sorting
   const filtered = useMemo(() => {
     let result = posts;
-    
-    // Filter by search query if provided
+
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       result = posts.filter(
-        (p) =>
+        p =>
           p.title.toLowerCase().includes(q) ||
           p.body.toLowerCase().includes(q) ||
-          (p.tags || []).some((t) =>
-            String(t).toLowerCase().includes(q)
-          )
+          (p.tags || []).some(t => String(t).toLowerCase().includes(q)),
       );
     }
-    
-    // Sort chronologically: newest first (highest createdAt timestamp)
+
     return result.sort((a, b) => {
       const timeA = a.createdAt || 0;
       const timeB = b.createdAt || 0;
-      return timeB - timeA; // Descending order (newest first)
+      return timeB - timeA;
     });
   }, [posts, query]);
 
-  const openPost = (post) =>
-    navigation.navigate('PostDetail', { postId: post.id });
+  const openPost = post => navigation.navigate('PostDetail', {postId: post.id});
 
-  const goToComments = (post) =>
-    navigation.navigate('PostDetail', { postId: post.id });
+  const goToComments = post =>
+    navigation.navigate('PostDetail', {postId: post.id});
 
   const sharePost = () => {
     showToast('Feature under construction');
   };
 
-  // like toggle (optimistic only)
-  const toggleLike = async (post) => {
-    // Check if user is logged in
+  // Toggle like
+  const toggleLike = async post => {
     const currentUser = auth().currentUser;
     if (!currentUser) {
       navigation.navigate('SignUp');
       return;
     }
-    
-    const already = liked.has(post.id);
 
-    // optimistic UI
-    setLiked((prev) => {
+    const wasLiked = likedPosts.has(post.id);
+
+    // Optimistic UI update
+    setLikedPosts(prev => {
       const next = new Set(prev);
-      if (already) next.delete(post.id);
-      else next.add(post.id);
+      if (wasLiked) {
+        next.delete(post.id);
+      } else {
+        next.add(post.id);
+      }
       return next;
     });
 
-    setPosts((prev) =>
-      prev.map((p) =>
+    setPosts(prev =>
+      prev.map(p =>
         p.id === post.id
           ? {
               ...p,
-              likes: Math.max(
-                0,
-                (p.likes || 0) + (already ? -1 : 1)
-              ),
+              likes: Math.max(0, (p.likes || 0) + (wasLiked ? -1 : 1)),
             }
-          : p
-      )
+          : p,
+      ),
     );
 
-    const res = already
-      ? await unlikePost(post.id)
-      : await likePost(post.id);
+    // Call API
+    const res = wasLiked ? await unlikePost(post.id) : await likePost(post.id);
 
     if (!res?.success) {
-      // revert on fail
-      setLiked((prev) => {
+      // Revert on failure
+      setLikedPosts(prev => {
         const next = new Set(prev);
-        if (already) next.add(post.id);
-        else next.delete(post.id);
+        if (wasLiked) {
+          next.add(post.id);
+        } else {
+          next.delete(post.id);
+        }
         return next;
       });
 
-      setPosts((prev) =>
-        prev.map((p) =>
+      setPosts(prev =>
+        prev.map(p =>
           p.id === post.id
             ? {
                 ...p,
-                likes: Math.max(
-                  0,
-                  (p.likes || 0) + (already ? 1 : -1)
-                ),
+                likes: Math.max(0, (p.likes || 0) + (wasLiked ? 1 : -1)),
               }
-            : p
-        )
+            : p,
+        ),
       );
 
       showToast(res?.message || 'Could not update like');
     }
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({item}) => (
     <PostCard
       post={item}
       colors={colors}
-      liked={liked.has(item.id)}
+      liked={likedPosts.has(item.id)}
       onPress={() => openPost(item)}
       onLike={() => toggleLike(item)}
       onComment={() => goToComments(item)}
@@ -257,9 +243,8 @@ export default function Forum({ navigation }) {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      edges={['top', 'bottom', 'left', 'right']}
-    >
+      style={{flex: 1, backgroundColor: colors.bg}}
+      edges={['top', 'bottom', 'left', 'right']}>
       {/* top bar */}
       <View
         style={[
@@ -268,19 +253,12 @@ export default function Forum({ navigation }) {
             backgroundColor: colors.surface,
             borderBottomColor: colors.divider,
           },
-        ]}
-      >
-        <Text style={[styles.topTitle, { color: colors.text }]}>
-          Forum
-        </Text>
+        ]}>
+        <Text style={[styles.topTitle, {color: colors.text}]}>Forum</Text>
 
         <View style={styles.topActions}>
           <TouchableOpacity onPress={load} style={styles.topIcon}>
-            <Ionicons
-              name="refresh"
-              size={20}
-              color={colors.text}
-            />
+            <Ionicons name="refresh" size={20} color={colors.text} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -292,13 +270,8 @@ export default function Forum({ navigation }) {
                 navigation.navigate('CreatePost');
               }
             }}
-            style={styles.topIcon}
-          >
-            <Ionicons
-              name="create-outline"
-              size={20}
-              color={colors.text}
-            />
+            style={styles.topIcon}>
+            <Ionicons name="create-outline" size={20} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -312,15 +285,13 @@ export default function Forum({ navigation }) {
               backgroundColor: colors.surface,
               borderColor: colors.divider,
             },
-          ]}
-        >
+          ]}>
           <Text
             style={{
               color: colors.text,
               fontSize: 12,
               fontWeight: '600',
-            }}
-          >
+            }}>
             {toast}
           </Text>
         </View>
@@ -334,28 +305,20 @@ export default function Forum({ navigation }) {
             borderColor: colors.border,
             backgroundColor: colors.surface,
           },
-        ]}
-      >
+        ]}>
         <Ionicons name="search" size={18} color={colors.textDim} />
         <TextInput
           placeholder="Search posts"
           placeholderTextColor={colors.textDim}
           value={query}
           onChangeText={setQuery}
-          style={[
-            styles.searchInput,
-            { color: colors.text },
-          ]}
+          style={[styles.searchInput, {color: colors.text}]}
           autoCapitalize="none"
           autoCorrect={false}
         />
         {query ? (
           <TouchableOpacity onPress={() => setQuery('')}>
-            <Ionicons
-              name="close-circle"
-              size={18}
-              color={colors.textDim}
-            />
+            <Ionicons name="close-circle" size={18} color={colors.textDim} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -368,11 +331,9 @@ export default function Forum({ navigation }) {
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item.id}
+          keyExtractor={item => item.id}
           renderItem={renderItem}
-          ItemSeparatorComponent={() => (
-            <View style={{ height: 10 }} />
-          )}
+          ItemSeparatorComponent={() => <View style={{height: 10}} />}
           contentContainerStyle={{
             padding: 16,
             paddingBottom: 24,
@@ -387,26 +348,13 @@ export default function Forum({ navigation }) {
 
 /* ----------------------------- card ----------------------------- */
 
-function PostCard({
-  post,
-  colors,
-  liked,
-  onPress,
-  onLike,
-  onComment,
-  onShare,
-}) {
+function PostCard({post, colors, liked, onPress, onLike, onComment, onShare}) {
   const time = timeAgo(post.createdAt);
 
   const displayTitle =
     (post.title && post.title.trim()) ||
     (post.body || '').slice(0, 70) ||
     'Untitled';
-
-  console.log('[DEBUG Forum card title]', {
-    id: post.id,
-    title: post.title,
-  });
 
   return (
     <TouchableOpacity
@@ -418,73 +366,66 @@ function PostCard({
           backgroundColor: colors.surface,
           borderColor: colors.divider,
         },
-      ]}
-    >
+      ]}>
       {/* header */}
       <View style={styles.cardHeader}>
         <Avatar name={post.author?.name} colors={colors} />
-        <View style={{ flex: 1 }}>
-          <Text
-            numberOfLines={1}
-            style={[styles.author, { color: colors.text }]}
-          >
+        <View style={{flex: 1}}>
+          <Text numberOfLines={1} style={[styles.author, {color: colors.text}]}>
             {post.author?.name || 'User'}
           </Text>
-          <Text
-            style={[styles.meta, { color: colors.textDim }]}
-          >
-            {time}
-          </Text>
+          <Text style={[styles.meta, {color: colors.textDim}]}>{time}</Text>
         </View>
 
-        <Ionicons
-          name="ellipsis-horizontal"
-          color={colors.textDim}
-          size={18}
-        />
+        <Ionicons name="ellipsis-horizontal" color={colors.textDim} size={18} />
       </View>
 
       {/* title */}
-      <Text style={[styles.title, { color: colors.text }]}>
-        {displayTitle}
-      </Text>
+      <Text style={[styles.title, {color: colors.text}]}>{displayTitle}</Text>
 
       {/* body snippet */}
       {!!post.body && (
         <Text
-          style={[styles.body, { color: colors.textDim }]}
-          numberOfLines={4}
-        >
+          style={[styles.body, {color: colors.textDim}]}
+          numberOfLines={4}>
           {post.body}
         </Text>
       )}
 
-      {/* placeholder for future images */}
-      {post.imageUrl ? (
-        <View
-          style={[
-            styles.imagePlaceholder,
-            { backgroundColor: '#555' },
-          ]}
-        />
+      {/* images */}
+      {post.images && post.images.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.imagesContainer}
+          contentContainerStyle={styles.imagesContent}
+          nestedScrollEnabled={true}
+          scrollEnabled={post.images.length > 1}>
+          {post.images.map((imgUrl, index) => (
+            <Image
+              key={index}
+              source={{uri: imgUrl}}
+              style={[
+                styles.imagePlaceholder,
+                index < post.images.length - 1 && {marginRight: 8},
+              ]}
+              resizeMode="cover"
+            />
+          ))}
+        </ScrollView>
       ) : null}
 
       {/* tags */}
       {!!post.tags?.length && (
         <View style={styles.tagsRow}>
-          {post.tags.map((t) => (
+          {post.tags.map(t => (
             <Tag key={t} text={t} colors={colors} />
           ))}
         </View>
       )}
 
       {/* actions row */}
-      <View
-        style={[
-          styles.actionsRow,
-          { borderTopColor: colors.divider },
-        ]}
-      >
+      <View style={[styles.actionsRow, {borderTopColor: colors.divider}]}>
         <RowAction
           icon={liked ? 'heart' : 'heart-outline'}
           text={String(post.likes ?? 0)}
@@ -511,8 +452,10 @@ function PostCard({
 
 /* ----------------------- small UI helpers ----------------------- */
 
-function Avatar({ name, colors }) {
-  const parts = String(name || '').trim().split(/\s+/);
+function Avatar({name, colors}) {
+  const parts = String(name || '')
+    .trim()
+    .split(/\s+/);
   const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
   return (
     <View
@@ -522,22 +465,20 @@ function Avatar({ name, colors }) {
           backgroundColor: colors.surfaceAlt,
           borderColor: colors.divider,
         },
-      ]}
-    >
+      ]}>
       <Text
         style={{
           color: colors.textDim,
           fontWeight: '800',
           fontSize: 12,
-        }}
-      >
+        }}>
         {(initials || 'U').toUpperCase()}
       </Text>
     </View>
   );
 }
 
-function Tag({ text, colors }) {
+function Tag({text, colors}) {
   return (
     <View
       style={[
@@ -546,28 +487,25 @@ function Tag({ text, colors }) {
           backgroundColor: colors.surfaceAlt,
           borderColor: colors.divider,
         },
-      ]}
-    >
+      ]}>
       <Text
         style={{
           color: colors.textDim,
           fontSize: 11,
           fontWeight: '700',
-        }}
-      >
+        }}>
         #{text}
       </Text>
     </View>
   );
 }
 
-function RowAction({ icon, text, colors, onPress, active }) {
+function RowAction({icon, text, colors, onPress, active}) {
   return (
     <TouchableOpacity
       onPress={onPress}
       style={styles.rowAction}
-      activeOpacity={0.85}
-    >
+      activeOpacity={0.85}>
       <Ionicons
         name={icon}
         size={16}
@@ -577,9 +515,8 @@ function RowAction({ icon, text, colors, onPress, active }) {
         <Text
           style={[
             styles.rowActionText,
-            { color: active ? colors.accent : colors.textDim },
-          ]}
-        >
+            {color: active ? colors.accent : colors.textDim},
+          ]}>
           {text}
         </Text>
       )}
@@ -692,10 +629,16 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
+  imagesContainer: {
+    marginTop: 10,
+  },
+  imagesContent: {
+    paddingRight: 0,
+  },
   imagePlaceholder: {
+    width: 280,
     height: 160,
     borderRadius: 10,
-    marginTop: 10,
   },
 
   tagsRow: {

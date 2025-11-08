@@ -25,10 +25,6 @@ import RankingListScreen from '../screens/RankingListScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-/**
- * Bottom tabs (Home / Rankings / Map / Forum / Routes)
- * Forum is exposed here as 'ForumMain'
- */
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -51,7 +47,7 @@ function MainTabs() {
         name="Routes"
         component={CragsScreen}
         options={{ title: 'Routes' }}
-      />    
+      />
     </Tab.Navigator>
   );
 }

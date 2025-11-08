@@ -213,7 +213,7 @@ export default async function getCragInfo(cragId) {
    * if u set attachAppCheckField to true when creating CustomApiRequest object
    * it will try get a token from Firebase AppCheck, if the AppCheck isnt init in this step it will throw a error
    */
-  await InitFirebaseApps();
+  // await InitFirebaseApps();
 
   /**
    * create a instance of the payload u just coded

@@ -1,10 +1,6 @@
 // src/services/api/CragService.js
 
-import {
-  CustomApiRequest,
-  RequestMethod,
-  BaseApiResponse,
-} from './ApiHelper';
+import { CustomApiRequest, RequestMethod, BaseApiResponse } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
 import InitFirebaseApps from '../firebase/InitFirebaseApps';
 
@@ -106,16 +102,14 @@ class GenericGetResponse extends BaseApiResponse {
 async function fetchCragInfoGET(numericPkCragId) {
   await InitFirebaseApps();
 
-  const query = `?crag_id=${encodeURIComponent(
-    numericPkCragId
-  )}`;
+  const query = `?crag_id=${encodeURIComponent(numericPkCragId)}`;
 
   const req = new CustomApiRequest(
     RequestMethod.GET,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.CRAG.GET_CRAG_INFO + query,
     null,
-    true
+    true,
   );
 
   const ok = await req.sendRequest(GenericGetResponse);
@@ -143,7 +137,10 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
   const payload = { crag_id: cragIdParam };
 
   console.log('[fetchRoutesByCragIdGET] BASE_URL:', API_ENDPOINTS.BASE_URL);
-  console.log('[fetchRoutesByCragIdGET] ENDPOINT:', API_ENDPOINTS.ROUTE.GET_ROUTES_BY_CRAG_ID);
+  console.log(
+    '[fetchRoutesByCragIdGET] ENDPOINT:',
+    API_ENDPOINTS.ROUTE.GET_ROUTES_BY_CRAG_ID,
+  );
   console.log('[fetchRoutesByCragIdGET] cragIdParam:', cragIdParam);
   console.log('[fetchRoutesByCragIdGET] payload:', payload);
 
@@ -152,7 +149,7 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.ROUTE.GET_ROUTES_BY_CRAG_ID,
     payload,
-    true
+    true,
   );
 
   const ok = await req.sendRequest(GenericGetResponse);
@@ -185,7 +182,7 @@ export async function fetchRouteByIdGET(routeId) {
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.ROUTE.GET_ROUTE_BY_ID,
     payload,
-    true
+    true,
   );
 
   const ok = await req.sendRequest(GenericGetResponse);
@@ -212,7 +209,7 @@ export async function fetchRandomCrags(count = 10, blacklist = []) {
 
   const payload = {
     count: count.toString(),
-    blacklist: blacklist
+    blacklist: blacklist,
   };
 
   const req = new CustomApiRequest(
@@ -220,7 +217,7 @@ export async function fetchRandomCrags(count = 10, blacklist = []) {
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.CRAG.GET_RANDOM_CRAGS,
     payload,
-    true
+    true,
   );
 
   const ok = await req.sendRequest(GenericGetResponse);
@@ -239,7 +236,7 @@ export async function fetchRandomCrags(count = 10, blacklist = []) {
   const arr = Array.isArray(res.data) ? res.data : [];
   return {
     success: true,
-    crags: arr.map((raw) => normalizeCrag(raw, null)),
+    crags: arr.map(raw => normalizeCrag(raw, null)),
   };
 }
 
@@ -253,4 +250,26 @@ export async function fetchAllCragsBootstrap() {
 
   console.warn('[fetchAllCragsBootstrap] Failed to load crags');
   return [];
+}
+
+export async function fetchAllModelsByCragId(crag_id) {
+  console.log(
+    '[fetchAllModelsByCragId] fetch all models related to crag: ' +
+      crag_id.toString(),
+  );
+
+  const payload = {
+    crag_id: crag_id,
+  };
+
+  const request = new CustomApiRequest(
+    RequestMethod.GET,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.CRAG_MODEL.GET_MODELS_BY_CRAG_ID,
+    payload,
+  );
+
+  await request.sendRequest();
+  
+  return request.JsonObject.data;
 }

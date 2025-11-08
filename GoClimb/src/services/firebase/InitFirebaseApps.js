@@ -110,7 +110,7 @@ const InitFirebaseApps = async () => {
     rnfbProvider.configure({
       android: {
         provider: __DEV__ ? 'debug' : 'playIntegrity',
-        debugToken: 'EF346947-BDAD-436D-A3EE-45178EC50E39',
+        debugToken: '7FCE2587-63B8-4E4C-8EDB-017358A9DE84',
       },
       apple: {
         provider: __DEV__ ? 'debug' : 'appAttestWithDeviceCheckFallback',
@@ -132,7 +132,7 @@ const InitFirebaseApps = async () => {
       isTokenAutoRefreshEnabled: true,
     });
 
-    const token = getToken(appCheckInstance, true);
+    const token = await getToken(appCheckInstance, true);
     if (!token || token.length === 0) {
       console.log(`${TAG}: Local AppCheck verification failed`);
       return false;
@@ -223,7 +223,7 @@ const InitFirebaseApps = async () => {
     );
     return false;
   }
-  console.log(`${TAG}: Firebase Apps initialized`);
+  console.log(`${TAG}: Firebase Apps initialized`);  console.log(`${TAG}: Firebase Apps initialized`);
   return true;
 };
 

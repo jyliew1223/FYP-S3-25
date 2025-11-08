@@ -1,6 +1,6 @@
 // GoClimb/src/services/api/PostsService.js
 
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import {
   RequestMethod,
   BaseApiPayload,
@@ -10,14 +10,6 @@ import {
 import { API_ENDPOINTS } from '../../constants/api';
 
 /* ----------------------------- helpers ----------------------------- */
-
-function numericPostId(postId) {
-  if (typeof postId === 'number') return postId;
-  if (!postId) return null;
-  const digits = String(postId).replace(/\D/g, '');
-  return digits ? Number(digits) : null;
-}
-
 function toTs(value) {
   try {
     return value ? Date.parse(value) : Date.now();
@@ -57,17 +49,17 @@ function mapPostJsonToUi(raw) {
     uiTitle = 'Untitled';
   }
 
-  const likes = Number(
-    raw.likes ?? raw.likes_count ?? raw.like_count ?? 0
-  );
+  const likes = Number(raw.likes ?? raw.likes_count ?? raw.like_count ?? 0);
   const comments = Number(
-    raw.comments ?? raw.comments_count ?? raw.comment_count ?? 0
+    raw.comments ?? raw.comments_count ?? raw.comment_count ?? 0,
   );
 
   const imageUrl =
     Array.isArray(raw.images_urls) && raw.images_urls.length
       ? raw.images_urls[0]
       : null;
+
+  const images = Array.isArray(raw.images_urls) ? raw.images_urls : [];
 
   return {
     id: postId,
@@ -78,7 +70,8 @@ function mapPostJsonToUi(raw) {
     createdAt: createdTs,
     likes,
     comments, // fallback until we hydrate with fetchCommentCountForPost
-    imageUrl,
+    imageUrl, // Keep for backward compatibility
+    images, // All images array
   };
 }
 
@@ -208,7 +201,7 @@ export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST.GET_RANDOM_POSTS,
     new GetRandomPostsPayload({ count, blacklist }),
-    true
+    true,
   );
   const ok = await req.sendRequest(GetRandomPostsResponse);
   const res = req.Response;
@@ -234,7 +227,7 @@ export async function fetchPostById(postId) {
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST.GET_POST,
     payload,
-    true
+    true,
   );
   let ok = await req.sendRequest(GetPostResponse);
   let res = req.Response;
@@ -260,12 +253,10 @@ export async function fetchCommentsByPostId(postId) {
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.COMMENT.GET_COMMENTS_BY_POST_ID,
     payload,
-    true
+    true,
   );
   let ok = await req.sendRequest(GetCommentsResponse);
   let res = req.Response;
-
-  console.log('[DEBUG fetchCommentsByPostId count]', res?.data?.length ?? 0);
 
   return {
     success: ok && !!res?.success,
@@ -287,7 +278,7 @@ export async function fetchCommentCountForPost(postId) {
 
 // CREATE COMMENT
 export async function createComment({ postId, content }) {
-  const user = auth().currentUser;
+  const user = getAuth().currentUser;
   if (!user) throw new Error('No Firebase session found.');
 
   const req = new CustomApiRequest(
@@ -299,7 +290,7 @@ export async function createComment({ postId, content }) {
       user_id: user.uid,
       content,
     }),
-    true
+    true,
   );
   const ok = await req.sendRequest(CreateCommentResponse);
   const res = req.Response;
@@ -315,26 +306,41 @@ export async function createComment({ postId, content }) {
 
 // DELETE COMMENT
 export async function deleteComment(commentId) {
+  console.log('[deleteComment] === START ===');
+  console.log('[deleteComment] Input commentId:', commentId);
+  console.log('[deleteComment] commentId type:', typeof commentId);
+
   const user = getAuth().currentUser;
-  if (!user) throw new Error('No Firebase session found.');
+  if (!user) {
+    console.log('[deleteComment] ERROR: No Firebase session found');
+    throw new Error('No Firebase session found.');
+  }
+
+  console.log('[deleteComment] Current user UID:', user.uid);
 
   const payload = { comment_id: commentId };
 
-  console.log('[deleteComment] commentId:', commentId);
-  console.log('[deleteComment] payload:', payload);
-  console.log('[deleteComment] endpoint:', API_ENDPOINTS.COMMENT.DELETE_COMMENT);
+  console.log('[deleteComment] Payload:', JSON.stringify(payload));
+  console.log('[deleteComment] Endpoint:', API_ENDPOINTS.COMMENT.DELETE_COMMENT);
+  console.log('[deleteComment] Full URL:', API_ENDPOINTS.BASE_URL + '/' + API_ENDPOINTS.COMMENT.DELETE_COMMENT);
 
   const req = new CustomApiRequest(
-    RequestMethod.POST,
+    RequestMethod.DELETE,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.COMMENT.DELETE_COMMENT,
     payload,
-    true
+    true,
   );
+
+  console.log('[deleteComment] Sending request...');
   const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
+  const jsonObj = req.JsonObject;
 
-  console.log('[deleteComment] response:', res);
+  console.log('[deleteComment] Request OK:', ok);
+  console.log('[deleteComment] Response object:', res);
+  console.log('[deleteComment] Raw JSON:', jsonObj);
+  console.log('[deleteComment] === END ===');
 
   return {
     success: ok && !!res?.success,
@@ -348,46 +354,68 @@ export async function deleteComment(commentId) {
 // LIKE STATUS CHECK
 export async function checkIfUserLikedPost(postId) {
   const user = getAuth().currentUser;
-  if (!user) return { success: false, liked: false };
+  if (!user) {
+    console.log('[DEBUG checkIfUserLikedPost] No user logged in');
+    return false;
+  }
 
-  const pid = numericPostId(postId) ?? postId;
-  const payload = { post_id: pid };
+  const payload = { post_id: postId };
 
   const req = new CustomApiRequest(
-    RequestMethod.POST,
+    RequestMethod.GET,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST_LIKE.LIKES_USERS,
     payload,
-    true
+    true,
   );
-  const ok = await req.sendRequest(BaseApiResponse);
-  const res = req.Response;
+  const ok = await req.sendRequest();
+  const res = req.JsonObject;
+
+  console.log('[DEBUG checkIfUserLikedPost]', {
+    postId,
+    ok,
+    success: res?.success,
+    users: res?.data?.users,
+    currentUserId: user.uid,
+  });
 
   if (ok && res?.success && res?.data?.users) {
     const userLiked = res.data.users.some(u => u.user_id === user.uid);
-    return { success: true, liked: userLiked };
+    console.log('[DEBUG checkIfUserLikedPost] userLiked:', userLiked);
+    return userLiked;
   }
 
-  return { success: false, liked: false };
+  console.log('[DEBUG checkIfUserLikedPost] Returning false (no match)');
+  return false;
 }
 
 // GET LIKE COUNT
 export async function getLikeCount(postId) {
-  const pid = numericPostId(postId) ?? postId;
-  const payload = { post_id: pid };
+  const payload = { post_id: postId };
 
   const req = new CustomApiRequest(
-    RequestMethod.POST,
+    RequestMethod.GET,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST_LIKE.LIKES_COUNT,
     payload,
-    true
+    true,
   );
   const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
+  const jsonData = req.JsonObject;
 
-  if (ok && res?.success && res?.data?.count !== undefined) {
-    return { success: true, count: res.data.count };
+  console.log('[DEBUG getLikeCount]', {
+    postId,
+    ok,
+    success: res?.success,
+    jsonData,
+  });
+
+  if (ok && res?.success && jsonData?.data) {
+    // Get count from the raw JSON data
+    const count = jsonData.data.count ?? jsonData.data.likes_count ?? jsonData.data.like_count ?? 0;
+    console.log('[DEBUG getLikeCount] Extracted count:', count);
+    return { success: true, count };
   }
 
   return { success: false, count: 0 };
@@ -396,17 +424,17 @@ export async function getLikeCount(postId) {
 // LIKE / UNLIKE
 export async function likePost(postId) {
   const user = getAuth().currentUser;
-  if (!user) throw new Error('No Firebase session found.');
-  const pid = numericPostId(postId) ?? postId;
 
-  const payload = { post_id: pid, user_id: user.uid };
+  if (!user) throw new Error('No Firebase session found.');
+
+  const payload = { post_id: postId, user_id: user.uid };
 
   const req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST_LIKE.LIKE,
     payload,
-    true
+    true,
   );
   const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
@@ -420,16 +448,15 @@ export async function likePost(postId) {
 export async function unlikePost(postId) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('No Firebase session found.');
-  const pid = numericPostId(postId) ?? postId;
 
-  const payload = { post_id: pid, user_id: user.uid };
+  const payload = { post_id: postId, user_id: user.uid };
 
   const req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST_LIKE.UNLIKE,
     payload,
-    true
+    true,
   );
   const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
@@ -442,7 +469,7 @@ export async function unlikePost(postId) {
 
 // CREATE POST
 export async function createPost({ title, content, tags }) {
-  const user = auth().currentUser;
+  const user = getAuth().currentUser;
   if (!user) throw new Error('No Firebase session found.');
 
   const req = new CustomApiRequest(
@@ -455,7 +482,7 @@ export async function createPost({ title, content, tags }) {
       content,
       tags,
     }),
-    true
+    true,
   );
 
   const ok = await req.sendRequest(CreatePostResponse);
