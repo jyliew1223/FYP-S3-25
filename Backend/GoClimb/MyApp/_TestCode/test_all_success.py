@@ -1,18 +1,20 @@
 import json
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import patch
 from django.test import TestCase
 from django.urls import reverse
 from MyApp.Entity.user import User
 from MyApp.Entity.crag import Crag
+from MyApp.Entity.cragmodel import CragModel
 from MyApp.Entity.post import Post
 from MyApp.Entity.climblog import ClimbLog
 from MyApp.Entity.route import Route
 from MyApp.Entity.postlikes import PostLike
 from MyApp.Entity.postcomment import PostComment
-from MyApp.Entity.cragmodel import CragModel
+from MyApp.Entity.modelroutedata import ModelRouteData
 from rest_framework.test import APIClient
 from rest_framework import status
+
 
 class AllEndpointsSuccessTestCase(TestCase):
 
@@ -73,6 +75,31 @@ class AllEndpointsSuccessTestCase(TestCase):
             crag=self.test_crag, user=self.test_user, status="active"
         )
 
+        self.test_log = ClimbLog.objects.create(
+            user=self.test_user,
+            route=self.test_route,
+            date_climbed=date.today().isoformat(),
+            notes="Test log to delete",
+        )
+
+        self.test_model_route_data = ModelRouteData.objects.create(
+            model=self.test_crag_model,
+            user=self.test_user,
+            route=self.test_route,
+            route_data={
+                "coordinates": [
+                    {"x": 100, "y": 200, "z": 50},
+                    {"x": 150, "y": 250, "z": 75},
+                ],
+                "difficulty": "5.10a",
+                "holds": [
+                    {"type": "crimp", "position": {"x": 120, "y": 220}},
+                    {"type": "jug", "position": {"x": 180, "y": 280}},
+                ],
+            },
+            status="active",
+        )
+
         self.auth_headers = {
             "HTTP_X_FIREBASE_APPCHECK": "mock_app_check_token",
             "HTTP_AUTHORIZATION": "Bearer mock_id_token",
@@ -107,9 +134,7 @@ class AllEndpointsSuccessTestCase(TestCase):
                     content = response.json()
                     print(f"RESPONSE DATA: {json.dumps(content, indent=2)}")
                 else:
-                    content = response.content.decode("utf-8")[
-                        :500
-                    ]
+                    content = response.content.decode("utf-8")[:500]
                     print(f"RESPONSE CONTENT (first 500 chars): {content}")
             except Exception as e:
                 print(f"RESPONSE CONTENT: {response.content}")
@@ -416,7 +441,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             "user_id": self.test_user.user_id,
             "content": "New test post content",
             "tags": ["new", "test", "climbing"],
-            "title":"testing",
+            "title": "testing",
         }
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("POST - CREATE", url, response, data)
@@ -704,3 +729,178 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.assertEqual(
             response_data["data"][0]["model_id"], self.test_crag_model.formatted_id
         )
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_29_5_create_crag_model(self, mock_verify_app_check):
+        """Test creating a crag model"""
+
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("create_crag_model")
+        data = {
+            "user_id": self.test_user.user_id,
+            "crag_id": self.test_crag.formatted_id,
+            "name": "Test 3D Model Creation",
+            "status": "active",
+        }
+        response = self.client.post(url, data, format="json")
+        self.print_endpoint_result("CRAG MODEL - CREATE", url, response, data)
+
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertIn("success", response_data)
+        self.assertIn("message", response_data)
+
+        if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
+            self.assertTrue(
+                response_data.get("success"),
+                f"Expected success=True but got: {response_data}",
+            )
+            self.assertIn("data", response_data)
+            model_data = response_data["data"]
+            self.assertEqual(model_data["name"], "Test 3D Model Creation")
+            self.assertEqual(model_data["status"], "active")
+            self.assertEqual(model_data["user"]["user_id"], self.test_user.user_id)
+            self.assertEqual(model_data["crag"]["crag_id"], self.test_crag.formatted_id)
+        else:
+            self.fail(
+                f"CRAG MODEL CREATE failed with status {response.status_code}: {response_data.get('message', 'Unknown error')}"
+            )
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_30_climb_log_create(self, mock_verify_app_check):
+
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("create_climb_log")
+        data = {
+            "user_id": self.test_user.user_id,
+            "route_id": self.test_route.formatted_id,
+            "crag_id": self.test_crag.formatted_id,
+            "date_climbed": date.today().isoformat(),
+            "notes": "Great climb, challenging overhang",
+        }
+        response = self.client.post(url, data, format="json")
+        self.print_endpoint_result("CLIMB LOG - CREATE", url, response, data)
+
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertIn("success", response_data)
+        self.assertIn("message", response_data)
+
+        if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
+            self.assertTrue(
+                response_data.get("success"),
+                f"Expected success=True but got: {response_data}",
+            )
+            self.assertIn("data", response_data)
+            climb_log_data = response_data["data"]
+            self.assertEqual(
+                climb_log_data["notes"], "Great climb, challenging overhang"
+            )
+        else:
+            self.fail(
+                f"CLIMB LOG CREATE failed with status {response.status_code}: {response_data.get('message', 'Unknown error')}"
+            )
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_31_climb_log_delete(self, mock_verify_app_check):
+
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("delete_climb_log")
+        data = {"log_id": self.test_log.formatted_id}
+        response = self.client.delete(url, data, format="json")
+        self.print_endpoint_result("CLIMB LOG - DELETE", url, response, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertEqual(
+            response_data.get("message"), "Climb log deleted successfully."
+        )
+
+        self.assertFalse(ClimbLog.objects.filter(log_id=self.test_log.log_id).exists())
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_32_model_route_data_create(self, mock_verify_app_check):
+        """Test creating model route data"""
+
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("create_model_route_data")
+        data = {
+            "user_id": self.test_user.user_id,
+            "model_id": self.test_crag_model.formatted_id,
+            "route_id": self.test_route.formatted_id,
+            "route_data": {
+                "coordinates": [
+                    {"x": 200, "y": 300, "z": 100},
+                    {"x": 250, "y": 350, "z": 125},
+                ],
+                "difficulty": "5.11a",
+                "holds": [
+                    {"type": "pinch", "position": {"x": 220, "y": 320}},
+                    {"type": "sloper", "position": {"x": 280, "y": 380}},
+                ],
+                "description": "New technical route with challenging holds",
+            },
+            "status": "active",
+        }
+        response = self.client.post(url, data, format="json")
+        self.print_endpoint_result("MODEL ROUTE DATA - CREATE", url, response, data)
+
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertIn("success", response_data)
+        self.assertIn("message", response_data)
+
+        if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
+            self.assertTrue(
+                response_data.get("success"),
+                f"Expected success=True but got: {response_data}",
+            )
+            self.assertIn("data", response_data)
+            route_data = response_data["data"]
+            self.assertEqual(route_data["route_data"]["difficulty"], "5.11a")
+            self.assertEqual(route_data["status"], "active")
+            self.assertEqual(route_data["user"]["user_id"], self.test_user.user_id)
+        else:
+            self.fail(
+                f"MODEL ROUTE DATA CREATE failed with status {response.status_code}: {response_data.get('message', 'Unknown error')}"
+            )
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_33_model_route_data_get_by_model_id(self, mock_verify_app_check):
+        """Test getting model route data by model ID"""
+
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("get_model_route_data_by_model_id")
+        params = {"model_id": self.test_crag_model.formatted_id}
+        response = self.client.get(url, params)
+        self.print_endpoint_result(
+            "MODEL ROUTE DATA - GET BY MODEL ID", url, response, params
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)
+
+        # Check if our test data is in the response
+        if response_data["data"]:
+            route_data_item = response_data["data"][0]
+            self.assertEqual(
+                route_data_item["model"]["model_id"], self.test_crag_model.formatted_id
+            )
+            self.assertEqual(
+                route_data_item["route"]["route_id"], self.test_route.formatted_id
+            )
+            self.assertEqual(route_data_item["user"]["user_id"], self.test_user.user_id)
+            self.assertIn("route_data", route_data_item)
+            self.assertIn("coordinates", route_data_item["route_data"])
+            self.assertEqual(route_data_item["route_data"]["difficulty"], "5.10a")

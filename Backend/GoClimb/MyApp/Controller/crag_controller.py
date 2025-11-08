@@ -5,6 +5,58 @@ from django.utils.timezone import now
 from MyApp.Entity.climblog import ClimbLog
 from django.db.models import Count
 from MyApp.Utils.helper import PrefixedIDConverter
+from django.core.exceptions import ObjectDoesNotExist
+
+
+def create_crag(crag_data: dict) -> Crag:
+    """
+    Controller: Business logic to create a crag.
+    
+    Args:
+        crag_data: Dictionary containing crag data
+    
+    Returns:
+        Crag entity
+    
+    Raises:
+        ValueError: If data validation fails
+    """
+    from MyApp.Serializer.serializers import CragSerializer
+    
+    serializer = CragSerializer(data=crag_data)
+    if not serializer.is_valid():
+        raise ValueError(serializer.errors)
+    
+    crag = serializer.save()
+    return crag
+
+
+def delete_crag(crag_id: str) -> bool:
+    """
+    Controller: Business logic to delete a crag.
+    
+    Args:
+        crag_id: The crag ID (can be prefixed like "CRAG-000001" or raw like "1")
+    
+    Returns:
+        True if successful
+    
+    Raises:
+        ValueError: If crag_id is empty
+        ObjectDoesNotExist: If crag not found
+    """
+    if not crag_id:
+        raise ValueError("crag_id is required")
+
+    raw_id = PrefixedIDConverter.to_raw_id(crag_id)
+    
+    try:
+        crag = Crag.objects.get(crag_id=raw_id)
+        crag.delete()
+        return True
+    except Crag.DoesNotExist:
+        raise ObjectDoesNotExist(f"Crag with ID {crag_id} does not exist.")
+
 
 def get_crag_info(crag_id: str) -> Optional[Crag]:
 

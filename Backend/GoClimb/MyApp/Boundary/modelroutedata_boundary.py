@@ -3,50 +3,59 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status
 
-from MyApp.Controller import cragmodel_controller
-from MyApp.Serializer.serializers import CragModelSerializer
+from MyApp.Controller import modelroutedata_controller
+from MyApp.Serializer.serializers import ModelRouteDataSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token
-from MyApp.Utils.helper import extract_files_and_clean_data
 from MyApp.Entity.user import User
 
-@api_view(["GET"])
-def get_models_by_crag_id_view(request: Request) -> Response:
 
+@api_view(["GET"])
+def get_by_model_id_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to get route data by model ID.
+    
+    INPUT: ?model_id=MODEL-000001
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": [ModelRouteData objects],
+        "errors": dict  # Only if success is False
+    }
+    """
     auth_result = authenticate_app_check_token(request)
     if not auth_result.get("success"):
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    crag_id = request.query_params.get("crag_id", "").strip()
-    if not crag_id:
+    model_id = request.query_params.get("model_id", "").strip()
+    if not model_id:
         return Response(
             {
                 "success": False,
                 "message": "Invalid input.",
-                "errors": {"crag_id": "This field is required."},
+                "errors": {"model_id": "This field is required."},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
+        route_data_qs = modelroutedata_controller.get_by_model_id(model_id)
 
-        models_qs = cragmodel_controller.get_models_by_crag_id(crag_id)
-
-        if models_qs is None:
+        if route_data_qs is None:
             return Response(
                 {
                     "success": False,
-                    "message": "Crag not found.",
-                    "errors": {"crag_id": "Invalid ID."},
+                    "message": "Model not found.",
+                    "errors": {"model_id": "Invalid ID."},
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        serializer = CragModelSerializer(models_qs, many=True)
+        serializer = ModelRouteDataSerializer(route_data_qs, many=True)
 
         return Response(
             {
                 "success": True,
-                "message": "Models fetched successfully.",
+                "message": "Route data fetched successfully.",
                 "data": serializer.data,
             },
             status=status.HTTP_200_OK,
@@ -57,7 +66,7 @@ def get_models_by_crag_id_view(request: Request) -> Response:
             {
                 "success": False,
                 "message": "Invalid input.",
-                "errors": {"crag_id": str(ve)},
+                "errors": {"model_id": str(ve)},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -65,28 +74,29 @@ def get_models_by_crag_id_view(request: Request) -> Response:
         return Response(
             {
                 "success": False,
-                "message": "An error occurred while fetching models.",
+                "message": "An error occurred while fetching route data.",
                 "errors": {"exception": str(e)},
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+
 @api_view(["POST"])
-def create_crag_model_view(request: Request) -> Response:
+def create_model_route_data_view(request: Request) -> Response:
     """
-    Boundary: Handle HTTP request to create a crag model.
+    Boundary: Handle HTTP request to create model route data.
     
     INPUT: {
         "user_id": str (required),
-        "crag_id": str (required),
-        "name": str (optional),
-        "status": str (optional, default: "active"),
-        "model_files": files (optional) - 3D model files, textures, etc.
+        "model_id": str (required),
+        "route_id": str (required),
+        "route_data": dict (required) - JSON data containing route information,
+        "status": str (optional, default: "active")
     }
     OUTPUT: {
         "success": bool,
         "message": str,
-        "data": CragModel object,
+        "data": ModelRouteData object,
         "errors": dict  # Only if success is False
     }
     """
@@ -94,12 +104,13 @@ def create_crag_model_view(request: Request) -> Response:
     if not auth_result.get("success"):
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    # Extract model files and clean form data
-    model_files, clean_data = extract_files_and_clean_data(request, "model_files")
+    data = request.data if isinstance(request.data, dict) else {}
     
     # Basic validation
-    user_id = clean_data.get("user_id", "")
-    crag_id = clean_data.get("crag_id", "")
+    user_id = data.get("user_id", "")
+    model_id = data.get("model_id", "")
+    route_id = data.get("route_id", "")
+    route_data = data.get("route_data")
     
     if not user_id:
         return Response(
@@ -111,25 +122,45 @@ def create_crag_model_view(request: Request) -> Response:
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if not crag_id:
+    if not model_id:
         return Response(
             {
                 "success": False,
                 "message": "Invalid input.",
-                "errors": {"crag_id": "This field is required."},
+                "errors": {"model_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not route_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"route_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not route_data:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"route_data": "This field is required."},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
-        crag_model = cragmodel_controller.create_crag_model(user_id, clean_data, model_files)
+        model_route_data = modelroutedata_controller.create_model_route_data(user_id, data)
 
-        serializer = CragModelSerializer(crag_model)
+        serializer = ModelRouteDataSerializer(model_route_data)
 
         return Response(
             {
                 "success": True,
-                "message": "Crag model created successfully.",
+                "message": "Model route data created successfully.",
                 "data": serializer.data,
             },
             status=status.HTTP_201_CREATED,
@@ -157,7 +188,7 @@ def create_crag_model_view(request: Request) -> Response:
         return Response(
             {
                 "success": False,
-                "message": "An error occurred while creating crag model.",
+                "message": "An error occurred while creating model route data.",
                 "errors": {"exception": str(e)},
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

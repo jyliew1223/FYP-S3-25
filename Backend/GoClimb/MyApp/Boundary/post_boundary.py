@@ -9,6 +9,7 @@ from MyApp.Controller import post_controller
 from MyApp.Serializer.serializers import PostSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token
 from MyApp.Entity.user import User
+from MyApp.Utils.helper import extract_files_and_clean_data
 
 @api_view(["GET"])
 def get_post_view(request: Request) -> Response:
@@ -217,11 +218,13 @@ def create_post_view(request: Request) -> Response:
     if not auth_result.get("success"):
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    data = request.data if isinstance(request.data, dict) else {}
-
-    user_id = data.get("user_id", "").strip() if isinstance(data.get("user_id"), str) else ""
-    content = data.get("content", "").strip() if isinstance(data.get("content"), str) else ""
-
+    # Extract files and clean form data for normal serializer usage
+    images, clean_data = extract_files_and_clean_data(request)
+    
+    # Basic validation
+    user_id = clean_data.get("user_id", "")
+    content = clean_data.get("content", "")
+    
     if not user_id:
         return Response(
             {
@@ -244,7 +247,7 @@ def create_post_view(request: Request) -> Response:
 
     try:
 
-        post = post_controller.create_post(user_id, data)
+        post = post_controller.create_post(user_id, clean_data, images)
 
         serializer = PostSerializer(post)
 

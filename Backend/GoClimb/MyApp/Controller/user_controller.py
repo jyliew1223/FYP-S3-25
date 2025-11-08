@@ -1,36 +1,90 @@
 from typing import Optional, Any
 
 from firebase_admin import auth
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from django.utils.timezone import now
 from django.db.models import Count
 
 from MyApp.Entity.user import User
 from MyApp.Entity.climblog import ClimbLog
+from MyApp.Firebase.helpers import upload_image_to_storage
 
 from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
 
-def signup_user(id_token: str, username: str, email: str) -> User:
+def signup_user(
+    id_token: str, 
+    username: str, 
+    email: str, 
+    profile_picture: Optional[InMemoryUploadedFile] = None
+) -> User:
+    """
+    Controller: Business logic to create a new user.
+    
+    Args:
+        id_token: Firebase ID token
+        username: Username for the new user
+        email: Email for the new user
+        profile_picture: Optional profile picture file
+    
+    Returns:
+        User entity
+    
+    Raises:
+        InvalidUIDError: If user ID is invalid
+        UserAlreadyExistsError: If email/user already exists
+        ValueError: If validation fails
+    """
+    from MyApp.Serializer.serializers import UserSerializer
+    
+    # Verify Firebase token
     decoded_token = auth.verify_id_token(id_token)
     user_id = decoded_token.get("uid")
     if not user_id:
         raise InvalidUIDError("User ID is null or empty.")
 
+    # Check if email already exists
     existing_user = User.objects.filter(email=email).exclude(user_id=user_id).first()
     if existing_user:
         raise UserAlreadyExistsError("Email already linked to another account.")
 
+    # Check if user_id already exists
     user = User.objects.filter(user_id=user_id).first()
     if user:
-        raise Exception("User ID already linked to another account.")
+        raise UserAlreadyExistsError("User ID already linked to another account.")
 
-    user = User(
-        user_id=user_id,
-        username=username,
-        email=email,
-        status=True,
-    )
-    user.save()
+    # Prepare user data
+    user_data = {
+        "user_id": user_id,
+        "username": username,
+        "email": email,
+        "status": True,
+    }
+    
+    # Use serializer for validation and creation
+    serializer = UserSerializer(data=user_data)
+    if not serializer.is_valid():
+        raise ValueError(serializer.errors)
+    
+    user = serializer.save()
+    
+    # Upload profile picture if provided
+    if profile_picture:
+        try:
+            storage_path = f"{user.images_bucket_path}/{profile_picture.name}"
+            filename = upload_image_to_storage(
+                profile_picture, 
+                storage_path, 
+                user_id, 
+                "profile_picture"
+            )
+            user.profile_picture = filename
+            user.save()
+        except ValueError as e:
+            # If image upload fails, delete the user and raise error
+            user.delete()
+            raise ValueError(f"Failed to upload profile picture: {str(e)}")
+    
     return user
 
 def get_user_by_id(id_token: str) -> Optional[User]:
@@ -75,3 +129,77 @@ def get_monthly_user_ranking(count: int) -> list[dict[str, Any]]:
             )
 
     return user_ranking
+
+
+def update_user(
+    user_id: str,
+    update_data: dict,
+    profile_picture: Optional[InMemoryUploadedFile] = None,
+) -> User:
+    """
+    Controller: Update user details using serializer.
+    
+    Args:
+        user_id: User ID to identify the user
+        update_data: Dictionary containing fields to update
+        profile_picture: New profile picture file (optional)
+    
+    Returns:
+        Updated User entity
+    
+    Raises:
+        InvalidUIDError: If user ID is invalid
+        ValueError: If validation fails
+    """
+    from MyApp.Serializer.serializers import UserSerializer
+    from firebase_admin import storage
+    
+    if not user_id:
+        raise InvalidUIDError("User ID is null or empty.")
+    
+    # Get existing user
+    user = User.objects.filter(user_id=user_id).first()
+    if not user:
+        raise InvalidUIDError("User not found.")
+    
+    # Check if at least one field is being updated
+    if not update_data and profile_picture is None:
+        raise ValueError("At least one field must be provided for update.")
+    
+    # Handle profile picture upload first (before serializer validation)
+    if profile_picture is not None:
+        try:
+            # Delete old profile picture if exists
+            if user.profile_picture:
+                old_image_path = f"{user.images_bucket_path}/{user.profile_picture}"
+                try:
+                    bucket = storage.bucket()
+                    blob = bucket.blob(old_image_path)
+                    if blob.exists():
+                        blob.delete()
+                        print(f"Deleted old profile picture: {old_image_path}")
+                except Exception as e:
+                    print(f"Warning: Could not delete old profile picture: {e}")
+            
+            # Upload new profile picture
+            storage_path = f"{user.images_bucket_path}/{profile_picture.name}"
+            filename = upload_image_to_storage(
+                profile_picture,
+                storage_path,
+                user_id,
+                "profile_picture"
+            )
+            # Add to update_data
+            update_data["profile_picture"] = filename
+        except ValueError as e:
+            raise ValueError(f"Failed to upload profile picture: {str(e)}")
+    
+    # Use serializer for validation and update
+    serializer = UserSerializer(user, data=update_data, partial=True)
+    
+    if not serializer.is_valid():
+        raise ValueError(serializer.errors)
+    
+    # Save updated user
+    updated_user = serializer.save()
+    return updated_user

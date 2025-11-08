@@ -6,6 +6,7 @@ from rest_framework import status
 from MyApp.Firebase.helpers import authenticate_app_check_token
 from MyApp.Serializer.serializers import RouteSerializer
 from MyApp.Controller import route_controller
+from MyApp.Utils.helper import extract_files_and_clean_data
 
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -16,11 +17,12 @@ def create_route_view(request: Request) -> Response:
     if not auth_result.get("success"):
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    data = request.data if isinstance(request.data, dict) else {}
+    # Extract images and clean form data
+    images, clean_data = extract_files_and_clean_data(request, "images")
 
     try:
 
-        route = route_controller.create_route(data)
+        route = route_controller.create_route(clean_data, images)
 
         serializer = RouteSerializer(route)
 

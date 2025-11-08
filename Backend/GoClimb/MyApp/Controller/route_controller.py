@@ -1,8 +1,12 @@
+from typing import Optional, List
+from django.core.files.uploadedfile import InMemoryUploadedFile
+
 from MyApp.Entity.route import Route
 from MyApp.Utils.helper import PrefixedIDConverter
+from MyApp.Firebase.helpers import upload_multiple_images_to_storage
 from django.core.exceptions import ObjectDoesNotExist
 
-def create_route(route_data: dict) -> Route:
+def create_route(route_data: dict, images: Optional[List[InMemoryUploadedFile]] = None) -> Route:
 
     from MyApp.Serializer.serializers import RouteSerializer
 
@@ -11,6 +15,24 @@ def create_route(route_data: dict) -> Route:
         raise ValueError(serializer.errors)
 
     route = serializer.save()
+    
+    # Upload images if provided
+    if images:
+        try:
+            folder_path = route.images_bucket_path
+            # Use the crag's first user or a system user for uploaded_by
+            user_id = "system"  # You might want to pass this from the request
+            upload_multiple_images_to_storage(
+                images, 
+                folder_path, 
+                user_id, 
+                "route_image"
+            )
+        except ValueError as e:
+            # If image upload fails, delete the route and raise error
+            route.delete()
+            raise ValueError(f"Failed to upload images: {str(e)}")
+    
     return route
 
 def delete_route(route_id: str) -> bool:

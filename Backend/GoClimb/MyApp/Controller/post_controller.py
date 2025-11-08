@@ -60,99 +60,87 @@ def get_post_by_user_id(
 
 from typing import Any, Dict
 from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
 
-def delete_post(post_id: int) -> Dict[str, Any]:
+def delete_post(post_id: str) -> bool:
+    """
+    Controller: Business logic to delete a post.
+    
+    Args:
+        post_id: The post ID (can be prefixed like "POST-000001" or raw like "1")
+    
+    Returns:
+        True if successful
+    
+    Raises:
+        ValueError: If post_id is empty
+        ObjectDoesNotExist: If post not found
+    """
+    if not post_id:
+        raise ValueError("post_id is required")
 
-    if not isinstance(post_id, int) or post_id <= 0:
-        return {
-            "success": False,
-            "message": "Invalid post_id.",
-            "errors": {"post_id": "Must be a positive integer."},
-        }
-
+    raw_id = PrefixedIDConverter.to_raw_id(post_id)
+    
     try:
-        post = Post.objects.filter(pk=post_id).first()
-        if not post:
-            return {
-                "success": False,
-                "message": "Post not found.",
-                "errors": {"post_id": "Invalid ID."},
-            }
+        post = Post.objects.get(post_id=raw_id)
+        post.delete()
+        return True
+    except Post.DoesNotExist:
+        raise ObjectDoesNotExist(f"Post with ID {post_id} does not exist.")
 
-        with transaction.atomic():
-            post.delete()
 
-        return {
-            "success": True,
-            "data": {"post_id": post_id},
-            "message": "Post deleted successfully",
-            "errors": [],
-        }
-
-    except Exception as e:
-        return {
-            "success": False,
-            "message": "Error processing deletion.",
-            "errors": {"exception": str(e)},
-        }
-
-from typing import Any, Dict, List, Optional
-from MyApp.Entity.post import Post
-
-def get_posts_by_member(member_id: str, limit: Optional[int] = None) -> Dict[str, Any]:
-
-    qs = Post.objects.filter(user_id=member_id).order_by("-post_id")
-    if limit is not None and isinstance(limit, int) and limit > 0:
-        qs = qs[:limit]
-
-    data: List[Dict[str, Any]] = []
-    for p in qs:
-        first_media = p.image_urls or []
-        media_url = first_media[0] if first_media else ""
-        data.append(
-            {
-                "post_id": p.post_id,
-                "media_url": media_url,
-                "caption": p.content or "",
-            }
-        )
-
-    return {
-        "success": True,
-        "message": "Posts retrieved",
-        "data": data,
-        "errors": [],
-    }
 
 from typing import Dict, Any, List, Tuple, Optional
 from django.db import transaction
 from django.core.paginator import Paginator
+from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from MyApp.Entity.post import Post
 from MyApp.Entity.user import User
 from MyApp.Entity.postlikes import PostLike
-
-def _parse_post_id_to_int(post_id_val) -> Tuple[bool, Optional[int], str]:
-
-    if isinstance(post_id_val, int):
-        return True, post_id_val, ""
-    if isinstance(post_id_val, str):
-        s = post_id_val.strip()
-        if s.upper().startswith("POST-"):
-            s = s[5:]
-        if s.isdigit():
-            return True, int(s), ""
-    return False, None, "Must be an integer or 'POST-<int>'."
-
 from MyApp.Serializer.serializers import PostSerializer
+from MyApp.Firebase.helpers import upload_multiple_images_to_storage
 
-def create_post(user_id: str, data):
-
+def create_post(user_id: str, data: dict, images: Optional[List[InMemoryUploadedFile]] = None):
+    """
+    Controller: Business logic to create a post.
+    
+    Args:
+        user_id: User ID creating the post
+        data: Dictionary containing post data
+        images: Optional list of image files
+    
+    Returns:
+        Post entity
+    
+    Raises:
+        ValueError: If data validation fails
+        User.DoesNotExist: If user not found
+    """
     user = User.objects.get(pk=user_id)
 
-    serializer = PostSerializer(data=data)
+    # Add user_id to data for serializer
+    post_data = {**data, "user_id": user_id}
+    
+    serializer = PostSerializer(data=post_data)
     if not serializer.is_valid():
         raise ValueError(serializer.errors)
 
-    post = serializer.save(user=user)
+    post = serializer.save()
+    
+    # Upload images if provided
+    if images:
+        try:
+            folder_path = post.images_bucket_path
+            upload_multiple_images_to_storage(
+                images, 
+                folder_path, 
+                user_id, 
+                "post_image"
+            )
+        except ValueError as e:
+            # If image upload fails, delete the post and raise error
+            post.delete()
+            raise ValueError(f"Failed to upload images: {str(e)}")
+    
     return post

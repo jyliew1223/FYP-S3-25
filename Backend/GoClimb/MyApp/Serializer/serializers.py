@@ -164,6 +164,8 @@ class PostSerializer(serializers.ModelSerializer):
         if urls is None:
             return []
         return urls
+    
+
 
 class PostLikeSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
@@ -201,12 +203,13 @@ class CragModelSerializer(serializers.ModelSerializer):
         source="crag", queryset=Crag.objects.all(), write_only=True
     )
 
-    download_urls_json = serializers.JSONField()
+    download_urls_json = serializers.SerializerMethodField()
 
     class Meta:
         model = CragModel
         fields = [
             "model_id",
+            "name",
             "crag",
             "user",
             "status",

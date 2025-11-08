@@ -10,6 +10,7 @@ from MyApp.Serializer.serializers import UserSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token, verify_id_token
 from MyApp.Controller import user_controller
 from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
+from MyApp.Utils.helper import extract_single_file_and_clean_data
 
 @api_view(["POST"])
 def signup_view(request: Request) -> Response:
@@ -18,11 +19,12 @@ def signup_view(request: Request) -> Response:
     if not auth_result.get("success"):
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
-    data = request.data if isinstance(request.data, dict) else {}
+    # Extract profile picture and clean form data
+    profile_picture, clean_data = extract_single_file_and_clean_data(request, "profile_picture")
 
-    id_token = data.get("id_token", "").strip() if isinstance(data.get("id_token"), str) else ""
-    username = data.get("username", "").strip() if isinstance(data.get("username"), str) else ""
-    email = data.get("email", "").strip() if isinstance(data.get("email"), str) else ""
+    id_token = clean_data.get("id_token", "")
+    username = clean_data.get("username", "")
+    email = clean_data.get("email", "")
 
     if not id_token:
         return Response(
@@ -67,7 +69,7 @@ def signup_view(request: Request) -> Response:
 
     try:
 
-        user = user_controller.signup_user(id_token, username, email)
+        user = user_controller.signup_user(id_token, username, email, profile_picture)
 
         user_serializer = UserSerializer(user)
 
@@ -106,6 +108,15 @@ def signup_view(request: Request) -> Response:
                 "errors": {"id_token": "Token verification failed."},
             },
             status=status.HTTP_401_UNAUTHORIZED,
+        )
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"profile_picture": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
         )
     except Exception as e:
         return Response(
