@@ -731,7 +731,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_29_5_create_crag_model(self, mock_verify_app_check):
+    def test_30_create_crag_model(self, mock_verify_app_check):
         """Test creating a crag model"""
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
@@ -768,7 +768,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_30_climb_log_create(self, mock_verify_app_check):
+    def test_31_climb_log_create(self, mock_verify_app_check):
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
@@ -804,7 +804,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_31_climb_log_delete(self, mock_verify_app_check):
+    def test_32_climb_log_delete(self, mock_verify_app_check):
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
@@ -824,7 +824,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.assertFalse(ClimbLog.objects.filter(log_id=self.test_log.log_id).exists())
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_32_model_route_data_create(self, mock_verify_app_check):
+    def test_33_model_route_data_create(self, mock_verify_app_check):
         """Test creating model route data"""
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
@@ -872,7 +872,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_33_model_route_data_get_by_model_id(self, mock_verify_app_check):
+    def test_34_model_route_data_get_by_model_id(self, mock_verify_app_check):
         """Test getting model route data by model ID"""
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
@@ -904,3 +904,66 @@ class AllEndpointsSuccessTestCase(TestCase):
             self.assertIn("route_data", route_data_item)
             self.assertIn("coordinates", route_data_item["route_data"])
             self.assertEqual(route_data_item["route_data"]["difficulty"], "5.10a")
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_35_model_route_data_delete(self, mock_verify_app_check):
+        """Test deleting model route data"""
+
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        # Create a route data to delete
+        route_data_to_delete = ModelRouteData.objects.create(
+            model=self.test_crag_model,
+            user=self.test_user,
+            route=self.test_route,
+            route_data={"test": "data to delete"},
+            status="active",
+        )
+
+        url = reverse("delete_model_route_data")
+        data = {"route_data_id": route_data_to_delete.formatted_id}
+        response = self.client.delete(url, data, format="json")
+        self.print_endpoint_result("MODEL ROUTE DATA - DELETE", url, response, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertEqual(
+            response_data.get("message"), "Model route data deleted successfully."
+        )
+
+        # Verify it's actually deleted
+        self.assertFalse(
+            ModelRouteData.objects.filter(
+                model_route_data_id=route_data_to_delete.model_route_data_id
+            ).exists()
+        )
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_36_model_route_data_get_by_user_id(self, mock_verify_app_check):
+        """Test getting model route data by user ID"""
+
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("get_model_route_data_by_user_id")
+        params = {"user_id": self.test_user.user_id}
+        response = self.client.get(url, params)
+        self.print_endpoint_result(
+            "MODEL ROUTE DATA - GET BY USER ID", url, response, params
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)
+
+        # Check if our test data is in the response
+        if response_data["data"]:
+            route_data_item = response_data["data"][0]
+            self.assertEqual(route_data_item["user"]["user_id"], self.test_user.user_id)
+            self.assertIn("route_data", route_data_item)
+            self.assertIn("model", route_data_item)
+            self.assertIn("route", route_data_item)

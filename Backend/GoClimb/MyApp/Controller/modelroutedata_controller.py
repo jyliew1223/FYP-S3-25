@@ -85,3 +85,56 @@ def get_by_id(route_data_id: str) -> Optional[ModelRouteData]:
         return ModelRouteData.objects.get(model_route_data_id=raw_id)
     except ModelRouteData.DoesNotExist:
         return None
+
+
+
+def delete_model_route_data(route_data_id: str) -> bool:
+    """
+    Controller: Business logic to delete model route data.
+    
+    Args:
+        route_data_id: The route data ID (can be prefixed like "ROUTE_DATA-000001" or raw like "1")
+    
+    Returns:
+        True if successful
+    
+    Raises:
+        ValueError: If route_data_id is empty
+        ObjectDoesNotExist: If route data not found
+    """
+    if not route_data_id:
+        raise ValueError("route_data_id is required")
+
+    raw_id = PrefixedIDConverter.to_raw_id(route_data_id)
+    
+    try:
+        route_data = ModelRouteData.objects.get(model_route_data_id=raw_id)
+        route_data.delete()
+        return True
+    except ModelRouteData.DoesNotExist:
+        from django.core.exceptions import ObjectDoesNotExist
+        raise ObjectDoesNotExist(f"Model route data with ID {route_data_id} does not exist.")
+
+
+
+def get_by_user_id(user_id: str) -> Optional[QuerySet[ModelRouteData]]:
+    """
+    Controller: Get all route data created by a specific user.
+    
+    Args:
+        user_id: The user ID
+    
+    Returns:
+        QuerySet of ModelRouteData objects or None if user not found
+    
+    Raises:
+        ValueError: If user_id is empty
+    """
+    if not user_id:
+        raise ValueError("user_id is required")
+
+    # Check if user exists
+    if not User.objects.filter(user_id=user_id).exists():
+        return None
+
+    return ModelRouteData.objects.filter(user__user_id=user_id).order_by('-model_route_data_id')
