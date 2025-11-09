@@ -162,25 +162,30 @@ def get_random_crag(count: int = 10, blacklist: list[str] | None = None):
 
 def get_all_crag_ids():
     """
-    Controller: Get all crag IDs that exist in the database.
+    Controller: Get all crag IDs that exist in the database with selected fields.
     
     Returns:
-        List of dictionaries containing crag_id and name for all crags
+        List of dictionaries containing crag_id, name, and location_details for all crags
         
     Example:
         [
-            {"crag_id": "CRAG-000001", "name": "Test Crag"},
-            {"crag_id": "CRAG-000002", "name": "Another Crag"}
+            {
+                "crag_id": "CRAG-000001", 
+                "name": "Test Crag",
+                "location_details": {"city": "New York", "country": "USA"}
+            }
         ]
     """
-    crags = Crag.objects.all().values('crag_id', 'name').order_by('crag_id')
+    # Get crag objects to access properties
+    crags = Crag.objects.all().order_by('crag_id')
     
-    # Convert to formatted IDs
+    # Build response with only selected fields
     crag_list = []
     for crag in crags:
         crag_list.append({
-            "crag_id": f"CRAG-{crag['crag_id']:06d}",
-            "name": crag['name']
+            "crag_id": crag.formatted_id,
+            "name": crag.name,
+            "location_details": crag.location_details or {}
         })
     
     return crag_list

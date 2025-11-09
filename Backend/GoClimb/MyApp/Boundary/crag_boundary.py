@@ -258,7 +258,7 @@ def get_random_crag_view(request: Request) -> Response:
 @api_view(["GET"])
 def get_all_crag_ids_view(request: Request) -> Response:
     """
-    Boundary: Handle HTTP request to get all crag IDs.
+    Boundary: Handle HTTP request to get all crag IDs with location details.
     
     INPUT: No parameters required
     OUTPUT: {
@@ -267,7 +267,8 @@ def get_all_crag_ids_view(request: Request) -> Response:
         "data": [
             {
                 "crag_id": str,
-                "name": str
+                "name": str,
+                "location_details": dict
             }
         ]
     }
@@ -277,13 +278,13 @@ def get_all_crag_ids_view(request: Request) -> Response:
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
 
     try:
-        crag_ids = crag_controller.get_all_crag_ids()
+        crag_data = crag_controller.get_all_crag_ids()
 
         return Response(
             {
                 "success": True,
                 "message": "Crag IDs fetched successfully.",
-                "data": crag_ids,
+                "data": crag_data,
             },
             status=status.HTTP_200_OK,
         )

@@ -988,10 +988,17 @@ class AllEndpointsSuccessTestCase(TestCase):
         # Check if our test crag is in the response
         if response_data["data"]:
             crag_item = response_data["data"][0]
-            self.assertIn("crag_id", crag_item)
-            self.assertIn("name", crag_item)
+            # Verify only selected fields are present
+            expected_fields = ["crag_id", "name", "location_details"]
+            for field in expected_fields:
+                self.assertIn(field, crag_item)
+            
             # Verify the format of crag_id
             self.assertTrue(crag_item["crag_id"].startswith("CRAG-"))
+            
+            # Verify data types
+            self.assertIsInstance(crag_item["location_details"], dict)
+            
             # Check if our test crag is included
             crag_ids = [item["crag_id"] for item in response_data["data"]]
             self.assertIn(self.test_crag.formatted_id, crag_ids)
