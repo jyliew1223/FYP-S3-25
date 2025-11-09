@@ -207,6 +207,7 @@ class CragModelSerializer(serializers.ModelSerializer):
     )
 
     download_urls_json = serializers.SerializerMethodField()
+    normalization_data = serializers.JSONField(required=False, allow_null=True)
 
     class Meta:
         model = CragModel
@@ -217,6 +218,7 @@ class CragModelSerializer(serializers.ModelSerializer):
             "user",
             "status",
             "download_urls_json",
+            "normalization_data",
             "user_id",
             "crag_id",
         ]

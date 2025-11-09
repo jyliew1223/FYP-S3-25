@@ -32,6 +32,8 @@ class CragModel(models.Model):
         choices=[("active", "Active"), ("suspended", "Suspended")],
         default="active",
     )
+    
+    normalization_data = models.JSONField(blank=True, null=True)
 
     def __str__(self) -> str:
         return f"Model for {self.crag.name} upload by {self.user}"
