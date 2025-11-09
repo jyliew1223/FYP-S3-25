@@ -8,6 +8,7 @@ from MyApp.Serializer.serializers import CragSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token
 from MyApp.Controller import crag_controller
 
+
 @api_view(["GET"])
 def get_crag_info_view(request: Request) -> Response:
 
@@ -60,6 +61,7 @@ def get_crag_info_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 @api_view(["GET"])
 def get_crag_monthly_ranking_view(request: Request) -> Response:
@@ -118,6 +120,7 @@ def get_crag_monthly_ranking_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 @api_view(["GET"])
 def get_trending_crags_view(request: Request) -> Response:
@@ -187,6 +190,7 @@ def get_trending_crags_view(request: Request) -> Response:
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+
 @api_view(["POST"])
 def get_random_crag_view(request: Request) -> Response:
 
@@ -255,11 +259,12 @@ def get_random_crag_view(request: Request) -> Response:
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+
 @api_view(["GET"])
 def get_all_crag_ids_view(request: Request) -> Response:
     """
     Boundary: Handle HTTP request to get all crag IDs with location details.
-    
+
     INPUT: No parameters required
     OUTPUT: {
         "success": bool,
@@ -299,11 +304,6 @@ def get_all_crag_ids_view(request: Request) -> Response:
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-# --------------------
-# CREATING_01 (start)
-# --------------------
-
-from MyApp.Controller.crag_controller import create_crag
 
 @api_view(["POST"])
 def create_crag_view(request):
@@ -339,7 +339,7 @@ def create_crag_view(request):
         )
 
     try:
-        crag_obj = create_crag(
+        crag_obj = crag_controller.create_crag(
             name=body.get("name"),
             location_lat=body.get("location_lat"),
             location_lon=body.get("location_lon"),
@@ -352,17 +352,21 @@ def create_crag_view(request):
         )
     except Exception as e:
         return Response(
-            {"success": False, "message": "Failed to create crag.", "errors": {"Exception": str(e)}},
+            {
+                "success": False,
+                "message": "Failed to create crag.",
+                "errors": {"Exception": str(e)},
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    # 2) Serialize with your CURRENT serializer (unchanged)
     data = CragSerializer(crag_obj).data
     return Response(
-        {"success": True, "message": "Crag created successfully", "data": data, "errors": []},
+        {
+            "success": True,
+            "message": "Crag created successfully",
+            "data": data,
+            "errors": [],
+        },
         status=status.HTTP_200_OK,
     )
-
-# ------------------
-# CREATING_01 (end)
-# ------------------

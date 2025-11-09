@@ -8,9 +8,7 @@ from rest_framework import status
 from MyApp.Controller import post_controller
 from MyApp.Serializer.serializers import PostSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token
-from MyApp.Entity.user import User
 from MyApp.Utils.helper import extract_files_and_clean_data
-from MyApp.Entity.post import Post
 
 
 @api_view(["GET"])
@@ -262,15 +260,16 @@ def create_post_view(request: Request) -> Response:
             status=status.HTTP_201_CREATED,
         )
 
-    except User.DoesNotExist:
-        return Response(
-            {
-                "success": False,
-                "message": "User not found.",
-                "errors": {"user_id": "Invalid user ID."},
-            },
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    except ValueError as user_error:
+        if "User not found" in str(user_error):
+            return Response(
+                {
+                    "success": False,
+                    "message": "User not found.",
+                    "errors": {"user_id": "Invalid user ID."},
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
     except ValueError as ve:
         return Response(
             {
@@ -285,6 +284,67 @@ def create_post_view(request: Request) -> Response:
             {
                 "success": False,
                 "message": "An error occurred while creating post.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@api_view(["DELETE"])
+def delete_post_view(request: Request) -> Response:
+
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    data = request.data if isinstance(request.data, dict) else {}
+    post_id = data.get("post_id", "").strip() if isinstance(data.get("post_id"), str) else ""
+
+    if not post_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"post_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+
+        success = post_controller.delete_post(post_id)
+
+        if success:
+            return Response(
+                {
+                    "success": True,
+                    "message": "Post deleted successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
+        else:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Post not found.",
+                    "errors": {"post_id": "Invalid ID."},
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"post_id": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while deleting post.",
                 "errors": {"exception": str(e)},
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

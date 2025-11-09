@@ -16,6 +16,9 @@ class ClimbLog(models.Model):
     )
     date_climbed = models.DateField()
     notes = models.TextField(blank=True, null=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    status = models.BooleanField(default=True)
+    attempt = models.IntegerField(default=1)
 
     def __str__(self) -> str:
         return f"{self.route} | {self.user} | {self.date_climbed}"

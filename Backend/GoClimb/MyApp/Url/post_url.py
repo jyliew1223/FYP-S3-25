@@ -4,7 +4,6 @@ from MyApp.Boundary.post_boundary import (
     get_post_view,
     get_random_post_view,
     get_post_by_user_id_view,
-
     create_post_view,
     delete_post_view,
 )

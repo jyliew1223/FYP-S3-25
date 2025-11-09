@@ -123,6 +123,9 @@ class ClimbLogSerializer(serializers.ModelSerializer):
             "route",
             "date_climbed",
             "notes",
+            "title",
+            "status",
+            "attempt",
             "user_id",
             "route_id",
         ]

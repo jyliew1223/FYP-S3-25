@@ -1,11 +1,11 @@
 from typing import List, Dict
 from django.db import IntegrityError
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status
 
-from MyApp.Entity.post import Post
 from MyApp.Controller import post_likes_controller
 from MyApp.Serializer.serializers import PostLikeSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token
@@ -57,15 +57,6 @@ def like_post_view(request: Request) -> Response:
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-    except Post.DoesNotExist:
-        return Response(
-            {
-                "success": False,
-                "message": "Post not found.",
-                "errors": {"post_id": "Invalid ID."},
-            },
-            status=status.HTTP_404_NOT_FOUND,
-        )
     except IntegrityError:
         return Response(
             {
@@ -74,6 +65,15 @@ def like_post_view(request: Request) -> Response:
                 "errors": {"duplicate": "Like already exists."},
             },
             status=status.HTTP_400_BAD_REQUEST,
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {
+                "success": False,
+                "message": "Post not found.",
+                "errors": {"post_id": "Invalid ID."},
+            },
+            status=status.HTTP_404_NOT_FOUND,
         )
     except Exception as e:
         return Response(

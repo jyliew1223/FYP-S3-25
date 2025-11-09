@@ -2,11 +2,12 @@ from rest_framework.decorators import api_view
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status
+from django.core.exceptions import ObjectDoesNotExist
 
 from MyApp.Controller import modelroutedata_controller
 from MyApp.Serializer.serializers import ModelRouteDataSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token
-from MyApp.Entity.user import User
+
 
 
 @api_view(["GET"])
@@ -168,15 +169,6 @@ def create_model_route_data_view(request: Request) -> Response:
             status=status.HTTP_201_CREATED,
         )
 
-    except User.DoesNotExist:
-        return Response(
-            {
-                "success": False,
-                "message": "User not found.",
-                "errors": {"user_id": "Invalid user ID."},
-            },
-            status=status.HTTP_404_NOT_FOUND,
-        )
     except ValueError as ve:
         return Response(
             {
@@ -185,6 +177,15 @@ def create_model_route_data_view(request: Request) -> Response:
                 "errors": {"validation": str(ve)},
             },
             status=status.HTTP_400_BAD_REQUEST,
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {
+                "success": False,
+                "message": "User not found.",
+                "errors": {"user_id": "Invalid user ID."},
+            },
+            status=status.HTTP_404_NOT_FOUND,
         )
     except Exception as e:
         return Response(
