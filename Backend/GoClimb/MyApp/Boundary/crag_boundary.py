@@ -254,3 +254,46 @@ def get_random_crag_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+@api_view(["GET"])
+def get_all_crag_ids_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to get all crag IDs.
+    
+    INPUT: No parameters required
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": [
+            {
+                "crag_id": str,
+                "name": str
+            }
+        ]
+    }
+    """
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        crag_ids = crag_controller.get_all_crag_ids()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Crag IDs fetched successfully.",
+                "data": crag_ids,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while fetching crag IDs.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

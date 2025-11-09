@@ -158,3 +158,29 @@ def get_random_crag(count: int = 10, blacklist: list[str] | None = None):
 
     crags = Crag.objects.exclude(crag_id__in=blacklist_int).order_by("?")[:count]
     return crags
+
+
+def get_all_crag_ids():
+    """
+    Controller: Get all crag IDs that exist in the database.
+    
+    Returns:
+        List of dictionaries containing crag_id and name for all crags
+        
+    Example:
+        [
+            {"crag_id": "CRAG-000001", "name": "Test Crag"},
+            {"crag_id": "CRAG-000002", "name": "Another Crag"}
+        ]
+    """
+    crags = Crag.objects.all().values('crag_id', 'name').order_by('crag_id')
+    
+    # Convert to formatted IDs
+    crag_list = []
+    for crag in crags:
+        crag_list.append({
+            "crag_id": f"CRAG-{crag['crag_id']:06d}",
+            "name": crag['name']
+        })
+    
+    return crag_list

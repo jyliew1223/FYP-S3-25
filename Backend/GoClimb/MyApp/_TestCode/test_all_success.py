@@ -967,3 +967,31 @@ class AllEndpointsSuccessTestCase(TestCase):
             self.assertIn("route_data", route_data_item)
             self.assertIn("model", route_data_item)
             self.assertIn("route", route_data_item)
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_38_crag_get_all_ids(self, mock_verify_app_check):
+        """Test getting all crag IDs"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("get_all_crag_ids")
+        response = self.client.get(url)
+        self.print_endpoint_result("CRAG - GET ALL IDS", url, response)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)
+        
+        # Check if our test crag is in the response
+        if response_data["data"]:
+            crag_item = response_data["data"][0]
+            self.assertIn("crag_id", crag_item)
+            self.assertIn("name", crag_item)
+            # Verify the format of crag_id
+            self.assertTrue(crag_item["crag_id"].startswith("CRAG-"))
+            # Check if our test crag is included
+            crag_ids = [item["crag_id"] for item in response_data["data"]]
+            self.assertIn(self.test_crag.formatted_id, crag_ids)
