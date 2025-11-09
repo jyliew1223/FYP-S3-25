@@ -6,6 +6,7 @@ from MyApp.Boundary.crag_boundary import (
     get_trending_crags_view,
     get_random_crag_view,
     get_all_crag_ids_view,
+    create_crag_view,  # CREATING_01
 )
 
 urlpatterns = [
@@ -18,4 +19,5 @@ urlpatterns = [
     path("get_trending_crags/", get_trending_crags_view, name="get_trending_crags"),
     path("get_random_crags/", get_random_crag_view, name="get_random_crag"),
     path("get_all_crag_ids/", get_all_crag_ids_view, name="get_all_crag_ids"),
+    path("create_crag/", create_crag_view, name="create_crag"),  # CREATING_01
 ]

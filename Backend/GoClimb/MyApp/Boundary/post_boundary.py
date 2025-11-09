@@ -10,6 +10,8 @@ from MyApp.Serializer.serializers import PostSerializer
 from MyApp.Firebase.helpers import authenticate_app_check_token
 from MyApp.Entity.user import User
 from MyApp.Utils.helper import extract_files_and_clean_data
+from MyApp.Entity.post import Post
+
 
 @api_view(["GET"])
 def get_post_view(request: Request) -> Response:
@@ -199,7 +201,7 @@ def get_post_by_user_id_view(request: Request) -> Response:
                 "message": str(ve),
                 "errors": {"validation": str(ve)},
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_404_NOT_FOUND,
         )
     except Exception as e:
         return Response(
@@ -232,7 +234,7 @@ def create_post_view(request: Request) -> Response:
                 "message": "Invalid input.",
                 "errors": {"user_id": "This field is required."},
             },
-            status=status.HTTP_400_BAD_REQUEST,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
     if not content:

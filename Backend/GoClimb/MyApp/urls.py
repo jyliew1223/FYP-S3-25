@@ -20,6 +20,8 @@ urlpatterns = [
     path("comment/", include("MyApp.Url.post_comment_url")),
     path("route/", include("MyApp.Url.route_url")),
 
+    path("user/", include("MyApp.Url.user_url")),   # USER_02
+    path("user/", include("MyApp.Url.user_url")),   # USER_03
 ]
 
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
