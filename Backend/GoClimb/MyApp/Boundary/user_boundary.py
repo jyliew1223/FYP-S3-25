@@ -35,7 +35,7 @@ def get_user_view(request: Request) -> Response:
 
     try:
 
-        user = user_controller.get_user_by_id(id_token)
+        user = user_controller.get_user_by_id_token(id_token)
 
         if user is None:
             return Response(
@@ -43,6 +43,80 @@ def get_user_view(request: Request) -> Response:
                     "success": False,
                     "message": "User not found.",
                     "errors": {"id_token": "Invalid token."},
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = UserSerializer(user)
+
+        return Response(
+            {
+                "success": True,
+                "message": "User fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except InvalidUIDError as e:
+        return Response(
+            {
+                "success": False,
+                "message": str(e),
+                "errors": {"id_token": "Invalid user ID."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except auth.InvalidIdTokenError:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid Firebase ID token.",
+                "errors": {"id_token": "Token verification failed."},
+            },
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while fetching user.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+def get_user_by_id_view(request: Request) -> Response:
+
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    data = request.data if isinstance(request.data, dict) else {}
+    user_id = data.get("user_id", "").strip() if isinstance(data.get("user_id"), str) else ""
+
+    if not user_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"user_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+
+        user = user_controller.get_user_by_id(user_id)
+
+        if user is None:
+            return Response(
+                {
+                    "success": False,
+                    "message": "User not found.",
+                    "errors": {"user_id": "User with this ID does not exist."},
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )

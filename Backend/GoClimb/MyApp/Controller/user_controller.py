@@ -87,12 +87,15 @@ def signup_user(
     
     return user
 
-def get_user_by_id(id_token: str) -> Optional[User]:
+def get_user_by_id_token(id_token: str) -> Optional[User]:
     decoded_token = auth.verify_id_token(id_token)
     user_id = decoded_token.get("uid")
     if not user_id:
         raise InvalidUIDError("User ID is null or empty.")
 
+    return User.objects.filter(user_id=user_id).first()
+
+def get_user_by_id(user_id: str) -> Optional[User]:
     return User.objects.filter(user_id=user_id).first()
 
 def get_monthly_user_ranking(count: int) -> list[dict[str, Any]]:
@@ -271,63 +274,63 @@ def delete_user_account(user_id: str) -> Dict[str, Any]:
 
 # ---------------
 # USER_03 (start) 
-# ---------------
+# # ---------------
 
-from typing import Any, Dict, Tuple
-from MyApp.Entity.user import User
-from MyApp.Serializer.serializers import UserSerializer
+# from typing import Any, Dict, Tuple
+# from MyApp.Entity.user import User
+# from MyApp.Serializer.serializers import UserSerializer
 
-ALLOWED_USER_FIELDS = {"username", "email", "profile_picture", "status"}
+# ALLOWED_USER_FIELDS = {"username", "email", "profile_picture", "status"}
 
-def update_user_field(user_id: str, field: str, value: Any) -> Tuple[bool, Dict[str, Any]]:
-    """
-    Update a single field on User and return (ok, payload).
-    payload always has "success", "message", and optionally "errors"/"data".
-    """
-    if field not in ALLOWED_USER_FIELDS:
-        return False, {
-            "success": False,
-            "message": "Invalid input.",
-            "errors": {"field": "Must be one of: username, email, profile_picture, status."},
-        }
+# def update_user_field(user_id: str, field: str, value: Any) -> Tuple[bool, Dict[str, Any]]:
+#     """
+#     Update a single field on User and return (ok, payload).
+#     payload always has "success", "message", and optionally "errors"/"data".
+#     """
+#     if field not in ALLOWED_USER_FIELDS:
+#         return False, {
+#             "success": False,
+#             "message": "Invalid input.",
+#             "errors": {"field": "Must be one of: username, email, profile_picture, status."},
+#         }
 
-    try:
-        user = User.objects.get(pk=user_id)
-    except User.DoesNotExist:
-        return False, {"success": False, "message": "User not found.", "errors": []}
+#     try:
+#         user = User.objects.get(pk=user_id)
+#     except User.DoesNotExist:
+#         return False, {"success": False, "message": "User not found.", "errors": []}
 
-    # normalize a couple fields
-    if field == "username" and isinstance(value, str):
-        value = value.strip()
-    if field == "email" and isinstance(value, str):
-        value = value.strip().lower()
-    if field == "status":
-        if isinstance(value, str):
-            value = value.strip().lower() in {"1", "true", "yes"}
-        value = bool(value)
+#     # normalize a couple fields
+#     if field == "username" and isinstance(value, str):
+#         value = value.strip()
+#     if field == "email" and isinstance(value, str):
+#         value = value.strip().lower()
+#     if field == "status":
+#         if isinstance(value, str):
+#             value = value.strip().lower() in {"1", "true", "yes"}
+#         value = bool(value)
 
-    ser = UserSerializer(instance=user, data={field: value}, partial=True)
-    if not ser.is_valid():
-        return False, {
-            "success": False,
-            "message": "Invalid input.",
-            "errors": ser.errors,
-        }
+#     ser = UserSerializer(instance=user, data={field: value}, partial=True)
+#     if not ser.is_valid():
+#         return False, {
+#             "success": False,
+#             "message": "Invalid input.",
+#             "errors": ser.errors,
+#         }
 
-    ser.save()
+#     ser.save()
 
-    return True, {
-        "success": True,
-        "message": "User info updated successfully.",
-        "data": {
-            "user_id": user.user_id,
-            "username": ser.data.get("username"),
-            "email": ser.data.get("email"),
-            "profile_picture": ser.data.get("profile_picture"),
-            "status": ser.data.get("status"),
-        },
-        "errors": [],
-    }
+#     return True, {
+#         "success": True,
+#         "message": "User info updated successfully.",
+#         "data": {
+#             "user_id": user.user_id,
+#             "username": ser.data.get("username"),
+#             "email": ser.data.get("email"),
+#             "profile_picture": ser.data.get("profile_picture"),
+#             "status": ser.data.get("status"),
+#         },
+#         "errors": [],
+#    }
 
 # -------------
 # USER_03 (end)

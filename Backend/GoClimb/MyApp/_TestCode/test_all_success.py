@@ -1760,3 +1760,24 @@ class AllEndpointsSuccessTestCase(TestCase):
             self.fail(
                 f"CRAG CREATE failed with status {response.status_code}: {response_data.get('message', 'Unknown error')}"
             )
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_42_user_get_user_by_id(self, mock_verify_app_check):
+        """Test getting user by ID"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("get_user_by_id")
+        data = {"user_id": self.test_user.user_id}
+        response = self.client.post(url, data, format="json")
+        self.print_endpoint_result("USER - GET USER BY ID", url, response, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        user_data = response_data["data"]
+        self.assertEqual(user_data["user_id"], self.test_user.user_id)
+        self.assertEqual(user_data["username"], self.test_user.username)
+        self.assertEqual(user_data["email"], self.test_user.email)
