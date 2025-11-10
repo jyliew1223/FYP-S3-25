@@ -10,6 +10,8 @@ import {
   View,
   Image,
   ScrollView,
+  Image,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -193,23 +195,33 @@ export default function PostDetail() {
   }
 
   async function handleDeleteComment(commentId) {
+    console.log('[handleDeleteComment] Starting deletion for commentId:', commentId);
+    
     const currentUser = getAuth().currentUser;
     if (!currentUser) {
+      console.log('[handleDeleteComment] No current user');
       showToast('You must be logged in to delete comments');
       return;
     }
 
+    console.log('[handleDeleteComment] Current user:', currentUser.uid);
+
     try {
+      console.log('[handleDeleteComment] Calling deleteComment API...');
       const res = await deleteComment(commentId);
+      console.log('[handleDeleteComment] API response:', res);
+      
       if (res?.success) {
         // Remove comment from local state
+        console.log('[handleDeleteComment] Success! Removing from UI');
         setComments((cur) => cur.filter((c) => c.id !== commentId));
         showToast('Comment deleted');
       } else {
+        console.log('[handleDeleteComment] Failed:', res?.message, res?.errors);
         showToast(res?.message || 'Failed to delete comment');
       }
     } catch (error) {
-      console.log('[PostDetail] Error deleting comment:', error);
+      console.log('[handleDeleteComment] Exception:', error);
       showToast('Failed to delete comment');
     }
   }
@@ -220,6 +232,11 @@ export default function PostDetail() {
     const currentUser = getAuth().currentUser;
     const isOwnComment = currentUser && item.author?.id === currentUser.uid;
     const isMenuOpen = menuVisible === item.id;
+    
+    console.log('[renderComment] item:', item);
+    console.log('[renderComment] currentUser.uid:', currentUser?.uid);
+    console.log('[renderComment] item.author?.id:', item.author?.id);
+    console.log('[renderComment] isOwnComment:', isOwnComment);
 
     return (
       <View style={[styles.cRow, { borderBottomColor: colors.divider }]}>

@@ -12,6 +12,7 @@ class BaseApiPayload {
    * Override this in subclasses to change JSON key mappings
    */
   static get fieldMapping() { }
+  static get fieldMapping() { }
 
   /**
    * Converts this instance to JSON using field mapping

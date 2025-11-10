@@ -1,6 +1,7 @@
 // GoClimb/src/services/api/PostsService.js
 
 import { getAuth } from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 import {
   RequestMethod,
   BaseApiPayload,
@@ -306,29 +307,41 @@ export async function createComment({ postId, content }) {
 
 // DELETE COMMENT
 export async function deleteComment(commentId) {
+  console.log('[deleteComment] === START ===');
+  console.log('[deleteComment] Input commentId:', commentId);
+  console.log('[deleteComment] commentId type:', typeof commentId);
+
   const user = getAuth().currentUser;
-  if (!user) throw new Error('No Firebase session found.');
+  if (!user) {
+    console.log('[deleteComment] ERROR: No Firebase session found');
+    throw new Error('No Firebase session found.');
+  }
+
+  console.log('[deleteComment] Current user UID:', user.uid);
 
   const payload = { comment_id: commentId };
 
-  console.log('[deleteComment] commentId:', commentId);
-  console.log('[deleteComment] payload:', payload);
-  console.log(
-    '[deleteComment] endpoint:',
-    API_ENDPOINTS.COMMENT.DELETE_COMMENT,
-  );
+  console.log('[deleteComment] Payload:', JSON.stringify(payload));
+  console.log('[deleteComment] Endpoint:', API_ENDPOINTS.COMMENT.DELETE_COMMENT);
+  console.log('[deleteComment] Full URL:', API_ENDPOINTS.BASE_URL + '/' + API_ENDPOINTS.COMMENT.DELETE_COMMENT);
 
   const req = new CustomApiRequest(
-    RequestMethod.POST,
+    RequestMethod.DELETE,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.COMMENT.DELETE_COMMENT,
     payload,
     true,
   );
+
+  console.log('[deleteComment] Sending request...');
   const ok = await req.sendRequest(BaseApiResponse);
   const res = req.Response;
+  const jsonObj = req.JsonObject;
 
-  console.log('[deleteComment] response:', res);
+  console.log('[deleteComment] Request OK:', ok);
+  console.log('[deleteComment] Response object:', res);
+  console.log('[deleteComment] Raw JSON:', jsonObj);
+  console.log('[deleteComment] === END ===');
 
   return {
     success: ok && !!res?.success,

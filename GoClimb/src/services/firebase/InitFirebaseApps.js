@@ -223,7 +223,7 @@ const InitFirebaseApps = async () => {
     );
     return false;
   }
-  console.log(`${TAG}: Firebase Apps initialized`);
+  console.log(`${TAG}: Firebase Apps initialized`);  console.log(`${TAG}: Firebase Apps initialized`);
   return true;
 };
 

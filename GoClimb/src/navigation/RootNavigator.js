@@ -22,14 +22,12 @@ import Forum from '../screens/Forum';
 import PostDetail from '../screens/PostDetail';
 import CreatePostScreen from '../screens/CreatePostScreen';
 import RouteDataManager from '../screens/RouteDataManager';
+import RankingOptionsScreen from '../screens/RankingOptionsScreen';
+import RankingListScreen from '../screens/RankingListScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-/**
- * Bottom tabs (Home / Rankings / Map / Forum / Routes)
- * Forum is exposed here as 'ForumMain'
- */
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -39,7 +37,7 @@ function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen
         name="Rankings"
-        component={SettingsScreen}
+        component={RankingOptionsScreen}
         options={{ title: 'Rankings' }}
       />
       <Tab.Screen name="Map" component={MapScreen} />
@@ -52,7 +50,7 @@ function MainTabs() {
         name="Routes"
         component={CragsScreen}
         options={{ title: 'Routes' }}
-      />    
+      />
     </Tab.Navigator>
   );
 }
@@ -74,6 +72,13 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="AR" component={AR} />
+
+        {/* Ranking-related */}
+        <Stack.Screen
+          name="RankingList"
+          component={RankingListScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen 
           name="ARCragList" 
           component={ARCragList}

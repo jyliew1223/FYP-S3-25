@@ -26,7 +26,8 @@ export default function AR() {
       </View>
 
       <View style={styles.center}>
-        <Text style={{ color: colors.accent, fontSize: 20, fontWeight: '900' }}>Coming Soon!</Text>
+        <Text style={{ color: colors.accent, fontSize: 20, fontWeight: '900' }}>AR View Coming Soon!</Text>
+        <Text style={{ color: colors.textDim, fontSize: 14, marginTop: 8 }}>Unity integration pending</Text>
       </View>
     </SafeAreaView>
   );
