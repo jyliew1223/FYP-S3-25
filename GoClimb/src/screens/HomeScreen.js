@@ -208,6 +208,25 @@ export default function HomeScreen() {
             <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
             <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} colors={colors} />
+            <DrawerItem 
+              icon="camera-outline" 
+              label="AR Experience" 
+              onPress={() => {
+                setMenuOpen(false);
+                navigation.navigate('ARCragList');
+              }} 
+              colors={colors} 
+            />
+
+            <DrawerItem 
+              icon="folder-outline" 
+              label="Route Data Manager" 
+              onPress={() => {
+                setMenuOpen(false);
+                navigation.navigate('RouteDataManager');
+              }} 
+              colors={colors} 
+            />
             <DrawerItem
               icon={user ? 'log-out-outline' : 'log-in-outline'}
               label={user ? 'Logout' : 'Login / Sign Up'}

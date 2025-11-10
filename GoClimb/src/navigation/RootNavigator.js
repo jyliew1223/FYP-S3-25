@@ -15,10 +15,13 @@ import BottomBar from '../components/BottomBar';
 import CragsScreen from '../screens/CragsScreen';
 import RouteDetails from '../screens/RouteDetails';
 import AR from '../screens/AR';
+import ARCragList from '../screens/ARCragList';
+import UnityARScreen from '../screens/UnityARScreen';
 
 import Forum from '../screens/Forum';
 import PostDetail from '../screens/PostDetail';
 import CreatePostScreen from '../screens/CreatePostScreen';
+import RouteDataManager from '../screens/RouteDataManager';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -71,6 +74,20 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="AR" component={AR} />
+        <Stack.Screen 
+          name="ARCragList" 
+          component={ARCragList}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="UnityAR" 
+          component={UnityARScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: false, // Disable swipe back gesture for fullscreen
+            animation: 'fade' // Smooth transition
+          }}
+        />
 
         {/* Forum-related */}
         <Stack.Screen name="PostDetail" component={PostDetail} />
@@ -87,6 +104,11 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen
           name="RouteDetails"
           component={RouteDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="RouteDataManager"
+          component={RouteDataManager}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

@@ -204,7 +204,8 @@ class CustomApiRequest {
 
     if (this.#method === 'GET' && this.#payload) {
       url += this.#toQueryString(this.#payload);
-    } else if (this.#method !== 'GET' && this.#method !== 'DELETE') {
+    } else if (this.#method !== 'GET') {
+      // POST, PUT, DELETE can all have a body
       options.headers['Content-Type'] = 'application/json';
       if (this.#payload) {
         if (typeof this.#payload === 'string') {

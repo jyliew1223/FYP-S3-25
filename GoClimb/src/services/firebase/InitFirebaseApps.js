@@ -190,27 +190,27 @@ const InitFirebaseApps = async () => {
 
       // In dev mode, log in with test user for testing
       // DISABLED: Auto-login removed to test guest features
-      // if (__DEV__) {
-      //   console.log(`${TAG}: Try log in with testuser...`);
+      if (__DEV__) {
+        console.log(`${TAG}: Try log in with testuser...`);
 
-      //   const TestUserEmail = 'testuser001@gmail.com';
-      //   const TestUserPassword = 'testuser001';
+        const TestUserEmail = 'testuser001@gmail.com';
+        const TestUserPassword = 'testuser001';
 
-      //   await signInWithEmailAndPassword(
-      //     getAuth(),
-      //     TestUserEmail,
-      //     TestUserPassword,
-      //   );
+        await signInWithEmailAndPassword(
+          getAuth(),
+          TestUserEmail,
+          TestUserPassword,
+        );
 
-      //   if (getAuth().currentUser == null) {
-      //     console.log(`${TAG}: currentUser stil null after log in...`);
-      //   } else {
-      //     console.log(
-      //       `${TAG}: Firebase Auth initialized, currentUser: ${getAuth().currentUser.email
-      //       }`,
-      //     );
-      //   }
-      // }
+        if (getAuth().currentUser == null) {
+          console.log(`${TAG}: currentUser stil null after log in...`);
+        } else {
+          console.log(
+            `${TAG}: Firebase Auth initialized, currentUser: ${getAuth().currentUser.email
+            }`,
+          );
+        }
+      }
     } else {
       let idToken = await getIdToken(getAuth().currentUser, false);
       console.log(
@@ -223,7 +223,7 @@ const InitFirebaseApps = async () => {
     );
     return false;
   }
-  console.log(`${TAG}: Firebase Apps initialized`);  console.log(`${TAG}: Firebase Apps initialized`);
+  console.log(`${TAG}: Firebase Apps initialized`);
   return true;
 };
 

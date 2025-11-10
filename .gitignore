@@ -11,3 +11,5 @@ GoClimb/android/app/GoogleService-Info.plist
 /GoClimb/__mocks__
 /GoClimb/android/unityLibrary
 /GoClimb/android/_UnityExport
+/GoClimb/docs
+/GoClimb/src/_

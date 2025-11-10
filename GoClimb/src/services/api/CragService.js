@@ -3,6 +3,7 @@
 import { CustomApiRequest, RequestMethod, BaseApiResponse } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
 import InitFirebaseApps from '../firebase/InitFirebaseApps';
+import App from '../../../App';
 
 const GRADE_TABLE = {
   1: '4',
@@ -58,6 +59,9 @@ function normalizeCrag(raw, fallbackNumericPk) {
 
     name: raw?.name ?? 'Unknown Crag',
     description: raw?.description ?? '',
+    // Preserve the full location_details structure
+    location_details: raw?.location_details || null,
+    // Keep country for backward compatibility
     country:
       raw?.location_details?.country ||
       raw?.location_details?.city ||
@@ -173,8 +177,6 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
 }
 
 export async function fetchRouteByIdGET(routeId) {
-  await InitFirebaseApps();
-
   const payload = { route_id: routeId };
 
   const req = new CustomApiRequest(
@@ -255,7 +257,7 @@ export async function fetchAllCragsBootstrap() {
 export async function fetchAllModelsByCragId(crag_id) {
   console.log(
     '[fetchAllModelsByCragId] fetch all models related to crag: ' +
-      crag_id.toString(),
+    crag_id.toString(),
   );
 
   const payload = {
@@ -270,6 +272,42 @@ export async function fetchAllModelsByCragId(crag_id) {
   );
 
   await request.sendRequest();
-  
+
   return request.JsonObject.data;
+}
+
+export async function fetchAllCrag() {
+  await InitFirebaseApps();
+
+  const req = new CustomApiRequest(
+    RequestMethod.GET,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.CRAG.GET_ALL,
+    null,
+    true
+  );
+
+  const ok = await req.sendRequest(GenericGetResponse);
+  const res = req.Response;
+
+  console.log('[fetchAllCrag] response:', res);
+  console.log('[fetchAllCrag] raw data:', res?.data);
+
+  if (!ok || !res?.success) {
+    return {
+      success: false,
+      crags: [],
+    };
+  }
+
+  const arr = Array.isArray(res.data) ? res.data : [];
+  console.log('[fetchAllCrag] processing array:', arr);
+  
+  // Try returning raw data first to test
+  console.log('[fetchAllCrag] returning raw data for testing:', arr);
+  
+  return {
+    success: true,
+    crags: arr, // Return raw data temporarily for debugging
+  };
 }
