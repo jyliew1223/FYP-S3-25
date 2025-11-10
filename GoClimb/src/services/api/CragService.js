@@ -3,37 +3,7 @@
 import { CustomApiRequest, RequestMethod, BaseApiResponse } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
 import InitFirebaseApps from '../firebase/InitFirebaseApps';
-
-const GRADE_TABLE = {
-  1: '4',
-  2: '5',
-  3: '5+',
-  4: '6A',
-  5: '6A+',
-  6: '6B',
-  7: '6B+',
-  8: '6C',
-  9: '6C+',
-  10: '7A',
-  11: '7A+',
-  12: '7B',
-  13: '7B+',
-  14: '7C',
-  15: '7C+',
-  16: '8A',
-  17: '8A+',
-  18: '8B',
-  19: '8B+',
-  20: '8C',
-  21: '8C+',
-  22: '9A',
-};
-
-export function convertNumericGradeToFont(n) {
-  if (n == null) return '—';
-  const asNum = Number(n);
-  return GRADE_TABLE[asNum] || String(asNum);
-}
+import { convertNumericGradeToFont } from '../../utils/gradeConverter';
 
 function safeTs(str) {
   try {

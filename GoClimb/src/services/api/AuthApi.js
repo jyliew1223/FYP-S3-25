@@ -143,3 +143,85 @@ export async function fetchCurrentUserFromDjango() {
     debugRaw: request.logResponse?.(),
   };
 }
+
+class UpdateUserPayload extends BaseApiPayload {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      user_id: 'user_id',
+      username: 'username',
+      email: 'email',
+    };
+  }
+
+  constructor({ user_id, username, email } = {}) {
+    super();
+    this.user_id = user_id;
+    this.username = username;
+    this.email = email;
+  }
+}
+
+class UpdateUserResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      data: 'data',
+    };
+  }
+
+  constructor({ status, success, message, errors, data } = {}) {
+    super({ status, success, message, errors });
+
+    if (data instanceof UserModel) {
+      this.data = data;
+    } else {
+      this.data = UserModel.fromJson(data);
+    }
+  }
+}
+
+export async function updateUserInDjango({ username, email }) {
+  console.log('[updateUserInDjango] === START ===');
+  
+  const currentUser = auth().currentUser;
+  if (!currentUser) {
+    console.log('[updateUserInDjango] ERROR: No Firebase session found');
+    throw new Error('No Firebase session found.');
+  }
+
+  console.log('[updateUserInDjango] Current user UID:', currentUser.uid);
+
+  const payload = new UpdateUserPayload({
+    user_id: currentUser.uid,
+    username: username,
+    email: email,
+  });
+
+  console.log('[updateUserInDjango] Payload:', JSON.stringify(payload.toJson()));
+
+  const request = new CustomApiRequest(
+    RequestMethod.PUT,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.USER.UPDATE_USER,
+    payload,
+    true // attach App Check token header
+  );
+
+  console.log('[updateUserInDjango] Sending request...');
+  const httpOk = await request.sendRequest(UpdateUserResponse);
+  const resp = request.Response;
+
+  console.log('[updateUserInDjango] Request OK:', httpOk);
+  console.log('[updateUserInDjango] Response:', resp);
+  console.log('[updateUserInDjango] === END ===');
+
+  return {
+    ok: httpOk && !!resp?.success,
+    status: resp?.status,
+    message: resp?.message ?? null,
+    user: resp?.data ?? null,
+    errors: resp?.errors ?? null,
+    debugRaw: request.logResponse?.(),
+  };
+}

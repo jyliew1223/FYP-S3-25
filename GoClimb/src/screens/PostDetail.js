@@ -22,6 +22,7 @@ import {
   fetchPostById,
   createComment,
   deleteComment,
+  deletePost,
   likePost,
   unlikePost,
   checkIfUserLikedPost,
@@ -224,7 +225,43 @@ export default function PostDetail() {
     }
   }
 
+  async function handleDeletePost() {
+    console.log('[handleDeletePost] Starting deletion for postId:', postId);
+    
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      console.log('[handleDeletePost] No current user');
+      showToast('You must be logged in to delete posts');
+      return;
+    }
+
+    console.log('[handleDeletePost] Current user:', currentUser.uid);
+    setPostMenuVisible(false);
+
+    try {
+      console.log('[handleDeletePost] Calling deletePost API...');
+      const res = await deletePost(postId);
+      console.log('[handleDeletePost] API response:', res);
+      
+      if (res?.success) {
+        console.log('[handleDeletePost] Success! Navigating back');
+        showToast('Post deleted');
+        // Navigate back after a short delay to show the toast
+        setTimeout(() => {
+          goBack();
+        }, 500);
+      } else {
+        console.log('[handleDeletePost] Failed:', res?.message, res?.errors);
+        showToast(res?.message || 'Failed to delete post');
+      }
+    } catch (error) {
+      console.log('[handleDeletePost] Exception:', error);
+      showToast('Failed to delete post');
+    }
+  }
+
   const [menuVisible, setMenuVisible] = useState(null);
+  const [postMenuVisible, setPostMenuVisible] = useState(false);
 
   const renderComment = ({ item }) => {
     const currentUser = getAuth().currentUser;
@@ -238,33 +275,37 @@ export default function PostDetail() {
 
     return (
       <View style={[styles.cRow, { borderBottomColor: colors.divider }]}>
-        <View
-          style={[
-            styles.cAvatar,
-            {
-              backgroundColor: colors.surfaceAlt,
-              borderColor: colors.divider,
-            },
-          ]}
-        >
-          <Text
-            style={{
-              color: colors.textDim,
-              fontWeight: '800',
-              fontSize: 12,
-            }}
+        <TouchableOpacity onPress={() => handleProfilePress(item.author?.id)}>
+          <View
+            style={[
+              styles.cAvatar,
+              {
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.divider,
+              },
+            ]}
           >
-            {initials(item.author?.name)}
-          </Text>
-        </View>
+            <Text
+              style={{
+                color: colors.textDim,
+                fontWeight: '800',
+                fontSize: 12,
+              }}
+            >
+              {initials(item.author?.name)}
+            </Text>
+          </View>
+        </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <View style={styles.commentHeader}>
             <View style={{ flex: 1 }}>
-              <Text
-                style={[styles.cAuthor, { color: colors.text }]}
-              >
-                {item.author?.name ?? 'User'}
-              </Text>
+              <TouchableOpacity onPress={() => handleProfilePress(item.author?.id)}>
+                <Text
+                  style={[styles.cAuthor, { color: colors.text }]}
+                >
+                  {item.author?.name ?? 'User'}
+                </Text>
+              </TouchableOpacity>
               <Text
                 style={{
                   color: colors.textDim,
@@ -342,41 +383,80 @@ export default function PostDetail() {
 
   console.log('[DEBUG PostDetail title]', { id: post.id, title: post.title });
 
+  const currentUser = getAuth().currentUser;
+  const isOwnPost = currentUser && post.author?.id === currentUser.uid;
+
+  const handleProfilePress = (userId) => {
+    if (userId) {
+      navigation.navigate('Profile', { userId });
+    }
+  };
+
   const header = (
     <View style={{ padding: 16 }}>
       {/* Author row */}
       <View style={styles.headerRow}>
-        <View
-          style={[
-            styles.avatar,
-            {
-              backgroundColor: colors.surfaceAlt,
-              borderColor: colors.divider,
-            },
-          ]}
-        >
-          <Text
-            style={{
-              color: colors.textDim,
-              fontWeight: '800',
-              fontSize: 12,
-            }}
+        <TouchableOpacity onPress={() => handleProfilePress(post.author?.id)}>
+          <View
+            style={[
+              styles.avatar,
+              {
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.divider,
+              },
+            ]}
           >
-            {initials(post.author?.name)}
-          </Text>
-        </View>
+            <Text
+              style={{
+                color: colors.textDim,
+                fontWeight: '800',
+                fontSize: 12,
+              }}
+            >
+              {initials(post.author?.name)}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text
-            style={[styles.author, { color: colors.text }]}
-            numberOfLines={1}
-          >
-            {post.author?.name ?? 'User'}
-          </Text>
+          <TouchableOpacity onPress={() => handleProfilePress(post.author?.id)}>
+            <Text
+              style={[styles.author, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {post.author?.name ?? 'User'}
+            </Text>
+          </TouchableOpacity>
           <Text style={[styles.meta, { color: colors.textDim }]}>
             {timeAgo(post.createdAt)}
           </Text>
         </View>
+
+        {isOwnPost && (
+          <View>
+            <TouchableOpacity
+              onPress={() => setPostMenuVisible(!postMenuVisible)}
+              style={styles.menuBtn}
+            >
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={20}
+                color={colors.textDim}
+              />
+            </TouchableOpacity>
+            {postMenuVisible && (
+              <View style={[styles.postMenu, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                <TouchableOpacity
+                  onPress={handleDeletePost}
+                  style={styles.menuItem}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                  <Text style={[styles.menuText, { color: '#FF6B6B' }]}>Delete Post</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* Title/body */}
@@ -813,6 +893,20 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     minWidth: 120,
+    zIndex: 1000,
+  },
+  postMenu: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 140,
     zIndex: 1000,
   },
   menuItem: {
