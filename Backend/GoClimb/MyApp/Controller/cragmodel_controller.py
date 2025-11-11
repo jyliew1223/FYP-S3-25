@@ -23,7 +23,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from MyApp.Entity.user import User
 from MyApp.Serializer.serializers import CragModelSerializer
-from MyApp.Firebase.helpers import upload_model_to_storage, upload_model_from_google_drive
+from MyApp.Firebase.helpers import upload_zipped_model_files, upload_model_from_google_drive
 
 def create_crag_model(
     user_id: str, 
@@ -72,8 +72,8 @@ def create_crag_model(
                     "crag_model"
                 )
             elif model_files:
-                # Upload directly from files
-                upload_model_to_storage(
+                # Upload zip files (decompress and upload)
+                upload_zipped_model_files(
                     model_files, 
                     folder_path, 
                     user_id, 

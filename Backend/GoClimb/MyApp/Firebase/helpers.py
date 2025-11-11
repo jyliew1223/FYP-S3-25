@@ -501,6 +501,7 @@ def download_from_google_drive(file_id: str, is_folder: bool = False) -> bytes:
 def process_google_drive_files(content: bytes, original_filename: str = None) -> List[Dict[str, any]]:
     """
     Process downloaded content from Google Drive, extracting files if it's a zip.
+    Preserves directory structure from zip files.
     
     Args:
         content: Downloaded file content
@@ -518,15 +519,16 @@ def process_google_drive_files(content: bytes, original_filename: str = None) ->
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as zip_file:
             for file_info in zip_file.filelist:
-                if not file_info.is_dir():
+                # Skip directories and hidden files
+                if not file_info.is_dir() and not file_info.filename.startswith('.') and not '/.DS_Store' in file_info.filename:
                     file_content = zip_file.read(file_info.filename)
                     
                     # Determine content type based on file extension
-                    file_ext = file_info.filename.lower().split('.')[-1]
+                    file_ext = file_info.filename.lower().split('.')[-1] if '.' in file_info.filename else 'bin'
                     content_type = get_content_type_from_extension(file_ext)
                     
                     files.append({
-                        'name': file_info.filename,
+                        'name': file_info.filename,  # Preserve full path
                         'content': file_content,
                         'content_type': content_type,
                         'size': len(file_content)
@@ -534,7 +536,7 @@ def process_google_drive_files(content: bytes, original_filename: str = None) ->
     except zipfile.BadZipFile:
         # Not a zip file, treat as single file
         if original_filename:
-            file_ext = original_filename.lower().split('.')[-1]
+            file_ext = original_filename.lower().split('.')[-1] if '.' in original_filename else 'bin'
         else:
             file_ext = 'bin'
         
@@ -574,13 +576,16 @@ def get_content_type_from_extension(extension: str) -> str:
 class MockUploadedFile:
     """
     Mock InMemoryUploadedFile for Google Drive downloads.
+    Preserves file paths for directory structure.
     """
     def __init__(self, name: str, content: bytes, content_type: str):
-        self.name = name
+        self.name = name  # This can include directory path
         self.content = content
         self.content_type = content_type
         self.size = len(content)
         self._file = io.BytesIO(content)
+        # Extract just the filename for compatibility
+        self.filename = name.split('/')[-1] if '/' in name else name
     
     def read(self, size=-1):
         return self._file.read(size)
@@ -629,18 +634,190 @@ def upload_model_from_google_drive(
         if not files_data:
             raise ValueError("No files found in the Google Drive download")
         
-        # Convert to mock uploaded files
-        mock_files = []
-        for file_data in files_data:
-            mock_file = MockUploadedFile(
-                name=file_data['name'],
-                content=file_data['content'],
-                content_type=file_data['content_type']
-            )
-            mock_files.append(mock_file)
+        # Upload files directly to preserve directory structure
+        uploaded_paths = []
         
-        # Upload using existing function
-        return upload_model_to_storage(mock_files, folder_path, user_id, purpose)
+        for file_data in files_data:
+            try:
+                # Create storage path preserving directory structure
+                storage_path = f"{folder_path}/{file_data['name']}"
+                
+                # Upload to Firebase Storage
+                bucket = storage.bucket()
+                blob = bucket.blob(storage_path)
+                
+                # Set metadata
+                blob.metadata = {
+                    "uploadedBy": str(user_id),
+                    "purpose": purpose,
+                    "upload_time": datetime.now(timezone.utc).isoformat(),
+                    "contentType": file_data['content_type'],
+                    "original_filename": file_data['name'].split('/')[-1],
+                    "relative_path": file_data['name'],
+                    "source": "google_drive"
+                }
+                
+                # Upload file content
+                blob.upload_from_string(file_data['content'], content_type=file_data['content_type'])
+                uploaded_paths.append(file_data['name'])
+                
+            except Exception as e:
+                # If any upload fails, clean up previously uploaded files
+                for uploaded_path in uploaded_paths:
+                    try:
+                        bucket = storage.bucket()
+                        blob = bucket.blob(f"{folder_path}/{uploaded_path}")
+                        blob.delete()
+                    except:
+                        pass
+                raise ValueError(f"Failed to upload {file_data['name']}: {str(e)}")
+        
+        return uploaded_paths
         
     except Exception as e:
         raise ValueError(f"Failed to upload from Google Drive: {str(e)}")
+        
+def upload_zipped_model_to_storage(
+    zip_file: InMemoryUploadedFile,
+    folder_path: str,
+    user_id: str,
+    purpose: str = "3d_model",
+) -> List[str]:
+    """
+    Upload a zipped model folder to Firebase Storage, preserving directory structure.
+    
+    Args:
+        zip_file: Uploaded zip file containing the model folder
+        folder_path: The folder path in Firebase Storage
+        user_id: The user ID uploading the files
+        purpose: Purpose of the upload
+    
+    Returns:
+        List of relative file paths that were uploaded
+    
+    Raises:
+        ValueError: If zip file is invalid or upload fails
+    """
+    if not zip_file:
+        raise ValueError("No zip file provided")
+    
+    # Validate file is a zip
+    if not zip_file.name.lower().endswith('.zip'):
+        raise ValueError("File must be a zip archive")
+    
+    # Validate file size (max 500MB for zip files)
+    max_size = 500 * 1024 * 1024  # 500MB
+    if zip_file.size > max_size:
+        raise ValueError(f"Zip file size exceeds maximum allowed size of {max_size / (1024 * 1024)}MB")
+    
+    uploaded_paths = []
+    
+    try:
+        # Extract zip file
+        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+            # Get list of all files in zip
+            file_list = zip_ref.namelist()
+            
+            # Filter out directories and hidden files
+            files_to_upload = [
+                f for f in file_list 
+                if not f.endswith('/') and not f.startswith('.') and not '/.DS_Store' in f
+            ]
+            
+            if not files_to_upload:
+                raise ValueError("No valid files found in zip archive")
+            
+            for file_path in files_to_upload:
+                try:
+                    # Read file content from zip
+                    file_content = zip_ref.read(file_path)
+                    
+                    # Determine content type based on file extension
+                    file_ext = file_path.lower().split('.')[-1] if '.' in file_path else 'bin'
+                    content_type = get_content_type_from_extension(file_ext)
+                    
+                    # Create storage path preserving directory structure
+                    storage_path = f"{folder_path}/{file_path}"
+                    
+                    # Upload to Firebase Storage
+                    bucket = storage.bucket()
+                    blob = bucket.blob(storage_path)
+                    
+                    # Set metadata
+                    blob.metadata = {
+                        "uploadedBy": str(user_id),
+                        "purpose": purpose,
+                        "upload_time": datetime.now(timezone.utc).isoformat(),
+                        "contentType": content_type,
+                        "original_filename": file_path.split('/')[-1],
+                        "relative_path": file_path,
+                    }
+                    
+                    # Upload file content
+                    blob.upload_from_string(file_content, content_type=content_type)
+                    uploaded_paths.append(file_path)
+                    
+                except Exception as e:
+                    # If any file upload fails, clean up previously uploaded files
+                    for uploaded_path in uploaded_paths:
+                        try:
+                            bucket = storage.bucket()
+                            blob = bucket.blob(f"{folder_path}/{uploaded_path}")
+                            blob.delete()
+                        except:
+                            pass
+                    raise ValueError(f"Failed to upload {file_path}: {str(e)}")
+        
+        return uploaded_paths
+        
+    except zipfile.BadZipFile:
+        raise ValueError("Invalid zip file format")
+    except Exception as e:
+        # Clean up any uploaded files on error
+        for uploaded_path in uploaded_paths:
+            try:
+                bucket = storage.bucket()
+                blob = bucket.blob(f"{folder_path}/{uploaded_path}")
+                blob.delete()
+            except:
+                pass
+        raise ValueError(f"Failed to process zip file: {str(e)}")
+
+
+def upload_zipped_model_files(
+    zip_files: List[InMemoryUploadedFile],
+    folder_path: str,
+    user_id: str,
+    purpose: str = "3d_model",
+) -> List[str]:
+    """
+    Upload zipped model files to Firebase Storage, preserving directory structure.
+    Frontend only sends zip files.
+    
+    Args:
+        zip_files: List of uploaded zip files
+        folder_path: The folder path in Firebase Storage
+        user_id: The user ID uploading the files
+        purpose: Purpose of the upload
+    
+    Returns:
+        List of relative file paths that were uploaded
+    
+    Raises:
+        ValueError: If zip files are invalid or upload fails
+    """
+    if not zip_files:
+        raise ValueError("No zip files provided")
+    
+    all_uploaded_paths = []
+    
+    for zip_file in zip_files:
+        # Validate it's a zip file
+        if not zip_file.name.lower().endswith('.zip'):
+            raise ValueError(f"File {zip_file.name} is not a zip file. Only zip files are allowed.")
+        
+        # Process this zip file
+        uploaded_paths = upload_zipped_model_to_storage(zip_file, folder_path, user_id, purpose)
+        all_uploaded_paths.extend(uploaded_paths)
+    
+    return all_uploaded_paths

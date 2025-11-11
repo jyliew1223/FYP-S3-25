@@ -83,7 +83,7 @@ def create_crag_model_view(request: Request) -> Response:
         "crag_id": str (required),
         "name": str (optional),
         "status": str (optional, default: "active"),
-        "model_files": files (optional) - 3D model files, textures, etc.
+        "model_files": zip files (optional) - Zipped 3D model folders
         "google_drive_url": str (optional) - Google Drive share URL for model files
     }
     
@@ -154,13 +154,13 @@ def create_crag_model_view(request: Request) -> Response:
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Validate that either files or Google Drive URL is provided
+    # Validate that either zip files or Google Drive URL is provided
     if not model_files and not google_drive_url:
         return Response(
             {
                 "success": False,
                 "message": "Invalid input.",
-                "errors": {"files": "Either model_files or google_drive_url must be provided."},
+                "errors": {"files": "Either model_files (zip) or google_drive_url must be provided."},
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
