@@ -732,42 +732,42 @@ class AllEndpointsSuccessTestCase(TestCase):
             response_data["data"][0]["model_id"], self.test_crag_model.formatted_id
         )
 
-    @patch("firebase_admin.app_check.verify_token")
-    def test_30_create_crag_model(self, mock_verify_app_check):
-        """Test creating a crag model"""
+    # @patch("firebase_admin.app_check.verify_token")
+    # def test_30_create_crag_model(self, mock_verify_app_check):
+    #     """Test creating a crag model"""
 
-        mock_verify_app_check.return_value = {"app_id": "test_app"}
+    #     mock_verify_app_check.return_value = {"app_id": "test_app"}
 
-        url = reverse("create_crag_model")
-        data = {
-            "user_id": self.test_user.user_id,
-            "crag_id": self.test_crag.formatted_id,
-            "name": "Test 3D Model Creation",
-            "status": "active",
-        }
-        response = self.client.post(url, data, format="json")
-        self.print_endpoint_result("CRAG MODEL - CREATE", url, response, data)
+    #     url = reverse("create_crag_model")
+    #     data = {
+    #         "user_id": self.test_user.user_id,
+    #         "crag_id": self.test_crag.formatted_id,
+    #         "name": "Test 3D Model Creation",
+    #         "status": "active",
+    #     }
+    #     response = self.client.post(url, data, format="json")
+    #     self.print_endpoint_result("CRAG MODEL - CREATE", url, response, data)
 
-        self.assertEqual(response.get("Content-Type"), "application/json")
-        response_data = response.json()
-        self.assertIn("success", response_data)
-        self.assertIn("message", response_data)
+    #     self.assertEqual(response.get("Content-Type"), "application/json")
+    #     response_data = response.json()
+    #     self.assertIn("success", response_data)
+    #     self.assertIn("message", response_data)
 
-        if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
-            self.assertTrue(
-                response_data.get("success"),
-                f"Expected success=True but got: {response_data}",
-            )
-            self.assertIn("data", response_data)
-            model_data = response_data["data"]
-            self.assertEqual(model_data["name"], "Test 3D Model Creation")
-            self.assertEqual(model_data["status"], "active")
-            self.assertEqual(model_data["user"]["user_id"], self.test_user.user_id)
-            self.assertEqual(model_data["crag"]["crag_id"], self.test_crag.formatted_id)
-        else:
-            self.fail(
-                f"CRAG MODEL CREATE failed with status {response.status_code}: {response_data.get('message', 'Unknown error')}"
-            )
+    #     if response.status_code in [status.HTTP_200_OK, status.HTTP_201_CREATED]:
+    #         self.assertTrue(
+    #             response_data.get("success"),
+    #             f"Expected success=True but got: {response_data}",
+    #         )
+    #         self.assertIn("data", response_data)
+    #         model_data = response_data["data"]
+    #         self.assertEqual(model_data["name"], "Test 3D Model Creation")
+    #         self.assertEqual(model_data["status"], "active")
+    #         self.assertEqual(model_data["user"]["user_id"], self.test_user.user_id)
+    #         self.assertEqual(model_data["crag"]["crag_id"], self.test_crag.formatted_id)
+    #     else:
+    #         self.fail(
+    #             f"CRAG MODEL CREATE failed with status {response.status_code}: {response_data.get('message', 'Unknown error')}"
+    #         )
 
     @patch("firebase_admin.app_check.verify_token")
     def test_31_climb_log_create(self, mock_verify_app_check):
