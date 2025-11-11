@@ -108,9 +108,9 @@ export default function RouteDataManager() {
       const allData = [...processedLocalData, ...serverData];
       allData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       
-      // Store all data and apply current filter
+      // Store all data
       setAllRouteData(allData);
-      applyFilter(allData, filter);
+      setRouteDataList(allData);
 
     } catch (error) {
       console.error('[RouteDataManager] Failed to load route data:', error);
@@ -119,7 +119,7 @@ export default function RouteDataManager() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [updateNames, applyFilter, filter]);
+  }, [updateNames]);
 
   useEffect(() => {
     loadRouteData();
@@ -132,20 +132,7 @@ export default function RouteDataManager() {
     loadRouteData();
   }, [loadRouteData]);
 
-  const applyFilter = useCallback((data, filterType) => {
-    let filtered = data;
-    if (filterType === 'local') {
-      filtered = data.filter(item => item.source === 'local' || !item.source);
-    } else if (filterType === 'server') {
-      filtered = data.filter(item => item.source === 'server');
-    }
-    setRouteDataList(filtered);
-  }, []);
 
-  const handleFilterChange = useCallback((newFilter) => {
-    setFilter(newFilter);
-    loadRouteData(); // Reload with new filter
-  }, [loadRouteData]);
 
   const handleUpload = useCallback(async (item) => {
     if (!item.modelId) {
