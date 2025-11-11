@@ -24,12 +24,14 @@ export const API_ENDPOINTS = {
   }),
   USER: withBase('user/', {
     GET_USER: 'get_user',
+    UPDATE_USER: 'update/',
     GET_MONTTHLY_USER_RANKING: 'get_monthly_user_ranking',
   }),
   POST: withBase('post/', {
     CREATE_POST: 'create_post',
+    DELETE_POST: 'delete',
     GET_POST: 'get_post',
-    GET_POSTS_BY_USER_ID: 'get_post_by_user_id/',
+    GET_POSTS_BY_USER_ID: 'get_post_by_user_id',
     GET_RANDOM_POSTS: 'get_random_posts',
   }),
   CRAG: withBase('crag/', {
@@ -40,7 +42,9 @@ export const API_ENDPOINTS = {
     GET_ALL: 'get_all_crag_ids'
   }),
   CLIMB_LOG: withBase('climb_log/', {
-    GET_USER_CLIMB_LOG: 'get_user_climb_logs',
+    CREATE: 'create/',
+    DELETE: 'delete/',
+    GET_USER_CLIMB_LOG: 'get_user_climb_logs/',
     GET_USER_CLIMB_STATS: 'get_user_climb_stats',
   }),
   POST_LIKE: withBase('post/', {

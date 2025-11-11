@@ -18,6 +18,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { fetchCurrentUserFromDjango } from '../services/api/AuthApi';
 import { fetchUserClimbStatsMock } from '../services/api/MockProfile';
+import { getUserClimbLogs, deleteClimbLog } from '../services/api/ClimbLogService';
+import { convertNumericGradeToFont } from '../utils/gradeConverter';
 
 // Default/fallback stats
 const defaultStats = {
@@ -29,10 +31,14 @@ const defaultStats = {
   avgAttemptsBouldering: 0,
 };
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ route }) {
   const navigation = useNavigation();
   const { colors } = useTheme();
   const { user } = useAuth();
+
+  // Get userId from route params (if viewing another user's profile)
+  const viewingUserId = route?.params?.userId;
+  const isOwnProfile = !viewingUserId || viewingUserId === user?.uid;
 
   // profileInfo = data from Django (UserModel)
   const [profileInfo, setProfileInfo] = useState(null);
@@ -43,12 +49,30 @@ export default function ProfileScreen() {
   // loading states
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+
+  // climb logs
+  const [climbLogs, setClimbLogs] = useState([]);
+  const [menuVisible, setMenuVisible] = useState(null);
 
   useEffect(() => {
     // load Django profile (userId, username, email, profile_picture_url, etc.)
     (async () => {
       try {
         setLoadingProfile(true);
+        // For now, we only support viewing own profile
+        // TODO: Add API endpoint to fetch other users' profiles by userId
+        if (!isOwnProfile) {
+          // Viewing another user's profile - not yet implemented
+          Alert.alert(
+            'Coming Soon',
+            'Viewing other users\' profiles will be available soon!',
+          );
+          setProfileInfo(null);
+          setLoadingProfile(false);
+          return;
+        }
+        
         const resp = await fetchCurrentUserFromDjango();
         if (!resp.ok) {
           console.log('Profile fetch failed:', resp.debugRaw);
@@ -69,7 +93,8 @@ export default function ProfileScreen() {
       }
     })();
 
-    // load climb stats mock (your original behaviour)
+    // load climb stats (for all profiles)
+    // TODO: When backend supports fetching other users' stats, pass viewingUserId
     (async () => {
       try {
         setLoadingStats(true);
@@ -85,7 +110,28 @@ export default function ProfileScreen() {
         setLoadingStats(false);
       }
     })();
-  }, []);
+
+    // load climb logs
+    (async () => {
+      try {
+        setLoadingLogs(true);
+        const userId = viewingUserId || user?.uid;
+        if (userId) {
+          const result = await getUserClimbLogs(userId);
+          if (result.success) {
+            setClimbLogs(result.data || []);
+          } else {
+            setClimbLogs([]);
+          }
+        }
+      } catch (e) {
+        console.log('[ProfileScreen] Error loading climb logs:', e);
+        setClimbLogs([]);
+      } finally {
+        setLoadingLogs(false);
+      }
+    })();
+  }, [viewingUserId, user?.uid]);
 
   // prefer username from Django, fallback to Firebase
   const usernameFromDjango = profileInfo?.username;
@@ -215,26 +261,33 @@ export default function ProfileScreen() {
                     value={merged.bouldersSent}
                     colors={colors}
                   />
-                  <TouchableOpacity
-                    style={[
-                      styles.editBtn,
-                      {
-                        backgroundColor: colors.surface,
-                        borderColor: colors.divider,
-                      },
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => {}}
-                  >
-                    <Text
+                  {isOwnProfile && (
+                    <TouchableOpacity
                       style={[
-                        styles.editBtnText,
-                        { color: colors.text },
+                        styles.editBtn,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.divider,
+                        },
                       ]}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        navigation.navigate('EditProfile', {
+                          username: username,
+                          email: emailFromDjango || user?.email,
+                        });
+                      }}
                     >
-                      Edit Profile
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.editBtnText,
+                          { color: colors.text },
+                        ]}
+                      >
+                        Edit Profile
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -288,22 +341,52 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Logged activities placeholder */}
+        {/* Climb Logs */}
         <View
           style={[
             styles.card,
-            styles.activitiesCard,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.divider,
-              alignItems: 'center',
-              justifyContent: 'center',
-            },
+            { backgroundColor: colors.surface, borderColor: colors.divider },
           ]}
         >
-          <Text style={{ color: colors.accent, fontSize: 14 }}>
-            {'<logged activities here>'}
-          </Text>
+          <SectionTitle title="Climb Logs" colors={colors} />
+          {loadingLogs ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <ActivityIndicator color={colors.accent} />
+            </View>
+          ) : climbLogs.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+              <Ionicons name="clipboard-outline" size={36} color={colors.textDim} />
+              <Text style={{ color: colors.textDim, marginTop: 8, fontSize: 14 }}>
+                No climb logs yet
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 12 }}>
+              {climbLogs.map((log) => (
+                <ClimbLogItem
+                  key={log.id}
+                  log={log}
+                  colors={colors}
+                  isOwnProfile={isOwnProfile}
+                  menuVisible={menuVisible}
+                  setMenuVisible={setMenuVisible}
+                  onDelete={async (logId) => {
+                    try {
+                      const res = await deleteClimbLog(logId);
+                      if (res?.success) {
+                        setClimbLogs(prev => prev.filter(l => l.id !== logId));
+                      } else {
+                        Alert.alert('Error', res?.message || 'Failed to delete log');
+                      }
+                    } catch (error) {
+                      console.log('[ProfileScreen] Delete error:', error);
+                      Alert.alert('Error', 'Failed to delete log');
+                    }
+                  }}
+                />
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={{ height: 24 }} />
@@ -385,6 +468,97 @@ function StatChip({ label, value, colors }) {
       >
         {String(value)}
       </Text>
+    </View>
+  );
+}
+
+// Climb log item component
+function ClimbLogItem({ log, colors, isOwnProfile, menuVisible, setMenuVisible, onDelete }) {
+  const isMenuOpen = menuVisible === log.id;
+  const gradeRaw = log.route?.grade || log.route?.route_grade || log.route?.gradeRaw;
+  const gradeDisplay = convertNumericGradeToFont(gradeRaw);
+  const routeName = log.route?.name || log.route?.route_name || 'Unknown Route';
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <View
+      style={[
+        styles.logCard,
+        { backgroundColor: colors.bg, borderColor: colors.divider },
+      ]}
+    >
+      <View style={styles.logHeader}>
+        <View style={{ flex: 1 }}>
+          {!!log.title && (
+            <Text style={[styles.logTitle, { color: colors.text }]}>
+              {log.title}
+            </Text>
+          )}
+          <Text style={[styles.routeName, { color: colors.text }]}>
+            {routeName}, {gradeDisplay}
+          </Text>
+          <Text style={[styles.cragName, { color: colors.textDim }]}>
+            {log.route?.crag?.name || 'Unknown Crag'}
+          </Text>
+          <Text style={[styles.dateText, { color: colors.textDim }]}>
+            {formatDate(log.dateClimbed)}
+          </Text>
+        </View>
+
+        {isOwnProfile && (
+          <View>
+            <TouchableOpacity
+              onPress={() => setMenuVisible(isMenuOpen ? null : log.id)}
+              style={styles.menuBtn}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textDim} />
+            </TouchableOpacity>
+            {isMenuOpen && (
+              <View
+                style={[
+                  styles.menu,
+                  { backgroundColor: colors.surface, borderColor: colors.divider },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    setMenuVisible(null);
+                    onDelete(log.id);
+                  }}
+                  style={styles.menuItem}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                  <Text style={[styles.menuText, { color: '#FF6B6B' }]}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {!!log.notes && (
+        <Text style={[styles.notesText, { color: colors.text }]}>
+          {log.notes}
+        </Text>
+      )}
+
+      <View style={styles.logFooter}>
+        <View style={[styles.badge, { backgroundColor: colors.surfaceAlt }]}>
+          <Text style={[styles.badgeText, { color: colors.textDim }]}>
+            {log.attempt} {log.attempt === 1 ? 'attempt' : 'attempts'}
+          </Text>
+        </View>
+        {log.status && (
+          <View style={[styles.badge, { backgroundColor: '#4CAF50' }]}>
+            <Text style={[styles.badgeText, { color: 'white' }]}>Topped</Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -523,5 +697,80 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     gap: 2,
+  },
+
+  // Climb log styles
+  logCard: {
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 12,
+  },
+  logHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  logTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  routeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  cragName: {
+    fontSize: 13,
+    marginBottom: 2,
+  },
+  dateText: {
+    fontSize: 11,
+  },
+  menuBtn: {
+    padding: 4,
+  },
+  menu: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 120,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 8,
+  },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  notesText: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  logFooter: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  badge: {
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 5,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

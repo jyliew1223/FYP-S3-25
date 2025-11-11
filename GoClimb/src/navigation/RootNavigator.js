@@ -10,6 +10,7 @@ import LoginScreen from '../screens/LogInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import EditProfileScreen from '../screens/EditProfileScreen';
 import MapScreen from '../screens/MapScreen';
 import BottomBar from '../components/BottomBar';
 import CragsScreen from '../screens/CragsScreen';
@@ -26,6 +27,7 @@ import RouteDataManager from '../screens/RouteDataManager';
 import RankingOptionsScreen from '../screens/RankingOptionsScreen';
 import RankingListScreen from '../screens/RankingListScreen';
 import ModelManagementScreen from '../screens/ModelManagementScreen';
+import LogClimbScreen from '../screens/LogClimbScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -70,6 +72,7 @@ export default function RootNavigator({ navTheme }) {
 
         {/* General profile / auth / misc */}
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
@@ -112,6 +115,14 @@ export default function RootNavigator({ navTheme }) {
           component={CreatePostScreen}
           options={{ headerShown: false }}
         />
+        
+        {/* Climb Log */}
+        <Stack.Screen
+          name="LogClimb"
+          component={LogClimbScreen}
+          options={{ headerShown: false }}
+        />
+        
         <Stack.Screen
           name="Crags"
           component={CragsScreen}

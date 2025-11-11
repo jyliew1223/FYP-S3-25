@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Easing,
   Platform,
+  Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -19,11 +20,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { BlurView } from '@react-native-community/blur';
+import { fetchCurrentUserFromDjango } from '../services/api/AuthApi';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
   const { user, loading } = useAuth();
   const { colors } = useTheme();
+  
+  // Profile picture from backend
+  const [profilePicture, setProfilePicture] = useState(null);
 
   // Drawer state
   const [menuOpen, setMenuOpen] = useState(false);
@@ -40,6 +45,24 @@ export default function HomeScreen() {
     slide.setValue(menuOpen ? 0 : -MENU_W - 16);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [MENU_W]);
+
+  // Fetch user profile picture
+  useEffect(() => {
+    if (user) {
+      (async () => {
+        try {
+          const resp = await fetchCurrentUserFromDjango();
+          if (resp.ok && resp.user?.profile_picture_url) {
+            setProfilePicture(resp.user.profile_picture_url);
+          }
+        } catch (err) {
+          console.log('Failed to fetch profile picture:', err);
+        }
+      })();
+    } else {
+      setProfilePicture(null);
+    }
+  }, [user]);
 
   useEffect(() => {
     const timing = (val, toValue, duration = 260) =>
@@ -112,7 +135,14 @@ export default function HomeScreen() {
           onPress={goToProfile}
           style={[styles.circleBtn, { backgroundColor: colors.surfaceAlt }]}
         >
-          <Ionicons name="person" size={18} color={colors.text} />
+          {profilePicture ? (
+            <Image 
+              source={{ uri: profilePicture }} 
+              style={styles.profileImage}
+            />
+          ) : (
+            <Ionicons name="person" size={18} color={colors.text} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -193,7 +223,14 @@ export default function HomeScreen() {
           >
             <View style={styles.drawerHeader}>
               <View style={[styles.avatar, { backgroundColor: colors.surfaceAlt }]}>
-                <Ionicons name="person" size={22} color={colors.text} />
+                {profilePicture ? (
+                  <Image 
+                    source={{ uri: profilePicture }} 
+                    style={styles.drawerProfileImage}
+                  />
+                ) : (
+                  <Ionicons name="person" size={22} color={colors.text} />
+                )}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.drawerTitle, { color: colors.text }]}>
@@ -275,6 +312,12 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
   },
   appTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
@@ -290,7 +333,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   drawerHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 8 },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
+  drawerProfileImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
   drawerTitle: { fontSize: 16, fontWeight: '700' },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
   drawerItem: {

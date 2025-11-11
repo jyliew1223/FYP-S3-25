@@ -498,3 +498,45 @@ export async function createPost({ title, content, tags }) {
     errors: res?.errors ?? null,
   };
 }
+
+// DELETE POST
+export async function deletePost(postId) {
+  console.log('[deletePost] === START ===');
+  console.log('[deletePost] Input postId:', postId);
+  
+  const user = getAuth().currentUser;
+  if (!user) {
+    console.log('[deletePost] ERROR: No Firebase session found');
+    throw new Error('No Firebase session found.');
+  }
+
+  console.log('[deletePost] Current user UID:', user.uid);
+
+  const payload = { post_id: postId };
+
+  console.log('[deletePost] Payload:', JSON.stringify(payload));
+  console.log('[deletePost] Endpoint:', API_ENDPOINTS.POST.DELETE_POST);
+
+  const req = new CustomApiRequest(
+    RequestMethod.DELETE,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST.DELETE_POST,
+    payload,
+    true,
+  );
+  
+  console.log('[deletePost] Sending request...');
+  const ok = await req.sendRequest(BaseApiResponse);
+  const res = req.Response;
+
+  console.log('[deletePost] Request OK:', ok);
+  console.log('[deletePost] Response:', res);
+  console.log('[deletePost] === END ===');
+
+  return {
+    success: ok && !!res?.success,
+    status: res?.status,
+    message: res?.message ?? null,
+    errors: res?.errors ?? null,
+  };
+}

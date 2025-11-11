@@ -27,6 +27,7 @@ import auth from '@react-native-firebase/auth';
 import {
   fetchRandomPosts,
   fetchCommentCountForPost,
+  deletePost,
   likePost,
   unlikePost,
   checkIfUserLikedPost,
@@ -42,6 +43,7 @@ export default function Forum({navigation}) {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [likedPosts, setLikedPosts] = useState(new Set());
+  const [menuVisible, setMenuVisible] = useState(null);
 
   // toast banner
   const [toast, setToast] = useState('');
@@ -229,6 +231,42 @@ export default function Forum({navigation}) {
     }
   };
 
+  const handleDeletePost = async postId => {
+    console.log('[Forum handleDeletePost] Starting deletion for postId:', postId);
+    
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      showToast('You must be logged in to delete posts');
+      return;
+    }
+
+    setMenuVisible(null);
+
+    try {
+      const res = await deletePost(postId);
+      console.log('[Forum handleDeletePost] API response:', res);
+      
+      if (res?.success) {
+        // Remove post from local state
+        setPosts(prev => prev.filter(p => p.id !== postId));
+        showToast('Post deleted');
+      } else {
+        showToast(res?.message || 'Failed to delete post');
+      }
+    } catch (error) {
+      console.log('[Forum handleDeletePost] Exception:', error);
+      showToast('Failed to delete post');
+    }
+  };
+
+  const handleProfilePress = (userId) => {
+    if (userId) {
+      navigation.navigate('Profile', { userId });
+    }
+  };
+
+  const currentUser = auth().currentUser;
+
   const renderItem = ({item}) => (
     <PostCard
       post={item}
@@ -238,6 +276,11 @@ export default function Forum({navigation}) {
       onLike={() => toggleLike(item)}
       onComment={() => goToComments(item)}
       onShare={sharePost}
+      onProfilePress={handleProfilePress}
+      isOwnPost={currentUser && item.author?.id === currentUser.uid}
+      menuVisible={menuVisible === item.id}
+      onMenuToggle={() => setMenuVisible(menuVisible === item.id ? null : item.id)}
+      onDelete={() => handleDeletePost(item.id)}
     />
   );
 
@@ -348,7 +391,7 @@ export default function Forum({navigation}) {
 
 /* ----------------------------- card ----------------------------- */
 
-function PostCard({post, colors, liked, onPress, onLike, onComment, onShare}) {
+function PostCard({post, colors, liked, onPress, onLike, onComment, onShare, isOwnPost, menuVisible, onMenuToggle, onDelete, onProfilePress}) {
   const time = timeAgo(post.createdAt);
 
   const displayTitle =
@@ -369,15 +412,57 @@ function PostCard({post, colors, liked, onPress, onLike, onComment, onShare}) {
       ]}>
       {/* header */}
       <View style={styles.cardHeader}>
-        <Avatar name={post.author?.name} colors={colors} />
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            onProfilePress(post.author?.id);
+          }}
+        >
+          <Avatar name={post.author?.name} colors={colors} />
+        </TouchableOpacity>
         <View style={{flex: 1}}>
-          <Text numberOfLines={1} style={[styles.author, {color: colors.text}]}>
-            {post.author?.name || 'User'}
-          </Text>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation();
+              onProfilePress(post.author?.id);
+            }}
+          >
+            <Text numberOfLines={1} style={[styles.author, {color: colors.text}]}>
+              {post.author?.name || 'User'}
+            </Text>
+          </TouchableOpacity>
           <Text style={[styles.meta, {color: colors.textDim}]}>{time}</Text>
         </View>
 
-        <Ionicons name="ellipsis-horizontal" color={colors.textDim} size={18} />
+        {isOwnPost ? (
+          <View>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onMenuToggle();
+              }}
+              style={styles.menuBtn}
+            >
+              <Ionicons name="ellipsis-horizontal" color={colors.textDim} size={18} />
+            </TouchableOpacity>
+            {menuVisible && (
+              <View style={[styles.postMenu, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  style={styles.menuItem}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                  <Text style={[styles.menuText, { color: '#FF6B6B' }]}>Delete Post</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        ) : (
+          <Ionicons name="ellipsis-horizontal" color={colors.textDim} size={18} />
+        )}
       </View>
 
       {/* title */}
@@ -672,5 +757,33 @@ const styles = StyleSheet.create({
   rowActionText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+
+  menuBtn: {
+    padding: 4,
+  },
+  postMenu: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 140,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 8,
+  },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

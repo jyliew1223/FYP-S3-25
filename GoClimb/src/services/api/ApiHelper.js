@@ -199,7 +199,10 @@ class CustomApiRequest {
       /^\//,
       '',
     )}`;
-    if (!url.endsWith('/')) url += '/';
+    // Add trailing slash for all methods except DELETE (Django convention)
+    if (!url.endsWith('/') && this.#method !== 'DELETE') {
+      url += '/';
+    }
 
     let options = { method: this.#method, headers: {} };
 
