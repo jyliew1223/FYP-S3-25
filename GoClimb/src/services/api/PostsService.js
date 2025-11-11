@@ -1,7 +1,6 @@
 // GoClimb/src/services/api/PostsService.js
 
 import { getAuth } from '@react-native-firebase/auth';
-import { getAuth } from '@react-native-firebase/auth';
 import {
   RequestMethod,
   BaseApiPayload,

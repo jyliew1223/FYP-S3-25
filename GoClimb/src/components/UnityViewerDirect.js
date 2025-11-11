@@ -30,7 +30,7 @@ const UnityViewerDirect = ({
                 console.log('[UnityViewerDirect] ✅ Unity is ready, showing Unity view');
 
                 setLoadingMessage('AR Ready!');
-                
+
                 // Show Unity and fade out overlay
                 setShowUnity(true);
                 setTimeout(() => {
@@ -106,11 +106,11 @@ const UnityViewerDirect = ({
     // Load scene data to Unity
     const loadUnityScene = useCallback(async (sceneData) => {
         console.log('[UnityViewerDirect] 🎬 Loading Unity scene...');
-        
+
         // First clear the scene
         console.log('[UnityViewerDirect] 🧹 Clearing scene before load...');
         clearUnityScene();
-        
+
         // Wait for clear to complete, then load new scene
         return new Promise((resolve) => {
             setTimeout(() => {
@@ -165,7 +165,7 @@ const UnityViewerDirect = ({
                 setTimeout(async () => {
                     // Always clear before load
                     clearUnityScene();
-                    
+
                     // Wait a bit, then load
                     setTimeout(() => {
                         setLoadingMessage('Loading 3D Model...');
@@ -185,6 +185,7 @@ const UnityViewerDirect = ({
     // Reset state when component unmounts or loses focus
     useFocusEffect(
         useCallback(() => {
+            clearUnityScene()
             return () => {
                 console.log('[UnityViewerDirect] Component unfocused, resetting state');
                 setShowUnity(false);

@@ -32,16 +32,6 @@ export default function ModelPicker({
   const [downloadingModels, setDownloadingModels] = useState(new Set());
   const [fetchingRouteData, setFetchingRouteData] = useState(false);
   
-
-
-
-
-
-
-
-
-
-
   useEffect(() => {
     const loadModels = async () => {
       try {
