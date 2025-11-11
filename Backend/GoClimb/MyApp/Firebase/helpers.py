@@ -407,3 +407,240 @@ def upload_model_to_storage(
             raise ValueError(f"Failed to upload {file.name}: {str(e)}")
     
     return uploaded_filenames
+    
+import requests
+import zipfile
+import io
+import os
+import tempfile
+from urllib.parse import urlparse, parse_qs
+
+def extract_google_drive_file_id(url: str) -> str:
+    """
+    Extract file ID from various Google Drive URL formats.
+    
+    Args:
+        url: Google Drive URL
+        
+    Returns:
+        File ID string
+        
+    Raises:
+        ValueError: If URL format is not recognized
+    """
+    # Handle different Google Drive URL formats
+    if "drive.google.com" not in url:
+        raise ValueError("Not a valid Google Drive URL")
+    
+    # Format: https://drive.google.com/file/d/FILE_ID/view
+    if "/file/d/" in url:
+        return url.split("/file/d/")[1].split("/")[0]
+    
+    # Format: https://drive.google.com/open?id=FILE_ID
+    if "open?id=" in url:
+        parsed = urlparse(url)
+        return parse_qs(parsed.query)["id"][0]
+    
+    # Format: https://drive.google.com/uc?id=FILE_ID
+    if "uc?id=" in url:
+        parsed = urlparse(url)
+        return parse_qs(parsed.query)["id"][0]
+    
+    # Format: https://drive.google.com/folders/FOLDER_ID
+    if "/folders/" in url:
+        return url.split("/folders/")[1].split("?")[0]
+    
+    raise ValueError("Could not extract file ID from Google Drive URL")
+
+
+def download_from_google_drive(file_id: str, is_folder: bool = False) -> bytes:
+    """
+    Download file or folder from Google Drive.
+    
+    Args:
+        file_id: Google Drive file/folder ID
+        is_folder: True if downloading a folder (will be zipped)
+        
+    Returns:
+        File content as bytes
+        
+    Raises:
+        ValueError: If download fails
+    """
+    if is_folder:
+        # For folders, Google Drive exports as zip
+        url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    else:
+        # For individual files
+        url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    
+    session = requests.Session()
+    
+    try:
+        response = session.get(url, stream=True)
+        
+        # Handle Google Drive's virus scan warning for large files
+        if "download_warning" in response.text:
+            # Extract the confirmation token
+            for line in response.text.splitlines():
+                if "confirm=" in line:
+                    token = line.split("confirm=")[1].split("&")[0]
+                    url = f"https://drive.google.com/uc?export=download&confirm={token}&id={file_id}"
+                    response = session.get(url, stream=True)
+                    break
+        
+        if response.status_code != 200:
+            raise ValueError(f"Failed to download from Google Drive: HTTP {response.status_code}")
+        
+        return response.content
+        
+    except requests.RequestException as e:
+        raise ValueError(f"Network error downloading from Google Drive: {str(e)}")
+
+
+def process_google_drive_files(content: bytes, original_filename: str = None) -> List[Dict[str, any]]:
+    """
+    Process downloaded content from Google Drive, extracting files if it's a zip.
+    
+    Args:
+        content: Downloaded file content
+        original_filename: Original filename if known
+        
+    Returns:
+        List of file dictionaries with 'name', 'content', and 'content_type'
+        
+    Raises:
+        ValueError: If processing fails
+    """
+    files = []
+    
+    # Check if content is a zip file
+    try:
+        with zipfile.ZipFile(io.BytesIO(content)) as zip_file:
+            for file_info in zip_file.filelist:
+                if not file_info.is_dir():
+                    file_content = zip_file.read(file_info.filename)
+                    
+                    # Determine content type based on file extension
+                    file_ext = file_info.filename.lower().split('.')[-1]
+                    content_type = get_content_type_from_extension(file_ext)
+                    
+                    files.append({
+                        'name': file_info.filename,
+                        'content': file_content,
+                        'content_type': content_type,
+                        'size': len(file_content)
+                    })
+    except zipfile.BadZipFile:
+        # Not a zip file, treat as single file
+        if original_filename:
+            file_ext = original_filename.lower().split('.')[-1]
+        else:
+            file_ext = 'bin'
+        
+        content_type = get_content_type_from_extension(file_ext)
+        
+        files.append({
+            'name': original_filename or 'downloaded_file',
+            'content': content,
+            'content_type': content_type,
+            'size': len(content)
+        })
+    
+    return files
+
+
+def get_content_type_from_extension(extension: str) -> str:
+    """
+    Get MIME type from file extension.
+    """
+    content_types = {
+        'glb': 'model/gltf-binary',
+        'fbx': 'application/octet-stream',
+        'gltf': 'application/json',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'mtl': 'text/plain',
+        'obj': 'text/plain',
+        'txt': 'text/plain',
+        'json': 'application/json',
+    }
+    return content_types.get(extension.lower(), 'application/octet-stream')
+
+
+class MockUploadedFile:
+    """
+    Mock InMemoryUploadedFile for Google Drive downloads.
+    """
+    def __init__(self, name: str, content: bytes, content_type: str):
+        self.name = name
+        self.content = content
+        self.content_type = content_type
+        self.size = len(content)
+        self._file = io.BytesIO(content)
+    
+    def read(self, size=-1):
+        return self._file.read(size)
+    
+    def seek(self, pos):
+        return self._file.seek(pos)
+    
+    def tell(self):
+        return self._file.tell()
+
+
+def upload_model_from_google_drive(
+    google_drive_url: str,
+    folder_path: str,
+    user_id: str,
+    purpose: str = "3d_model",
+) -> List[str]:
+    """
+    Download files from Google Drive and upload to Firebase Storage.
+    
+    Args:
+        google_drive_url: Google Drive share URL
+        folder_path: Target folder path in Firebase Storage
+        user_id: User ID uploading the files
+        purpose: Purpose of the upload
+    
+    Returns:
+        List of filenames that were uploaded
+    
+    Raises:
+        ValueError: If download or upload fails
+    """
+    try:
+        # Extract file ID from URL
+        file_id = extract_google_drive_file_id(google_drive_url)
+        
+        # Determine if it's a folder (folders typically have different URL patterns)
+        is_folder = "/folders/" in google_drive_url
+        
+        # Download from Google Drive
+        content = download_from_google_drive(file_id, is_folder)
+        
+        # Process the downloaded content
+        files_data = process_google_drive_files(content)
+        
+        if not files_data:
+            raise ValueError("No files found in the Google Drive download")
+        
+        # Convert to mock uploaded files
+        mock_files = []
+        for file_data in files_data:
+            mock_file = MockUploadedFile(
+                name=file_data['name'],
+                content=file_data['content'],
+                content_type=file_data['content_type']
+            )
+            mock_files.append(mock_file)
+        
+        # Upload using existing function
+        return upload_model_to_storage(mock_files, folder_path, user_id, purpose)
+        
+    except Exception as e:
+        raise ValueError(f"Failed to upload from Google Drive: {str(e)}")
