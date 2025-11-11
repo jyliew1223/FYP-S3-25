@@ -1,0 +1,11 @@
+<a href="https://www.flaticon.com/free-icons/google-maps" title="google maps icons">Google maps icons created by Smashicons - Flaticon</a>
+
+<a href="https://www.flaticon.com/free-icons/save" title="save icons">Save icons created by inkubators - Flaticon</a>
+
+<a href="https://www.flaticon.com/free-icons/revert" title="revert icons">Revert icons created by KP Arts - Flaticon</a>
+
+<a href="https://www.flaticon.com/free-icons/done" title="done icons">Done icons created by meaicon - Flaticon</a>
+
+<a href="https://www.flaticon.com/free-icons/inbox" title="inbox icons">Inbox icons created by Those Icons - Flaticon</a>
+
+<a href="https://www.flaticon.com/free-icons/refresh" title="refresh icons">Refresh icons created by Dave Gandy - Flaticon</a>
