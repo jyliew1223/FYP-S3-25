@@ -17,6 +17,29 @@ def get_models_by_crag_id(crag_id: str) -> Optional[QuerySet[CragModel]]:
 
     return CragModel.objects.filter(crag__crag_id=raw_id)
 
+
+def get_models_by_user_id(user_id: str) -> Optional[QuerySet[CragModel]]:
+    """
+    Controller: Get all crag models created by a specific user.
+    
+    Args:
+        user_id: User ID to get models for
+    
+    Returns:
+        QuerySet of CragModel objects or None if user not found
+    
+    Raises:
+        ValueError: If user_id is invalid
+    """
+    if not user_id:
+        raise ValueError("user_id is required")
+
+    from MyApp.Entity.user import User
+    if not User.objects.filter(user_id=user_id).exists():
+        return None
+
+    return CragModel.objects.filter(user__user_id=user_id)
+
 from typing import Dict, Any, List, Optional
 from django.db import transaction
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -73,3 +96,48 @@ def create_crag_model(
             raise ValueError(f"Failed to upload model files: {str(e)}")
     
     return crag_model
+
+
+def delete_crag_model(model_id: str, user_id: str) -> bool:
+    """
+    Controller: Business logic to delete a crag model.
+    
+    Args:
+        model_id: Model ID to delete (formatted or raw)
+        user_id: User ID requesting deletion (for authorization)
+    
+    Returns:
+        bool: True if deletion successful
+    
+    Raises:
+        ValueError: If model_id is invalid
+        CragModel.DoesNotExist: If model not found
+        PermissionError: If user doesn't own the model
+    """
+    if not model_id:
+        raise ValueError("model_id is required")
+    
+    if not user_id:
+        raise ValueError("user_id is required")
+    
+    # Handle both formatted (MODEL-000001) and raw (1) IDs
+    if model_id.startswith("MODEL-"):
+        raw_id = int(model_id.split("-")[1])
+    else:
+        try:
+            raw_id = int(model_id)
+        except ValueError:
+            raise ValueError("Invalid model_id format")
+    
+    # Get the model
+    crag_model = CragModel.objects.get(model_id=raw_id)
+    
+    # Check if user owns the model
+    if crag_model.user_id != user_id:
+        raise PermissionError("User does not have permission to delete this model")
+    
+    # Delete the model (this will also delete associated files via the model's delete method)
+    with transaction.atomic():
+        crag_model.delete()
+    
+    return True

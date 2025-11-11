@@ -179,3 +179,170 @@ def create_crag_model_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["DELETE"])
+def delete_crag_model_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to delete a crag model.
+    
+    INPUT: {
+        "model_id": str (required) - Can be formatted (MODEL-000001) or raw (1)
+        "user_id": str (required)
+    }
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "errors": dict  # Only if success is False
+    }
+    """
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Get data from request body or query params
+    model_id = request.data.get("model_id") or request.query_params.get("model_id", "").strip()
+    user_id = request.data.get("user_id") or request.query_params.get("user_id", "").strip()
+    
+    if not model_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"model_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not user_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"user_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        success = cragmodel_controller.delete_crag_model(model_id, user_id)
+        
+        if success:
+            return Response(
+                {
+                    "success": True,
+                    "message": "Crag model deleted successfully.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"validation": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {
+                "success": False,
+                "message": "Model not found.",
+                "errors": {"model_id": "Invalid model ID."},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except PermissionError as pe:
+        return Response(
+            {
+                "success": False,
+                "message": "Permission denied.",
+                "errors": {"permission": str(pe)},
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while deleting crag model.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def get_models_by_user_id_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to get crag models by user ID.
+    
+    INPUT: {
+        "user_id": str (required) - via query params
+    }
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": list of CragModel objects,
+        "errors": dict  # Only if success is False
+    }
+    """
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    user_id = request.query_params.get("user_id", "").strip()
+    if not user_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"user_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        models_qs = cragmodel_controller.get_models_by_user_id(user_id)
+
+        if models_qs is None:
+            return Response(
+                {
+                    "success": False,
+                    "message": "User not found.",
+                    "errors": {"user_id": "Invalid user ID."},
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = CragModelSerializer(models_qs, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Models fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"user_id": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while fetching models.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
