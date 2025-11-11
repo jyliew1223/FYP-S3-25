@@ -1,24 +1,23 @@
 // GoClimb/android/build.gradle
 buildscript {
-  ext {
-    buildToolsVersion = "36.0.0"
-    minSdkVersion = 29
-    compileSdkVersion = 36
-    targetSdkVersion = 36
-    ndkVersion = "27.1.12297006"
-    kotlinVersion = "2.0.21" // stable for RN 0.81.x
-  }
-
-  dependencies {
-    // Android Gradle Plugin + Kotlin
-    classpath("com.android.tools.build:gradle:8.6.1")
-    classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:${kotlinVersion}")
-
-    // Keep ONLY if you actually apply the Google Services plugin in app/build.gradle
-    classpath("com.google.gms:google-services:4.4.3")
-
-    // DO NOT add com.facebook.react:react-native-gradle-plugin here.
-  }
+    ext {
+        buildToolsVersion = "36.0.0"
+        minSdkVersion = 29
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.2.12479018"
+        kotlinVersion = "2.1.20"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.7.2")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        classpath 'com.google.gms:google-services:4.4.3'
+    }
 }
 
 plugins {

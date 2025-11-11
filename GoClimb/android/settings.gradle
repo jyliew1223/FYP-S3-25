@@ -9,17 +9,24 @@ pluginManagement {
 }
 
 plugins { id("com.facebook.react.settings") }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+rootProject.name = 'GoClimb'
+include ':app'
+includeBuild('../node_modules/@react-native/gradle-plugin')
 
-extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
-  ex.autolinkLibrariesFromCommand()
-}
+include ':unityLibrary'
+project(':unityLibrary').projectDir=new File('UnityExport\\unityLibrary')
 
 dependencyResolutionManagement {
-  repositories {
-    google()
-    mavenCentral()
-  }
-}
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
 
-rootProject.name = "GoClimb"
-include(":app")
+    repositories {
+        google()
+        mavenCentral()
+        maven{url 'https://jitpack.io'}
+
+        flatDir {
+            dirs "${project(':unityLibrary').projectDir}/libs"
+        }
+    }
+}

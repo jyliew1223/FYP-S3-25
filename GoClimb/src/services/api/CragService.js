@@ -2,8 +2,37 @@
 
 import { CustomApiRequest, RequestMethod, BaseApiResponse } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
-import InitFirebaseApps from '../firebase/InitFirebaseApps';
-import { convertNumericGradeToFont } from '../../utils/gradeConverter';
+
+const GRADE_TABLE = {
+  1: '4',
+  2: '5',
+  3: '5+',
+  4: '6A',
+  5: '6A+',
+  6: '6B',
+  7: '6B+',
+  8: '6C',
+  9: '6C+',
+  10: '7A',
+  11: '7A+',
+  12: '7B',
+  13: '7B+',
+  14: '7C',
+  15: '7C+',
+  16: '8A',
+  17: '8A+',
+  18: '8B',
+  19: '8B+',
+  20: '8C',
+  21: '8C+',
+  22: '9A',
+};
+
+export function convertNumericGradeToFont(n) {
+  if (n == null) return '—';
+  const asNum = Number(n);
+  return GRADE_TABLE[asNum] || String(asNum);
+}
 
 function safeTs(str) {
   try {
@@ -28,6 +57,9 @@ function normalizeCrag(raw, fallbackNumericPk) {
 
     name: raw?.name ?? 'Unknown Crag',
     description: raw?.description ?? '',
+    // Preserve the full location_details structure
+    location_details: raw?.location_details || null,
+    // Keep country for backward compatibility
     country:
       raw?.location_details?.country ||
       raw?.location_details?.city ||
@@ -70,7 +102,6 @@ class GenericGetResponse extends BaseApiResponse {
 }
 
 async function fetchCragInfoGET(numericPkCragId) {
-  await InitFirebaseApps();
 
   const query = `?crag_id=${encodeURIComponent(numericPkCragId)}`;
 
@@ -102,7 +133,6 @@ async function fetchCragInfoGET(numericPkCragId) {
 }
 
 export async function fetchRoutesByCragIdGET(cragIdParam) {
-  await InitFirebaseApps();
 
   const payload = { crag_id: cragIdParam };
 
@@ -143,8 +173,6 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
 }
 
 export async function fetchRouteByIdGET(routeId) {
-  await InitFirebaseApps();
-
   const payload = { route_id: routeId };
 
   const req = new CustomApiRequest(
@@ -175,7 +203,6 @@ export async function fetchRouteByIdGET(routeId) {
 }
 
 export async function fetchRandomCrags(count = 10, blacklist = []) {
-  await InitFirebaseApps();
 
   const payload = {
     count: count.toString(),
@@ -225,7 +252,7 @@ export async function fetchAllCragsBootstrap() {
 export async function fetchAllModelsByCragId(crag_id) {
   console.log(
     '[fetchAllModelsByCragId] fetch all models related to crag: ' +
-      crag_id.toString(),
+    crag_id.toString(),
   );
 
   const payload = {
@@ -240,6 +267,38 @@ export async function fetchAllModelsByCragId(crag_id) {
   );
 
   await request.sendRequest();
-  
+
   return request.JsonObject.data;
+}
+
+export async function fetchAllCrag() {
+
+  const req = new CustomApiRequest(
+    RequestMethod.GET,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.CRAG.GET_ALL,
+    null,
+    true
+  );
+
+  const ok = await req.sendRequest();
+  const res = req.JsonObject;
+
+  console.log('[fetchAllCrag] response:', res);
+  console.log('[fetchAllCrag] raw data:', res?.data);
+
+  if (!ok || !res?.success) {
+    return {
+      success: false,
+      crags: [],
+    };
+  }
+
+  const arr = Array.isArray(res.data) ? res.data : [];
+  console.log('[fetchAllCrag] processing array:', arr);
+
+  return {
+    success: true,
+    crags: arr, // Return raw data temporarily for debugging
+  };
 }

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { Dropdown } from 'react-native-element-dropdown';
+// Removed react-native-element-dropdown dependency
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth';
@@ -42,6 +42,10 @@ export default function LogClimbScreen() {
   const [topped, setTopped] = useState(false); // status field
   const [attempts, setAttempts] = useState('1'); // attempt field
   const [submitting, setSubmitting] = useState(false);
+
+  // Modal states
+  const [cragModalVisible, setCragModalVisible] = useState(false);
+  const [routeModalVisible, setRouteModalVisible] = useState(false);
 
   // Dropdown data
   const [cragData, setCragData] = useState([]);
@@ -238,34 +242,23 @@ export default function LogClimbScreen() {
 
           {/* Crag Selector */}
           <Text style={[styles.label, { color: colors.text }]}>Crag *</Text>
-          <Dropdown
-            data={cragData}
-            labelField="label"
-            valueField="value"
-            placeholder="Select a crag"
-            value={selectedCragKey}
-            onChange={item => setSelectedCragKey(item.value)}
-            maxHeight={300}
+          <TouchableOpacity
+            onPress={() => setCragModalVisible(true)}
             style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.divider }]}
-            placeholderStyle={[styles.placeholderStyle, { color: colors.textDim }]}
-            selectedTextStyle={[styles.selectedTextStyle, { color: colors.text }]}
-            containerStyle={[styles.dropdownContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}
-            itemTextStyle={{ color: colors.text }}
-            activeColor={colors.accent + '20'}
-            iconColor={colors.textDim}
-          />
+          >
+            <Text style={[
+              selectedCragKey ? styles.selectedTextStyle : styles.placeholderStyle, 
+              { color: selectedCragKey ? colors.text : colors.textDim }
+            ]}>
+              {selectedCragKey ? cragData.find(c => c.value === selectedCragKey)?.label : "Select a crag"}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={colors.textDim} />
+          </TouchableOpacity>
 
           {/* Route Selector */}
           <Text style={[styles.label, { color: colors.text }]}>Route *</Text>
-          <Dropdown
-            data={filteredRouteData}
-            labelField="label"
-            valueField="value"
-            placeholder={selectedCragKey ? "Select a route" : "Select a crag first"}
-            value={selectedRouteKey}
-            onChange={item => setSelectedRouteKey(item.value)}
-            maxHeight={300}
-            disable={!selectedCragKey}
+          <TouchableOpacity
+            onPress={() => selectedCragKey && setRouteModalVisible(true)}
             style={[
               styles.dropdown, 
               { 
@@ -274,13 +267,16 @@ export default function LogClimbScreen() {
                 opacity: selectedCragKey ? 1 : 0.5,
               }
             ]}
-            placeholderStyle={[styles.placeholderStyle, { color: colors.textDim }]}
-            selectedTextStyle={[styles.selectedTextStyle, { color: colors.text }]}
-            containerStyle={[styles.dropdownContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}
-            itemTextStyle={{ color: colors.text }}
-            activeColor={colors.accent + '20'}
-            iconColor={colors.textDim}
-          />
+            disabled={!selectedCragKey}
+          >
+            <Text style={[
+              selectedRouteKey ? styles.selectedTextStyle : styles.placeholderStyle, 
+              { color: selectedRouteKey ? colors.text : colors.textDim }
+            ]}>
+              {selectedRouteKey ? filteredRouteData.find(r => r.value === selectedRouteKey)?.label : (selectedCragKey ? "Select a route" : "Select a crag first")}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={colors.textDim} />
+          </TouchableOpacity>
 
           {/* Date Climbed */}
           <Text style={[styles.label, { color: colors.text }]}>Date Climbed *</Text>
@@ -393,6 +389,91 @@ export default function LogClimbScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Crag Selection Modal */}
+      <Modal
+        visible={cragModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setCragModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCragModalVisible(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Crag</Text>
+              <TouchableOpacity onPress={() => setCragModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {cragData.map((crag) => (
+                <TouchableOpacity
+                  key={crag.value}
+                  style={[styles.modalItem, { borderBottomColor: colors.divider }]}
+                  onPress={() => {
+                    setSelectedCragKey(crag.value);
+                    setSelectedRouteKey(''); // Reset route selection
+                    setCragModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemText, { color: colors.text }]}>
+                    {crag.label}
+                  </Text>
+                  {selectedCragKey === crag.value && (
+                    <Ionicons name="checkmark" size={20} color={colors.accent} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Route Selection Modal */}
+      <Modal
+        visible={routeModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setRouteModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setRouteModalVisible(false)}
+        >
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Route</Text>
+              <TouchableOpacity onPress={() => setRouteModalVisible(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalList}>
+              {filteredRouteData.map((route) => (
+                <TouchableOpacity
+                  key={route.value}
+                  style={[styles.modalItem, { borderBottomColor: colors.divider }]}
+                  onPress={() => {
+                    setSelectedRouteKey(route.value);
+                    setRouteModalVisible(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemText, { color: colors.text }]}>
+                    {route.label}
+                  </Text>
+                  {selectedRouteKey === route.value && (
+                    <Ionicons name="checkmark" size={20} color={colors.accent} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -468,6 +549,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   placeholderStyle: {
     fontSize: 15,
@@ -606,5 +690,42 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    maxHeight: '70%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalList: {
+    maxHeight: 400,
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modalItemText: {
+    fontSize: 16,
+    flex: 1,
   },
 });

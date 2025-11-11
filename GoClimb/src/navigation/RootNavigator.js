@@ -16,12 +16,17 @@ import BottomBar from '../components/BottomBar';
 import CragsScreen from '../screens/CragsScreen';
 import RouteDetails from '../screens/RouteDetails';
 import AR from '../screens/AR';
+import ARCragList from '../screens/ARCragList';
+import UnityARScreen from '../screens/UnityARScreen';
+import UnityOutdoorARScreen from '../screens/UnityOutdoorARScreen';
 
 import Forum from '../screens/Forum';
 import PostDetail from '../screens/PostDetail';
 import CreatePostScreen from '../screens/CreatePostScreen';
+import RouteDataManager from '../screens/RouteDataManager';
 import RankingOptionsScreen from '../screens/RankingOptionsScreen';
 import RankingListScreen from '../screens/RankingListScreen';
+import ModelManagementScreen from '../screens/ModelManagementScreen';
 import LogClimbScreen from '../screens/LogClimbScreen';
 
 const Tab = createBottomTabNavigator();
@@ -79,6 +84,29 @@ export default function RootNavigator({ navTheme }) {
           component={RankingListScreen}
           options={{ headerShown: false }}
         />
+        <Stack.Screen 
+          name="ARCragList" 
+          component={ARCragList}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen 
+          name="UnityAR" 
+          component={UnityARScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade'
+          }}
+        />
+        <Stack.Screen 
+          name="UnityOutdoorAR" 
+          component={UnityOutdoorARScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade'
+          }}
+        />
 
         {/* Forum-related */}
         <Stack.Screen name="PostDetail" component={PostDetail} />
@@ -103,6 +131,16 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen
           name="RouteDetails"
           component={RouteDetails}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="RouteDataManager"
+          component={RouteDataManager}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ModelManagement"
+          component={ModelManagementScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

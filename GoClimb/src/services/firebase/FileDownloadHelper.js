@@ -38,8 +38,7 @@ import { LOCAL_DIR } from '../../constants/folder_path';
  * @returns
  */
 export const downloadFolderFromJson = async (json, skipExisting) => {
-  console.log('in func');
-
+  
   if (!json || !json.files || json.files.length === 0) {
     console.warn('No files to download.');
     return;

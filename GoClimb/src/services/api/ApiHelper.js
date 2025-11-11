@@ -12,6 +12,7 @@ class BaseApiPayload {
    * Override this in subclasses to change JSON key mappings
    */
   static get fieldMapping() { }
+  static get fieldMapping() { }
 
   /**
    * Converts this instance to JSON using field mapping
@@ -208,15 +209,20 @@ class CustomApiRequest {
     if (this.#method === 'GET' && this.#payload) {
       url += this.#toQueryString(this.#payload);
     } else if (this.#method !== 'GET') {
-      // POST, PUT, DELETE, PATCH - all can have body
-      options.headers['Content-Type'] = 'application/json';
-      if (this.#payload) {
-        if (typeof this.#payload === 'string') {
-          options.body = this.#payload;
-        } else if (typeof this.#payload.toJson === 'function') {
-          options.body = JSON.stringify(this.#payload.toJson());
-        } else {
-          options.body = JSON.stringify(this.#payload);
+      // POST, PUT, DELETE can all have a body
+      if (this.#payload instanceof FormData) {
+        // For FormData, don't set Content-Type header (let browser set it with boundary)
+        options.body = this.#payload;
+      } else {
+        options.headers['Content-Type'] = 'application/json';
+        if (this.#payload) {
+          if (typeof this.#payload === 'string') {
+            options.body = this.#payload;
+          } else if (typeof this.#payload.toJson === 'function') {
+            options.body = JSON.stringify(this.#payload.toJson());
+          } else {
+            options.body = JSON.stringify(this.#payload);
+          }
         }
       }
     }
@@ -290,20 +296,33 @@ class CustomApiRequest {
     // Payload section
     if (this.#payload) {
       try {
-        const jsonStr =
-          typeof this.#payload === 'string'
-            ? this.#payload
-            : JSON.stringify(
-              typeof this.#payload.toJson === 'function'
-                ? this.#payload.toJson()
-                : this.#payload,
-              null,
-              2,
-            );
-        log += `  Payload       : ${jsonStr.replace(
-          /\n/g,
-          '\n                 ',
-        )}\n`;
+        if (this.#payload instanceof FormData) {
+          log += `  Payload       : FormData with ${this.#payload._parts ? this.#payload._parts.length : 'unknown'} parts\n`;
+          // Try to log FormData contents if possible
+          if (this.#payload._parts) {
+            this.#payload._parts.forEach(([key, value], index) => {
+              const valueStr = typeof value === 'object' && value.name ? 
+                `File: ${value.name} (${value.type || 'unknown type'})` : 
+                String(value);
+              log += `                 [${index}] ${key}: ${valueStr}\n`;
+            });
+          }
+        } else {
+          const jsonStr =
+            typeof this.#payload === 'string'
+              ? this.#payload
+              : JSON.stringify(
+                typeof this.#payload.toJson === 'function'
+                  ? this.#payload.toJson()
+                  : this.#payload,
+                null,
+                2,
+              );
+          log += `  Payload       : ${jsonStr.replace(
+            /\n/g,
+            '\n                 ',
+          )}\n`;
+        }
       } catch (err) {
         log += `  Payload       : [Error stringifying payload: ${err.message}]\n`;
       }
@@ -375,20 +394,33 @@ class CustomApiRequest {
     // Show payload (if any)
     if (this.#payload) {
       try {
-        const jsonStr =
-          typeof this.#payload === 'string'
-            ? this.#payload
-            : JSON.stringify(
-              typeof this.#payload.toJson === 'function'
-                ? this.#payload.toJson()
-                : this.#payload,
-              null,
-              2,
-            );
-        log += `  Payload       : ${jsonStr.replace(
-          /\n/g,
-          '\n                 ',
-        )}\n`;
+        if (this.#payload instanceof FormData) {
+          log += `  Payload       : FormData with ${this.#payload._parts ? this.#payload._parts.length : 'unknown'} parts\n`;
+          // Try to log FormData contents if possible
+          if (this.#payload._parts) {
+            this.#payload._parts.forEach(([key, value], index) => {
+              const valueStr = typeof value === 'object' && value.name ? 
+                `File: ${value.name} (${value.type || 'unknown type'})` : 
+                String(value);
+              log += `                 [${index}] ${key}: ${valueStr}\n`;
+            });
+          }
+        } else {
+          const jsonStr =
+            typeof this.#payload === 'string'
+              ? this.#payload
+              : JSON.stringify(
+                typeof this.#payload.toJson === 'function'
+                  ? this.#payload.toJson()
+                  : this.#payload,
+                null,
+                2,
+              );
+          log += `  Payload       : ${jsonStr.replace(
+            /\n/g,
+            '\n                 ',
+          )}\n`;
+        }
       } catch (err) {
         log += `  Payload       : [Error stringifying payload: ${err.message}]\n`;
       }

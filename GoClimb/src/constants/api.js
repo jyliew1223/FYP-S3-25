@@ -39,6 +39,7 @@ export const API_ENDPOINTS = {
     GET_CRAG_MONTHLY_RANKING: 'get_crag_monthly_ranking',
     GET_TRANDING_CRAG: 'get_trending_crags',
     GET_RANDOM_CRAGS: 'get_random_crags',
+    GET_ALL: 'get_all_crag_ids'
   }),
   CLIMB_LOG: withBase('climb_log/', {
     CREATE: 'create/',
@@ -64,7 +65,17 @@ export const API_ENDPOINTS = {
     GET_ROUTE_BY_ID: 'get_route_by_id',
     GET_ROUTES_BY_CRAG_ID: 'get_route_by_crag_id',
   }),
-  CRAG_MODEL: withBase('crag_model/',{
-    GET_MODELS_BY_CRAG_ID: 'get_models_by_crag_id'
+  CRAG_MODEL: withBase('crag_model/', {
+    GET_MODELS_BY_CRAG_ID: 'get_models_by_crag_id',
+    UPLOAD: 'create_crag_model',
+    GET_BY_USER_ID: 'get_models_by_user_id',
+    DELETE: 'delete_crag_model',
+    UPDATE: 'update_crag_model'
+  }),
+  MODEL_ROUTE_DATA: withBase('model_route_data/', {
+    CREATE: 'create_model_route_data',
+    GET_BY_MODEL_ID: 'get_by_model_id',
+    DELETE: 'delete_model_route_data',
+    GET_BY_USER_ID: 'get_by_user_id'
   })
 };
