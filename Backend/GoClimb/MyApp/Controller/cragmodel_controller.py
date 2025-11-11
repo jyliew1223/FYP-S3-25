@@ -23,13 +23,12 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from MyApp.Entity.user import User
 from MyApp.Serializer.serializers import CragModelSerializer
-from MyApp.Firebase.helpers import upload_zipped_model_files, upload_model_from_google_drive
+from MyApp.Firebase.helpers import upload_zipped_model_files
 
 def create_crag_model(
     user_id: str, 
     data: dict, 
-    model_files: Optional[List[InMemoryUploadedFile]] = None,
-    google_drive_url: Optional[str] = None
+    model_files: Optional[List[InMemoryUploadedFile]] = None
 ):
     """
     Controller: Business logic to create a crag model.
@@ -37,8 +36,7 @@ def create_crag_model(
     Args:
         user_id: User ID creating the model
         data: Dictionary containing model data (crag_id, name, etc.)
-        model_files: Optional list of model files (3D models, textures, etc.)
-        google_drive_url: Optional Google Drive share URL to download files from
+        model_files: Optional list of zipped model files
     
     Returns:
         CragModel entity
@@ -59,26 +57,16 @@ def create_crag_model(
     crag_model = serializer.save()
     
     # Upload model files if provided
-    if model_files or google_drive_url:
+    if model_files:
         try:
             folder_path = crag_model.bucket_path
-            
-            if google_drive_url:
-                # Download from Google Drive and upload
-                upload_model_from_google_drive(
-                    google_drive_url,
-                    folder_path,
-                    user_id,
-                    "crag_model"
-                )
-            elif model_files:
-                # Upload zip files (decompress and upload)
-                upload_zipped_model_files(
-                    model_files, 
-                    folder_path, 
-                    user_id, 
-                    "crag_model"
-                )
+            # Upload zip files (decompress and upload)
+            upload_zipped_model_files(
+                model_files, 
+                folder_path, 
+                user_id, 
+                "crag_model"
+            )
         except ValueError as e:
             # If file upload fails, delete the model and raise error
             crag_model.delete()
