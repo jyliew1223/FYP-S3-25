@@ -13,7 +13,7 @@ class CragModel(models.Model):
         managed = True
 
     model_id = models.AutoField(primary_key=True)
-    name = models.CharField(unique=True, null=True)
+    name = models.CharField(unique=False, null=True)
     crag = models.ForeignKey(
         Crag,
         on_delete=models.CASCADE,
