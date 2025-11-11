@@ -793,6 +793,47 @@ class AllEndpointsSuccessTestCase(TestCase):
                 self.assertIn("crag", model)
                 self.assertIn("status", model)
 
+    @patch("firebase_admin.app_check.verify_token")
+    def test_32_update_crag_model(self, mock_verify_app_check):
+        """Test updating a crag model"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        # Create a model to update (separate from the one used in other tests)
+        model_to_update = CragModel.objects.create(
+            crag=self.test_crag,
+            user=self.test_user,
+            name="Original Model Name",
+            status="active"
+        )
+
+        url = reverse("update_crag_model")
+        data = {
+            "model_id": model_to_update.formatted_id,
+            "user_id": self.test_user.user_id,
+            "name": "Updated Model Name",
+            "status": "suspended"
+        }
+        response = self.client.put(url, data, format="json")
+        self.print_endpoint_result("CRAG MODEL - UPDATE", url, response, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertEqual(
+            response_data.get("message"), "Crag model updated successfully."
+        )
+        
+        # Verify the model was actually updated
+        updated_model = CragModel.objects.get(model_id=model_to_update.model_id)
+        self.assertEqual(updated_model.name, "Updated Model Name")
+        self.assertEqual(updated_model.status, "suspended")
+        
+        # Verify response data
+        self.assertEqual(response_data["data"]["name"], "Updated Model Name")
+        self.assertEqual(response_data["data"]["status"], "suspended")
+
     # @patch("firebase_admin.app_check.verify_token")
     # def test_30_create_crag_model(self, mock_verify_app_check):
     #     """Test creating a crag model"""
@@ -831,7 +872,7 @@ class AllEndpointsSuccessTestCase(TestCase):
     #         )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_32_climb_log_create(self, mock_verify_app_check):
+    def test_33_climb_log_create(self, mock_verify_app_check):
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
@@ -867,7 +908,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_33_climb_log_delete(self, mock_verify_app_check):
+    def test_34_climb_log_delete(self, mock_verify_app_check):
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
 
@@ -887,7 +928,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.assertFalse(ClimbLog.objects.filter(log_id=self.test_log.log_id).exists())
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_34_model_route_data_create(self, mock_verify_app_check):
+    def test_35_model_route_data_create(self, mock_verify_app_check):
         """Test creating model route data"""
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
@@ -935,7 +976,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_35_model_route_data_get_by_model_id(self, mock_verify_app_check):
+    def test_36_model_route_data_get_by_model_id(self, mock_verify_app_check):
         """Test getting model route data by model ID"""
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
@@ -969,7 +1010,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             self.assertEqual(route_data_item["route_data"]["difficulty"], "5.10a")
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_36_model_route_data_delete(self, mock_verify_app_check):
+    def test_37_model_route_data_delete(self, mock_verify_app_check):
         """Test deleting model route data"""
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
@@ -1004,7 +1045,7 @@ class AllEndpointsSuccessTestCase(TestCase):
         )
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_37_model_route_data_get_by_user_id(self, mock_verify_app_check):
+    def test_38_model_route_data_get_by_user_id(self, mock_verify_app_check):
         """Test getting model route data by user ID"""
 
         mock_verify_app_check.return_value = {"app_id": "test_app"}
@@ -1032,7 +1073,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             self.assertIn("route", route_data_item)
 
     @patch("firebase_admin.app_check.verify_token")
-    def test_38_crag_get_all_ids(self, mock_verify_app_check):
+    def test_39_crag_get_all_ids(self, mock_verify_app_check):
         """Test getting all crag IDs"""
         
         mock_verify_app_check.return_value = {"app_id": "test_app"}

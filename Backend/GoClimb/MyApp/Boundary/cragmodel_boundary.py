@@ -12,7 +12,19 @@ from MyApp.Utils.helper import extract_files_and_clean_data
 
 @api_view(["GET"])
 def get_models_by_crag_id_view(request: Request) -> Response:
-
+    """
+    Boundary: Handle HTTP request to get crag models by crag ID.
+    
+    INPUT: {
+        "crag_id": str (required) - via query params
+    }
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": list of CragModel objects,
+        "errors": dict  # Only if success is False
+    }
+    """
     auth_result = authenticate_app_check_token(request)
     if not auth_result.get("success"):
         return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
@@ -342,6 +354,113 @@ def get_models_by_user_id_view(request: Request) -> Response:
             {
                 "success": False,
                 "message": "An error occurred while fetching models.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@api_view(["PUT", "PATCH"])
+def update_crag_model_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to update a crag model.
+    
+    INPUT (Form Data): {
+        "model_id": str (required),
+        "user_id": str (required),
+        "name": str (optional),
+        "status": str (optional),
+        "model_files": zip files (optional) - New zipped 3D model folders
+    }
+    
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": CragModel object,
+        "errors": dict  # Only if success is False
+    }
+    """
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    # Extract model files and clean form data
+    model_files, clean_data = extract_files_and_clean_data(request, "model_files")
+    
+    # Basic validation
+    model_id = clean_data.get("model_id", "")
+    user_id = clean_data.get("user_id", "")
+    
+    if not model_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"model_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not user_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"user_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        updated_model = cragmodel_controller.update_crag_model(
+            model_id, 
+            user_id, 
+            clean_data, 
+            model_files
+        )
+
+        serializer = CragModelSerializer(updated_model)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Crag model updated successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input or validation error.",
+                "errors": {"validation": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {
+                "success": False,
+                "message": "Model not found.",
+                "errors": {"model_id": "Invalid model ID."},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except PermissionError as pe:
+        return Response(
+            {
+                "success": False,
+                "message": "Permission denied.",
+                "errors": {"permission": str(pe)},
+            },
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while updating crag model.",
                 "errors": {"exception": str(e)},
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

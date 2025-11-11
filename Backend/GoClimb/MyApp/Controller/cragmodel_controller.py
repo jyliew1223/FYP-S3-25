@@ -6,7 +6,18 @@ from MyApp.Entity.crag import Crag
 from MyApp.Utils.helper import PrefixedIDConverter
 
 def get_models_by_crag_id(crag_id: str) -> Optional[QuerySet[CragModel]]:
-
+    """
+    Controller: Get all crag models for a specific crag.
+    
+    Args:
+        crag_id: Crag ID to get models for (formatted or raw)
+    
+    Returns:
+        QuerySet of CragModel objects or None if crag not found
+    
+    Raises:
+        ValueError: If crag_id is invalid
+    """
     if not crag_id:
         raise ValueError("crag_id is required")
 
@@ -141,3 +152,76 @@ def delete_crag_model(model_id: str, user_id: str) -> bool:
         crag_model.delete()
     
     return True
+
+
+def update_crag_model(
+    model_id: str, 
+    user_id: str, 
+    data: dict, 
+    model_files: Optional[List[InMemoryUploadedFile]] = None
+) -> CragModel:
+    """
+    Controller: Business logic to update a crag model.
+    
+    Args:
+        model_id: Model ID to update (formatted or raw)
+        user_id: User ID requesting update (for authorization)
+        data: Dictionary containing updated model data
+        model_files: Optional list of new zipped model files
+    
+    Returns:
+        Updated CragModel entity
+    
+    Raises:
+        ValueError: If model_id is invalid or validation fails
+        CragModel.DoesNotExist: If model not found
+        PermissionError: If user doesn't own the model
+    """
+    if not model_id:
+        raise ValueError("model_id is required")
+    
+    if not user_id:
+        raise ValueError("user_id is required")
+    
+    # Handle both formatted (MODEL-000001) and raw (1) IDs
+    if model_id.startswith("MODEL-"):
+        raw_id = int(model_id.split("-")[1])
+    else:
+        try:
+            raw_id = int(model_id)
+        except ValueError:
+            raise ValueError("Invalid model_id format")
+    
+    # Get the model
+    crag_model = CragModel.objects.get(model_id=raw_id)
+    
+    # Check if user owns the model
+    if crag_model.user_id != user_id:
+        raise PermissionError("User does not have permission to update this model")
+    
+    # Prepare data for serializer (exclude fields that shouldn't be updated)
+    update_data = {k: v for k, v in data.items() if k not in ['user_id', 'crag_id']}
+    
+    # Update the model using serializer
+    serializer = CragModelSerializer(crag_model, data=update_data, partial=True)
+    if not serializer.is_valid():
+        raise ValueError(serializer.errors)
+    
+    with transaction.atomic():
+        updated_model = serializer.save()
+        
+        # Upload new model files if provided
+        if model_files:
+            try:
+                folder_path = updated_model.bucket_path
+                # Upload new zip files (this will replace existing files)
+                upload_zipped_model_files(
+                    model_files, 
+                    folder_path, 
+                    user_id, 
+                    "crag_model"
+                )
+            except ValueError as e:
+                raise ValueError(f"Failed to upload model files: {str(e)}")
+    
+    return updated_model

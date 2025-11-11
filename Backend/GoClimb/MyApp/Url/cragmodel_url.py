@@ -3,6 +3,7 @@ from MyApp.Boundary.cragmodel_boundary import (
     get_models_by_crag_id_view,
     get_models_by_user_id_view,
     create_crag_model_view,
+    update_crag_model_view,
     delete_crag_model_view,
 )
 
@@ -21,6 +22,11 @@ urlpatterns = [
         "create_crag_model/",
         create_crag_model_view,
         name="create_crag_model",
+    ),
+    path(
+        "update_crag_model/",
+        update_crag_model_view,
+        name="update_crag_model",
     ),
     path(
         "delete_crag_model/",
