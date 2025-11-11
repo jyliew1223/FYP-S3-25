@@ -23,7 +23,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from MyApp.Entity.user import User
 from MyApp.Serializer.serializers import CragModelSerializer
-from MyApp.Firebase.helpers import upload_multiple_images_to_storage
+from MyApp.Firebase.helpers import upload_model_to_storage
 
 def create_crag_model(user_id: str, data: dict, model_files: Optional[List[InMemoryUploadedFile]] = None):
     """
@@ -56,7 +56,7 @@ def create_crag_model(user_id: str, data: dict, model_files: Optional[List[InMem
     if model_files:
         try:
             folder_path = crag_model.bucket_path
-            upload_multiple_images_to_storage(
+            upload_model_to_storage(
                 model_files, 
                 folder_path, 
                 user_id, 

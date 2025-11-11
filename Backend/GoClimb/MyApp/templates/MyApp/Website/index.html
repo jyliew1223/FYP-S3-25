@@ -1,576 +1,941 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GoClimb – Train Smarter. Climb Harder.</title>
-    <meta
-      name="description"
-      content="GoClimb helps you plan sessions, track progress, and send harder. Available on iOS and Android."
-    />
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: { DEFAULT: "#379636", dark: "#2f7f2e", light: "#49b147" },
-            },
-            fontFamily: {
-              display: ["Inter", "system-ui", "sans-serif"],
-              body: ["Inter", "system-ui", "sans-serif"],
-            },
-            boxShadow: { soft: "0 10px 30px rgba(0,0,0,0.25)" },
-            keyframes: {
-              marquee: {
-                "0%": { transform: "translateX(0)" },
-                "100%": { transform: "translateX(-50%)" },
-              },
-            },
-            animation: { marquee: "marquee 28s linear infinite" },
+<head>
+  <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GoClimb – For Climbers, By Climbers.</title>
+  <meta name="description" content="GoClimb– For Climbers, By Climbers. Available on Android." />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: '#379636', dark: '#2f7f2e', light: '#49b147' }
           },
-        },
-      };
-    </script>
-    <style>
-      html {
-        scroll-behavior: smooth;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .animate-marquee {
-          animation: none !important;
+          fontFamily: {
+            display: ['Inter', 'system-ui', 'sans-serif'],
+            body: ['Inter', 'system-ui', 'sans-serif']
+          },
+          boxShadow: { soft: '0 10px 30px rgba(0,0,0,0.25)' },
+          keyframes: {
+            marquee: { '0%': { transform: 'translateX(0)' }, '100%': { transform: 'translateX(-50%)' } }
+          },
+          animation: { marquee: 'marquee 28s linear infinite' }
         }
       }
-      .hide-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .hide-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-    </style>
-  </head>
-  <body class="bg-black text-white font-body selection:bg-brand/30">
-    <!-- Header -->
-    <header
-      class="sticky top-0 z-50 bg-black/80 backdrop-blur supports-[backdrop-filter]:bg-black/60 border-b border-white/10"
-    >
-      <div class="w-full px-5 py-4 flex items-center justify-between">
-        <a href="#top" class="flex items-center gap-3">
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            class="shrink-0"
-          >
-            <path
-              d="M6 20l6-16 6 16M12 12l-3 8h6l-3-8z"
-              stroke="#379636"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <span class="text-xl font-extrabold tracking-wide">GOCLIMB</span>
-        </a>
-        <nav class="hidden md:flex items-center gap-8 text-sm">
-          <a href="#features" class="hover:text-brand">Features</a>
-          <a href="#testimonials" class="hover:text-brand">Testimonials</a>
-          <a href="#download" class="hover:text-brand">Download</a>
-          <a href="#about" class="hover:text-brand">About</a>
-          <a href="#faq" class="hover:text-brand">FAQ</a>
-          <a href="#contact" class="hover:text-brand">Contact</a>
-        </nav>
-        <a
-          href="#download"
-          class="hidden md:inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg font-semibold"
-          >Get the App</a
-        >
-        <button
-          id="menuBtn"
-          class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md border border-white/15 hover:border-white/30"
-        >
-          <span class="sr-only">Open menu</span
-          ><svg width="22" height="22" fill="none" stroke="currentColor">
-            <path
-              stroke-linecap="round"
-              stroke-width="2"
-              d="M3 6h16M3 12h16M3 18h16"
-            />
-          </svg>
-        </button>
-      </div>
-      <!-- Mobile menu -->
-      <div id="mobileMenu" class="md:hidden hidden border-t border-white/10">
-        <div class="px-5 py-3 space-y-2 bg-black/95">
-          <a href="#features" class="block py-2">Features</a>
-          <a href="#testimonials" class="block py-2">Testimonials</a>
-          <a href="#download" class="block py-2">Download</a>
-          <a href="#about" class="block py-2">About</a>
-          <a href="#faq" class="block py-2">FAQ</a>
-          <a href="#contact" class="block py-2 text-brand font-semibold"
-            >Contact</a
-          >
-        </div>
-      </div>
-    </header>
+    }
+  </script>
+  <style>
+    html {
+      scroll-behavior: smooth;
+    }
 
-    <main id="top">
-      <!-- HOME / HERO -->
-      <section
-        class="relative min-h-[78vh] grid place-items-center overflow-hidden scroll-mt-24 md:scroll-mt-28"
-      >
-        <div class="absolute inset-0 bg-gray-800"></div>
-        <div class="absolute inset-0 bg-black/50"></div>
-        <div class="relative z-10 w-full px-5 md:px-8 max-w-7xl mx-auto">
-          <div class="max-w-2xl">
-            <h1 class="text-5xl md:text-7xl font-extrabold leading-tight">
-              Train With the<br />
-              Free Climbing App
+    @media (prefers-reduced-motion: reduce) {
+      .animate-marquee {
+        animation: none !important
+      }
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none
+    }
+
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none
+    }
+
+    /* Hero section with dynamic background */
+    .hero-section {
+      min-height: 100vh;
+      background: linear-gradient(180deg, #000000 0%, #1a1a2e 30%, #2f7f2e 100%);
+      transition: background 0.8s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-section.scrolled {
+      background: linear-gradient(180deg, #1a4d1a 0%, #2f7f2e 20%, #379636 60%, #ffffff 100%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Hero section button styles */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: white;
+      color: black;
+      padding: 1rem 2rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      font-size: 1.1rem;
+    }
+
+    .btn-primary:hover {
+      background-color: #379636;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(55, 150, 54, 0.3);
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background-color: transparent;
+      color: white;
+      padding: 1rem 2rem;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 2px solid white;
+      transition: all 0.3s ease;
+      font-size: 1.1rem;
+    }
+
+    .btn-outline:hover {
+      background-color: #379636;
+      color: white;
+      border-color: #379636;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(55, 150, 54, 0.3);
+    }
+
+    /* Animated background elements */
+    .hero-bg-element {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .hero-bg-element:nth-child(1) {
+      width: 300px;
+      height: 300px;
+      top: 10%;
+      left: -5%;
+      animation-delay: 0s;
+    }
+
+    .hero-bg-element:nth-child(2) {
+      width: 200px;
+      height: 200px;
+      top: 60%;
+      right: -3%;
+      animation-delay: 2s;
+    }
+
+    .hero-bg-element:nth-child(3) {
+      width: 150px;
+      height: 150px;
+      top: 30%;
+      right: 20%;
+      animation-delay: 4s;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0px) rotate(0deg);
+      }
+
+      50% {
+        transform: translateY(-20px) rotate(180deg);
+      }
+    }
+
+    /* Text animations */
+    .fade-in-up {
+      opacity: 0;
+      transform: translateY(30px);
+      animation: fadeInUp 1s ease forwards;
+    }
+
+    .fade-in-up.delay-1 {
+      animation-delay: 0.2s;
+    }
+
+    .fade-in-up.delay-2 {
+      animation-delay: 0.4s;
+    }
+
+    .fade-in-up.delay-3 {
+      animation-delay: 0.6s;
+    }
+
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Animated Climbing Crag Background */
+    .climbing-crag {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.3;
+      z-index: 1;
+    }
+
+    .rock-formation {
+      position: absolute;
+      background: linear-gradient(135deg, #4a5568 0%, #2d3748 50%, #1a202c 100%);
+      border-radius: 20px 20px 0 0;
+      animation: rockSway 8s ease-in-out infinite;
+    }
+
+    .rock-1 {
+      width: 200px;
+      height: 400px;
+      right: 10%;
+      bottom: 0;
+      clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+      animation-delay: 0s;
+    }
+
+    .rock-2 {
+      width: 150px;
+      height: 300px;
+      right: 25%;
+      bottom: 0;
+      clip-path: polygon(10% 0%, 90% 0%, 85% 100%, 15% 100%);
+      animation-delay: 2s;
+    }
+
+    .rock-3 {
+      width: 180px;
+      height: 350px;
+      left: 15%;
+      bottom: 0;
+      clip-path: polygon(25% 0%, 75% 0%, 90% 100%, 10% 100%);
+      animation-delay: 4s;
+    }
+
+    .climbing-route {
+      position: absolute;
+      width: 3px;
+      background: linear-gradient(to bottom, #48bb78, #38a169);
+      border-radius: 2px;
+      animation: routeGlow 3s ease-in-out infinite;
+    }
+
+    .route-1 {
+      height: 250px;
+      right: 12%;
+      bottom: 50px;
+      animation-delay: 1s;
+    }
+
+    .route-2 {
+      height: 200px;
+      right: 27%;
+      bottom: 40px;
+      animation-delay: 3s;
+    }
+
+    .route-3 {
+      height: 220px;
+      left: 17%;
+      bottom: 45px;
+      animation-delay: 5s;
+    }
+
+    .climbing-hold {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #48bb78;
+      border-radius: 50%;
+      animation: holdPulse 2s ease-in-out infinite;
+    }
+
+    .hold-1 {
+      right: 11.5%;
+      bottom: 100px;
+      animation-delay: 0.5s;
+    }
+
+    .hold-2 {
+      right: 11.5%;
+      bottom: 150px;
+      animation-delay: 1.5s;
+    }
+
+    .hold-3 {
+      right: 11.5%;
+      bottom: 200px;
+      animation-delay: 2.5s;
+    }
+
+    .hold-4 {
+      right: 26.5%;
+      bottom: 80px;
+      animation-delay: 1s;
+    }
+
+    .hold-5 {
+      right: 26.5%;
+      bottom: 130px;
+      animation-delay: 2s;
+    }
+
+    .hold-6 {
+      left: 16.5%;
+      bottom: 90px;
+      animation-delay: 0.8s;
+    }
+
+    .hold-7 {
+      left: 16.5%;
+      bottom: 140px;
+      animation-delay: 1.8s;
+    }
+
+    .climber {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: #e53e3e;
+      border-radius: 50%;
+      right: 11%;
+      bottom: 120px;
+      animation: climberMove 6s ease-in-out infinite;
+    }
+
+    @keyframes rockSway {
+
+      0%,
+      100% {
+        transform: translateX(0) scale(1);
+      }
+
+      50% {
+        transform: translateX(2px) scale(1.01);
+      }
+    }
+
+    @keyframes routeGlow {
+
+      0%,
+      100% {
+        opacity: 0.6;
+        box-shadow: 0 0 5px #48bb78;
+      }
+
+      50% {
+        opacity: 1;
+        box-shadow: 0 0 15px #48bb78, 0 0 25px #38a169;
+      }
+    }
+
+    @keyframes holdPulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+
+      50% {
+        transform: scale(1.3);
+        opacity: 1;
+      }
+    }
+
+    @keyframes climberMove {
+      0% {
+        bottom: 120px;
+      }
+
+      25% {
+        bottom: 140px;
+      }
+
+      50% {
+        bottom: 160px;
+      }
+
+      75% {
+        bottom: 180px;
+      }
+
+      100% {
+        bottom: 120px;
+      }
+    }
+
+    /* Floating particles for atmosphere */
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      animation: particleFloat 10s linear infinite;
+    }
+
+    .particle:nth-child(odd) {
+      left: 20%;
+      animation-delay: 0s;
+    }
+
+    .particle:nth-child(even) {
+      left: 80%;
+      animation-delay: 5s;
+    }
+
+    @keyframes particleFloat {
+      0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      90% {
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(-100px) rotate(360deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-black text-white font-body selection:bg-brand/30">
+  <!-- Header -->
+  <header
+    class="sticky top-0 z-50 bg-black/80 backdrop-blur supports-[backdrop-filter]:bg-black/60 border-b border-white/10">
+    <div class="w-full px-5 py-4 flex items-center justify-between">
+      <a href="#top" class="flex items-center gap-3">
+        <img src="assets/GoClimb_Logo.png" alt="GoClimb Logo" class="h-20 w-auto" />
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm">
+        <a href="#features" class="hover:text-brand">Features</a>
+        <a href="#testimonials" class="hover:text-brand">Testimonials</a>
+        <a href="#download" class="hover:text-brand">Download</a>
+        <a href="#about" class="hover:text-brand">About</a>
+        <a href="#faq" class="hover:text-brand">FAQ</a>
+        <a href="#contact" class="hover:text-brand">Contact</a>
+      </nav>
+      <a href="#download"
+        class="hidden md:inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg font-semibold">Get
+        the App</a>
+      <button id="menuBtn"
+        class="md:hidden inline-flex items-center justify-center w-10 h-10 rounded-md border border-white/15 hover:border-white/30"><span
+          class="sr-only">Open menu</span><svg width="22" height="22" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-width="2" d="M3 6h16M3 12h16M3 18h16" />
+        </svg></button>
+    </div>
+    <!-- Mobile menu -->
+    <div id="mobileMenu" class="md:hidden hidden border-t border-white/10">
+      <div class="px-5 py-3 space-y-2 bg-black/95">
+        <a href="#features" class="block py-2">Features</a>
+        <a href="#testimonials" class="block py-2">Testimonials</a>
+        <a href="#download" class="block py-2">Download</a>
+        <a href="#about" class="block py-2">About</a>
+        <a href="#faq" class="block py-2">FAQ</a>
+        <a href="#contact" class="block py-2 text-brand font-semibold">Contact</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HOME / HERO -->
+    <section id="hero" class="hero-section text-white relative">
+      <!-- Animated Climbing Crag Background -->
+      <div class="climbing-crag">
+        <!-- Rock Formations -->
+        <div class="rock-formation rock-1"></div>
+        <div class="rock-formation rock-2"></div>
+        <div class="rock-formation rock-3"></div>
+
+        <!-- Climbing Routes -->
+        <div class="climbing-route route-1"></div>
+        <div class="climbing-route route-2"></div>
+        <div class="climbing-route route-3"></div>
+
+        <!-- Climbing Holds -->
+        <div class="climbing-hold hold-1"></div>
+        <div class="climbing-hold hold-2"></div>
+        <div class="climbing-hold hold-3"></div>
+        <div class="climbing-hold hold-4"></div>
+        <div class="climbing-hold hold-5"></div>
+        <div class="climbing-hold hold-6"></div>
+        <div class="climbing-hold hold-7"></div>
+
+        <!-- Animated Climber -->
+        <div class="climber"></div>
+
+        <!-- Floating Particles -->
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+        <div class="particle"></div>
+      </div>
+
+      <!-- Original floating elements -->
+      <div class="hero-bg-element"></div>
+      <div class="hero-bg-element"></div>
+      <div class="hero-bg-element"></div>
+
+      <div class="hero-content flex items-center justify-center min-h-screen">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+
+          <!-- Main headline -->
+          <div class="fade-in-up">
+            <h1 class="text-5xl md:text-7xl lg:text-8xl font-black leading-tight tracking-tight">
+              The Social Network
             </h1>
-            <p class="text-white/90 mt-5 text-lg md:text-xl max-w-xl">
-              Unlock your best climbing with GoClimb. Track sessions, measure
-              progress, and send harder.
-            </p>
-            <div class="flex items-center gap-4 mt-8">
-              <a
-                href="#download"
-                class="inline-flex items-center gap-2 bg-brand hover:bg-brand-dark text-white px-5 py-3 rounded-xl font-semibold shadow-soft"
-                >Get Started</a
-              >
-              <a
-                href="#features"
-                class="inline-flex items-center gap-2 border border-white/20 hover:border-white/40 px-5 py-3 rounded-xl font-semibold"
-                >See Features</a
-              >
-            </div>
-          </div>
-          <!-- Stats ribbon -->
-          <div
-            class="mt-12 md:mt-16 bg-white/90 text-black backdrop-blur rounded-2xl inline-flex items-center gap-8 px-6 py-4"
-          >
-            <div class="text-sm">
-              <div class="uppercase tracking-wide text-gray-600">Sessions</div>
-              <div class="text-2xl font-extrabold">11K</div>
-            </div>
-            <div class="w-px h-8 bg-gray-300"></div>
-            <div class="text-sm">
-              <div class="uppercase tracking-wide text-gray-600">
-                Projects Sent
-              </div>
-              <div class="text-2xl font-extrabold">58K</div>
-            </div>
-            <div class="w-px h-8 bg-gray-300"></div>
-            <div class="text-sm">
-              <div class="uppercase tracking-wide text-gray-600">
-                Longest Session
-              </div>
-              <div class="text-2xl font-extrabold">3h 19m</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- FULL-BLEED TICKER -->
-      <section
-        aria-label="ticker"
-        class="bg-white text-black scroll-mt-24 md:scroll-mt-28"
-      >
-        <div class="relative overflow-hidden">
-          <div
-            class="whitespace-nowrap flex items-center gap-8 animate-marquee py-4"
-          >
-            <div class="flex items-center gap-8">
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-            </div>
-            <div class="flex items-center gap-8" aria-hidden="true">
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-              <span class="text-2xl font-extrabold tracking-widest"
-                ><span class="text-black">GO</span
-                ><span class="text-brand">CLIMB</span></span
-              >
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- FEATURES -->
-      <section
-        id="features"
-        class="bg-white text-black scroll-mt-24 md:scroll-mt-28"
-      >
-        <div class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
-          <h2 class="text-3xl md:text-5xl font-extrabold">Features</h2>
-          <p class="mt-4 text-lg text-gray-600 max-w-3xl">
-            Everything you need to plan, climb, and improve—without the clutter.
-          </p>
-
-          <!-- Feature 1 -->
-          <div class="mt-12 flex flex-col md:flex-row items-center gap-8">
-            <div class="flex-1">
-              <h3 class="text-2xl font-bold">AR Route Tracing</h3>
-              <p class="text-gray-600 mt-2">
-                Use your camera to visualize and trace beta on the wall. Capture
-                sequences, holds, and moves to revisit later.
-              </p>
-              <ul class="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li>Overlay moves on real routes</li>
-                <li>Record attempts with timestamps</li>
-                <li>Share beta with friends</li>
-              </ul>
-            </div>
-            <div
-              class="flex-1 rounded-2xl border border-gray-200 bg-gray-200 h-[320px]"
-            ></div>
-          </div>
-
-          <!-- Feature 2 -->
-          <div
-            class="mt-12 flex flex-col md:flex-row-reverse items-center gap-8"
-          >
-            <div class="flex-1">
-              <h3 class="text-2xl font-bold">Route Finder</h3>
-              <p class="text-gray-600 mt-2">
-                Discover problems and routes by grade, style, or gym. Build your
-                ticklist before you arrive.
-              </p>
-              <ul class="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li>Filter by grade, style, and setter</li>
-                <li>Maps for participating gyms</li>
-                <li>Save to wishlist</li>
-              </ul>
-            </div>
-            <div
-              class="flex-1 rounded-2xl border border-gray-200 bg-gray-200 h-[320px]"
-            ></div>
-          </div>
-
-          <!-- Feature 3 -->
-          <div class="mt-12 flex flex-col md:flex-row items-center gap-8">
-            <div class="flex-1">
-              <h3 class="text-2xl font-bold">Log Your Climbs</h3>
-              <p class="text-gray-600 mt-2">
-                Fast, structured logging for boulders and sport. Track volume,
-                grade, and time‑on‑wall to see trends.
-              </p>
-              <ul class="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li>One‑tap send/attempts</li>
-                <li>Session summaries & charts</li>
-                <li>Offline first—sync later</li>
-              </ul>
-            </div>
-            <div
-              class="flex-1 rounded-2xl border border-gray-200 bg-gray-200 h-[320px]"
-            ></div>
-          </div>
-
-          <!-- Feature 4 -->
-          <div
-            class="mt-12 flex flex-col md:flex-row-reverse items-center gap-8"
-          >
-            <div class="flex-1">
-              <h3 class="text-2xl font-bold">Leaderboards & Rankings</h3>
-              <p class="text-gray-600 mt-2">
-                Friendly competition that motivates. Compare with friends or
-                your gym community.
-              </p>
-              <ul class="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li>Weekly and all‑time boards</li>
-                <li>Custom clubs and groups</li>
-                <li>Anti‑spam & fair‑play checks</li>
-              </ul>
-            </div>
-            <div
-              class="flex-1 rounded-2xl border border-gray-200 bg-gray-200 h-[320px]"
-            ></div>
-          </div>
-
-          <!-- Feature 5 -->
-          <div class="mt-12 flex flex-col md:flex-row items-center gap-8">
-            <div class="flex-1">
-              <h3 class="text-2xl font-bold">Community Forum</h3>
-              <p class="text-gray-600 mt-2">
-                Ask for beta, share progress, and connect with climbers near
-                you.
-              </p>
-              <ul class="mt-4 space-y-2 text-gray-700 list-disc pl-5">
-                <li>Topic channels by gym and grade</li>
-                <li>Media posts & reactions</li>
-                <li>Report & moderation tools</li>
-              </ul>
-            </div>
-            <div
-              class="flex-1 rounded-2xl border border-gray-200 bg-gray-200 h-[320px]"
-            ></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- TESTIMONIALS -->
-      <section id="testimonials" class="bg-black scroll-mt-24 md:scroll-mt-28">
-        <div class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
-          <h2 class="text-3xl md:text-5xl font-extrabold">What Climbers Say</h2>
-          <div class="mt-10 grid md:grid-cols-3 gap-6">
-            <blockquote
-              class="rounded-2xl border border-white/10 p-6 bg-white/5"
-            >
-              <p class="text-white/90">
-                “Best app for tracking sessions—simple and fast.”
-              </p>
-              <footer class="mt-4 text-white/60">— Jamie, V6 boulderer</footer>
-            </blockquote>
-            <blockquote
-              class="rounded-2xl border border-white/10 p-6 bg-white/5"
-            >
-              <p class="text-white/90">
-                “AR tracing made our comp runs way more repeatable.”
-              </p>
-              <footer class="mt-4 text-white/60">— Alex, routesetter</footer>
-            </blockquote>
-            <blockquote
-              class="rounded-2xl border border-white/10 p-6 bg-white/5"
-            >
-              <p class="text-white/90">
-                “Leaderboards keep our crew pushing each other.”
-              </p>
-              <footer class="mt-4 text-white/60">— Priya, sport climber</footer>
-            </blockquote>
-          </div>
-        </div>
-      </section>
-
-      <!-- DOWNLOAD -->
-      <section
-        id="download"
-        class="bg-gradient-to-b from-black to-black/90 scroll-mt-24 md:scroll-mt-28"
-      >
-        <div
-          class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24 grid md:grid-cols-2 gap-10 items-center"
-        >
-          <div>
-            <h2 class="text-3xl md:text-5xl font-extrabold">
-              Download GoClimb
+            <h2 class="text-5xl md:text-7xl lg:text-8xl font-black leading-tight tracking-tight mt-2">
+              for <span
+                class="text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-300">Climbers</span>
             </h2>
-            <p class="mt-4 text-white/80">
-              Start tracking today. It’s fast, lightweight, and built for
-              climbers.
+          </div>
+
+          <!-- Description -->
+          <div class="fade-in-up delay-1">
+            <p class="mt-8 text-xl md:text-2xl lg:text-3xl max-w-4xl mx-auto text-white/90 leading-relaxed">
+              Track your progress, discover new routes, and connect with the climbing community.
+              <br class="hidden md:block" />
+              GoClimb brings climbers together, one send at a time.
             </p>
-            <div class="flex items-center gap-4 mt-8">
-              <a href="#" class="focus:outline-none"
-                ><img
-                  class="h-14 w-auto"
-                  src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
-                  alt="Download on the App Store"
-              /></a>
-              <a href="#" class="focus:outline-none"
-                ><img
-                  class="h-14 w-auto"
-                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
-                  alt="Get it on Google Play"
-              /></a>
+          </div>
+
+          <!-- CTA Buttons -->
+          <div class="fade-in-up delay-2">
+            <div class="mt-12 flex flex-col sm:flex-row justify-center gap-6">
+              <a href="https://drive.google.com/drive/folders/1NNxZgKkgjEPWvErogppKUx00o30uLj13" target="_blank"
+                class="btn-primary">
+                Download
+                <span class="text-xs opacity-75">Android Only</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7,10 12,15 17,10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </a>
+              <a href="#features" class="btn-outline">
+                See How It Works
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9,18 15,12 9,6" />
+                </svg>
+              </a>
             </div>
           </div>
-          <div
-            class="relative rounded-2xl overflow-hidden border border-white/10 shadow-soft"
-            style="aspect-ratio: 16/9"
-          >
-            <div class="absolute inset-0 bg-gray-800"></div>
+
+          <!-- Stats ribbon -->
+          <div class="fade-in-up delay-3">
+            <div
+              class="mt-16 inline-flex items-center gap-8 bg-white/10 backdrop-blur-md rounded-2xl px-8 py-6 border border-white/20">
+              <div class="text-center">
+                <div class="text-3xl md:text-4xl font-black text-gray-800">11K+</div>
+                <div class="text-sm uppercase tracking-wide text-gray-600 mt-1">Active Sessions</div>
+              </div>
+              <div class="w-px h-12 bg-gray-400"></div>
+              <div class="text-center">
+                <div class="text-3xl md:text-4xl font-black text-gray-800">58K+</div>
+                <div class="text-sm uppercase tracking-wide text-gray-600 mt-1">Routes Logged</div>
+              </div>
+              <div class="w-px h-12 bg-gray-400"></div>
+              <div class="text-center">
+                <div class="text-3xl md:text-4xl font-black text-gray-800">3h 19m</div>
+                <div class="text-sm uppercase tracking-wide text-gray-600 mt-1">Longest Session</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- FULL-BLEED TICKER -->
+    <section aria-label="ticker" class="bg-white text-black scroll-mt-24 md:scroll-mt-28">
+      <div class="relative overflow-hidden">
+        <div class="whitespace-nowrap flex items-center gap-8 animate-marquee py-4">
+          <div class="flex items-center gap-8">
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+          </div>
+          <div class="flex items-center gap-8" aria-hidden="true">
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
+            <span class="text-2xl font-extrabold tracking-widest"><span class="text-black">GO</span><span
+                class="text-brand">CLIMB</span></span>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- ABOUT -->
-      <section
-        id="about"
-        class="bg-white text-black scroll-mt-24 md:scroll-mt-28"
-      >
-        <div class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
-          <h2 class="text-3xl md:text-5xl font-extrabold">About GoClimb</h2>
-          <p class="mt-4 text-lg text-gray-700 max-w-3xl">
-            GoClimb is a student‑built project focused on clean, fast tools that
-            help climbers plan better sessions and improve steadily. We’re
-            climbers first, so features are designed from the gym floor up.
-          </p>
+    <!-- FEATURES -->
+    <section id="features" class="bg-white text-black scroll-mt-24 md:scroll-mt-28">
+      <div class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl md:text-5xl font-extrabold">Features</h2>
+          <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">Everything you need to plan, climb, and
+            improve—without the clutter.</p>
         </div>
-      </section>
 
-      <!-- FAQ -->
-      <section
-        id="faq"
-        class="bg-white text-black scroll-mt-24 md:scroll-mt-28"
-      >
-        <div class="max-w-4xl mx-auto px-5 md:px-8 py-16 md:py-24">
-          <h2 class="text-3xl md:text-5xl font-extrabold">FAQ</h2>
-          <div
-            class="mt-8 divide-y divide-gray-200 border border-gray-200 rounded-2xl overflow-hidden"
-          >
-            <details class="group p-5">
-              <summary
-                class="cursor-pointer flex items-center justify-between font-semibold"
-              >
-                Is GoClimb free?<span
-                  class="transition-transform group-open:rotate-180 text-gray-500"
-                  >⌄</span
-                >
-              </summary>
-              <p class="mt-3 text-gray-600">
-                Yes. Core tracking is free. Optional Pro features may come
-                later.
-              </p>
-            </details>
-            <details class="group p-5">
-              <summary
-                class="cursor-pointer flex items-center justify-between font-semibold"
-              >
-                iOS & Android support?<span
-                  class="transition-transform group-open:rotate-180 text-gray-500"
-                  >⌄</span
-                >
-              </summary>
-              <p class="mt-3 text-gray-600">We support both iOS and Android.</p>
-            </details>
-            <details class="group p-5">
-              <summary
-                class="cursor-pointer flex items-center justify-between font-semibold"
-              >
-                Offline in the gym?<span
-                  class="transition-transform group-open:rotate-180 text-gray-500"
-                  >⌄</span
-                >
-              </summary>
-              <p class="mt-3 text-gray-600">
-                Yes—logs sync when you’re back online.
-              </p>
-            </details>
+        <!-- Features Grid -->
+        <div class="grid gap-8">
+          <!-- Top Row - 3 Features -->
+          <div class="grid md:grid-cols-3 gap-8">
+
+            <!-- Feature 1: AR Route Tracing -->
+            <div
+              class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+              <div
+                class="aspect-square bg-gradient-to-br from-blue-50 to-indigo-100 p-8 flex items-center justify-center">
+                <img src="assets/ar-route-tracing.jpg" alt="AR Route Tracing"
+                  class="w-full h-full object-cover rounded-xl" />
+              </div>
+              <div class="p-6">
+                <h3 class="text-xl font-bold mb-3">AR Route Tracing</h3>
+                <p class="text-gray-600 mb-4">Use your camera to visualize and trace beta on the wall. Capture
+                  sequences, holds, and moves to revisit later.</p>
+                <ul class="space-y-2 text-sm text-gray-700">
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Overlay moves on real routes
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Record attempts with timestamps
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Share beta with friends
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Feature 2: Route Finder -->
+            <div
+              class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+              <div
+                class="aspect-square bg-gradient-to-br from-green-50 to-emerald-100 p-8 flex items-center justify-center">
+                <img src="assets/route-finder.jpg" alt="Route Finder" class="w-full h-full object-cover rounded-xl" />
+              </div>
+              <div class="p-6">
+                <h3 class="text-xl font-bold mb-3">Route Finder</h3>
+                <p class="text-gray-600 mb-4">Discover problems and routes by grade, style, or gym. Build your ticklist
+                  before you arrive.</p>
+                <ul class="space-y-2 text-sm text-gray-700">
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Filter by grade, style, and setter
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Maps for participating gyms
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Save to wishlist
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Feature 3: Log Your Climbs -->
+            <div
+              class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+              <div
+                class="aspect-square bg-gradient-to-br from-purple-50 to-violet-100 p-8 flex items-center justify-center">
+                <img src="assets/log-your-climbs.jpg" alt="Log Your Climbs"
+                  class="w-full h-full object-cover rounded-xl" />
+              </div>
+              <div class="p-6">
+                <h3 class="text-xl font-bold mb-3">Log Your Climbs</h3>
+                <p class="text-gray-600 mb-4">Fast, structured logging for boulders and sport. Track volume, grade, and
+                  time‑on‑wall to see trends.</p>
+                <ul class="space-y-2 text-sm text-gray-700">
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    One‑tap send/attempts
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Session summaries & charts
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Offline first—sync later
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Bottom Row - 2 Features (Centered) -->
+          <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+
+            <!-- Feature 4: Community Forum -->
+            <div
+              class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+              <div
+                class="aspect-square bg-gradient-to-br from-orange-50 to-amber-100 p-8 flex items-center justify-center">
+                <img src="assets/community-forum.jpg" alt="Community Forum"
+                  class="w-full h-full object-cover rounded-xl" />
+              </div>
+              <div class="p-6">
+                <h3 class="text-xl font-bold mb-3">Community Forum</h3>
+                <p class="text-gray-600 mb-4">Ask for beta, share progress, and connect with climbers near you.</p>
+                <ul class="space-y-2 text-sm text-gray-700">
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Topic channels by gym and grade
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Media posts & reactions
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Report & moderation tools
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- Feature 5: Leaderboards & Rankings -->
+            <div
+              class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
+              <div class="aspect-square bg-gradient-to-br from-red-50 to-pink-100 p-8 flex items-center justify-center">
+                <img src="assets/leaderboards.jpg" alt="Leaderboards & Rankings"
+                  class="w-full h-full object-cover rounded-xl" />
+              </div>
+              <div class="p-6">
+                <h3 class="text-xl font-bold mb-3">Leaderboards & Rankings</h3>
+                <p class="text-gray-600 mb-4">Friendly competition that motivates. Compare with friends or your gym
+                  community.</p>
+                <ul class="space-y-2 text-sm text-gray-700">
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Weekly and all‑time boards
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Custom clubs and groups
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 bg-brand rounded-full"></div>
+                    Anti‑spam & fair‑play checks
+                  </li>
+                </ul>
+              </div>
+            </div>
+
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- CONTACT -->
-      <section id="contact" class="bg-black scroll-mt-24 md:scroll-mt-28">
-        <div class="max-w-3xl mx-auto px-5 md:px-8 py-16 md:py-24">
-          <h2 class="text-3xl md:text-5xl font-extrabold">Contact Us</h2>
-          <p class="mt-4 text-white/70">
-            Questions, feedback, or partnerships? Reach out.
-          </p>
-          <form
-            class="mt-8 grid gap-4"
-            action="mailto:hello@goclimb.app"
-            method="post"
-            enctype="text/plain"
-          >
-            <input
-              required
-              class="bg-white/5 border border-white/10 rounded-lg px-4 py-3"
-              name="name"
-              placeholder="Name"
-            />
-            <input
-              required
-              type="email"
-              class="bg-white/5 border border-white/10 rounded-lg px-4 py-3"
-              name="email"
-              placeholder="Email"
-            />
-            <textarea
-              required
-              class="bg-white/5 border border-white/10 rounded-lg px-4 py-3 min-h-[140px]"
-              name="message"
-              placeholder="Your message"
-            ></textarea>
-            <button
-              class="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-3 rounded-lg"
-              type="submit"
-            >
-              Send
-            </button>
-          </form>
+    <!-- TESTIMONIALS -->
+    <section id="testimonials" class="bg-black scroll-mt-24 md:scroll-mt-28">
+      <div class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
+        <h2 class="text-3xl md:text-5xl font-extrabold">What Climbers Say</h2>
+        <div class="mt-10 grid md:grid-cols-3 gap-6">
+          <blockquote class="rounded-2xl border border-white/10 p-6 bg-white/5">
+            <p class="text-white/90">"Best app for tracking sessions—simple and fast."</p>
+            <footer class="mt-4 text-white/60">— Jamie, V6 boulderer</footer>
+          </blockquote>
+          <blockquote class="rounded-2xl border border-white/10 p-6 bg-white/5">
+            <p class="text-white/90">"AR tracing made our comp runs way more repeatable."</p>
+            <footer class="mt-4 text-white/60">— Alex, routesetter</footer>
+          </blockquote>
+          <blockquote class="rounded-2xl border border-white/10 p-6 bg-white/5">
+            <p class="text-white/90">"Leaderboards keep our crew pushing each other."</p>
+            <footer class="mt-4 text-white/60">— Priya, sport climber</footer>
+          </blockquote>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- FOOTER (edge-to-edge background) -->
-      <footer class="bg-black border-t border-white/10">
-        <div
-          class="w-full px-5 py-10 flex flex-col md:flex-row items-center justify-between gap-6"
-        >
-          <div class="flex items-center gap-3">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 20l6-16 6 16M12 12l-3 8h6l-3-8z"
-                stroke="#379636"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              /></svg
-            ><span class="font-semibold">GoClimb</span>
+    <!-- DOWNLOAD -->
+    <section id="download" class="bg-gradient-to-b from-black to-black/90 scroll-mt-24 md:scroll-mt-28">
+      <div class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24 grid md:grid-cols-2 gap-10 items-center">
+        <div>
+          <h2 class="text-3xl md:text-5xl font-extrabold">Download GoClimb</h2>
+          <p class="mt-4 text-white/80">Start tracking today. It's fast, lightweight, and built for climbers.</p>
+          <div class="flex flex-col gap-4 mt-8">
+            <!-- Android Download Button -->
+            <a href="https://drive.google.com/drive/folders/1NNxZgKkgjEPWvErogppKUx00o30uLj13" target="_blank"
+              class="inline-flex items-center gap-3 bg-brand hover:bg-brand-dark text-white px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-lg">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7,10 12,15 17,10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download for Android Only
+            </a>
+
+            <!-- Coming Soon Badges -->
+            <div class="flex items-center gap-4 opacity-50">
+              <div class="relative">
+                <img class="h-14 w-auto grayscale"
+                  src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
+                  alt="Coming Soon on App Store">
+                <div class="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
+                  <span class="text-white text-xs font-semibold">Coming Soon</span>
+                </div>
+              </div>
+              <div class="relative">
+                <img class="h-14 w-auto grayscale"
+                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                  alt="Coming Soon on Google Play">
+                <div class="absolute inset-0 bg-black/50 rounded flex items-center justify-center">
+                  <span class="text-white text-xs font-semibold">Coming Soon</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <nav class="text-sm text-white/70 flex items-center gap-6">
-            <a href="#features" class="hover:text-white">Features</a>
-            <a href="#testimonials" class="hover:text-white">Testimonials</a>
-            <a href="#download" class="hover:text-white">Download</a>
-            <a href="#about" class="hover:text-white">About</a>
-            <a href="#faq" class="hover:text-white">FAQ</a>
-            <a href="#contact" class="hover:text-white">Contact</a>
-          </nav>
-          <p class="text-xs text-white/50">
-            © <span id="year"></span> GoClimb. All rights reserved.
-          </p>
         </div>
-      </footer>
-    </main>
+        <div class="relative rounded-2xl overflow-hidden border border-white/10 shadow-soft" style="aspect-ratio:16/9;">
+          <div class="absolute inset-0 bg-gray-800"></div>
+        </div>
+      </div>
+    </section>
 
-    <script>
-      // Mobile menu toggle
-      const menuBtn = document.getElementById("menuBtn");
-      const mobileMenu = document.getElementById("mobileMenu");
-      menuBtn?.addEventListener("click", () =>
-        mobileMenu.classList.toggle("hidden")
-      );
+    <!-- ABOUT -->
+    <section id="about" class="bg-white text-black scroll-mt-24 md:scroll-mt-28">
+      <div class="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
+        <h2 class="text-3xl md:text-5xl font-extrabold">About GoClimb</h2>
+        <p class="mt-4 text-lg text-gray-700 max-w-3xl">GoClimb is a student‑built project focused on clean, fast tools
+          that help climbers plan better sessions and improve steadily. We're climbers first, so features are designed
+          from the gym floor up.</p>
+      </div>
+    </section>
 
-      // Close mobile menu when an in-page link is clicked
-      document.querySelectorAll('a[href^="#"]').forEach((a) => {
-        a.addEventListener("click", () => mobileMenu?.classList.add("hidden"));
-      });
+    <!-- FAQ -->
+    <section id="faq" class="bg-white text-black scroll-mt-24 md:scroll-mt-28">
+      <div class="max-w-4xl mx-auto px-5 md:px-8 py-16 md:py-24">
+        <h2 class="text-3xl md:text-5xl font-extrabold">FAQ</h2>
+        <div class="mt-8 divide-y divide-gray-200 border border-gray-200 rounded-2xl overflow-hidden">
+          <details class="group p-5">
+            <summary class="cursor-pointer flex items-center justify-between font-semibold">Is GoClimb free?<span
+                class="transition-transform group-open:rotate-180 text-gray-500">⌄</span></summary>
+            <p class="mt-3 text-gray-600">Yes. Core tracking is free. Optional Pro features may come later.</p>
+          </details>
+          <details class="group p-5">
+            <summary class="cursor-pointer flex items-center justify-between font-semibold">iOS & Android support?<span
+                class="transition-transform group-open:rotate-180 text-gray-500">⌄</span></summary>
+            <p class="mt-3 text-gray-600">We support both iOS and Android.</p>
+          </details>
+          <details class="group p-5">
+            <summary class="cursor-pointer flex items-center justify-between font-semibold">Offline in the gym?<span
+                class="transition-transform group-open:rotate-180 text-gray-500">⌄</span></summary>
+            <p class="mt-3 text-gray-600">Yes—logs sync when you're back online.</p>
+          </details>
+        </div>
+      </div>
+    </section>
 
-      // Year
-      document.getElementById("year").textContent = new Date().getFullYear();
-    </script>
-  </body>
+    <!-- CONTACT -->
+    <section id="contact" class="bg-black scroll-mt-24 md:scroll-mt-28">
+      <div class="max-w-3xl mx-auto px-5 md:px-8 py-16 md:py-24">
+        <h2 class="text-3xl md:text-5xl font-extrabold">Contact Us</h2>
+        <p class="mt-4 text-white/70">Questions, feedback, or partnerships? Reach out.</p>
+        <form class="mt-8 grid gap-4" action="mailto:hello@goclimb.app" method="post" enctype="text/plain">
+          <input required class="bg-white/5 border border-white/10 rounded-lg px-4 py-3" name="name"
+            placeholder="Name" />
+          <input required type="email" class="bg-white/5 border border-white/10 rounded-lg px-4 py-3" name="email"
+            placeholder="Email" />
+          <textarea required class="bg-white/5 border border-white/10 rounded-lg px-4 py-3 min-h-[140px]" name="message"
+            placeholder="Your message"></textarea>
+          <button class="bg-brand hover:bg-brand-dark text-white font-semibold px-5 py-3 rounded-lg"
+            type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- FOOTER (edge-to-edge background) -->
+    <footer class="bg-black border-t border-white/10">
+      <div class="w-full px-5 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-3">
+          <img src="assets/GoClimb_Logo.png" alt="GoClimb Logo" class="h-20 w-auto" />
+          <span class="font-semibold">GoClimb</span>
+        </div>
+        <nav class="text-sm text-white/70 flex items-center gap-6">
+          <a href="#features" class="hover:text-white">Features</a>
+          <a href="#testimonials" class="hover:text-white">Testimonials</a>
+          <a href="#download" class="hover:text-white">Download</a>
+          <a href="#about" class="hover:text-white">About</a>
+          <a href="#faq" class="hover:text-white">FAQ</a>
+          <a href="#contact" class="hover:text-white">Contact</a>
+        </nav>
+        <p class="text-xs text-white/50">© <span id="year"></span> GoClimb. All rights reserved.</p>
+      </div>
+      <!-- Extra spacing to prevent external hosting banner from blocking content -->
+      <div class="h-16 md:h-12"></div>
+    </footer>
+  </main>
+
+  <script>
+    // Mobile menu toggle
+    const menuBtn = document.getElementById('menuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    menuBtn?.addEventListener('click', () => mobileMenu.classList.toggle('hidden'));
+
+    // Close mobile menu when an in-page link is clicked
+    document.querySelectorAll('a[href^="#"]').forEach(a => {
+      a.addEventListener('click', () => mobileMenu?.classList.add('hidden'));
+    });
+
+    // Hero background transition on scroll
+    const heroSection = document.getElementById('hero');
+    window.addEventListener('scroll', () => {
+      const scrolled = window.pageYOffset;
+
+      if (scrolled > 100) {
+        heroSection.classList.add('scrolled');
+      } else {
+        heroSection.classList.remove('scrolled');
+      }
+    });
+
+    // Year
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+  <script>AOS.init({ duration: 800, once: true });</script>
+</body>
+
 </html>
