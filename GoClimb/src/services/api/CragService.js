@@ -2,7 +2,6 @@
 
 import { CustomApiRequest, RequestMethod, BaseApiResponse } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
-import App from '../../../App';
 
 const GRADE_TABLE = {
   1: '4',
