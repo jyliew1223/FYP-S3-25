@@ -227,6 +227,15 @@ export default function HomeScreen() {
               }} 
               colors={colors} 
             />
+            <DrawerItem 
+              icon="cube-outline" 
+              label="My 3D Models" 
+              onPress={() => {
+                setMenuOpen(false);
+                navigation.navigate('ModelManagement');
+              }} 
+              colors={colors} 
+            />
             <DrawerItem
               icon={user ? 'log-out-outline' : 'log-in-outline'}
               label={user ? 'Logout' : 'Login / Sign Up'}

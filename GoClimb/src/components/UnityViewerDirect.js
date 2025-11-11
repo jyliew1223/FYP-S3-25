@@ -20,18 +20,12 @@ const UnityViewerDirect = ({
     const [loadingMessage, setLoadingMessage] = useState('Initializing AR Engine...');
     const fadeAnim = useRef(new Animated.Value(1)).current;
 
-    // Handle Unity messages
     const handleMessage = useCallback(async (result) => {
         const message = result.nativeEvent.message;
-        console.log('[UnityViewerDirect] Message from Unity:', message);
 
         try {
             if (message === 'UNITY_READY') {
-                console.log('[UnityViewerDirect] ✅ Unity is ready, showing Unity view');
-
                 setLoadingMessage('AR Ready!');
-
-                // Show Unity and fade out overlay
                 setShowUnity(true);
                 setTimeout(() => {
                     Animated.timing(fadeAnim, {
@@ -46,17 +40,14 @@ const UnityViewerDirect = ({
             }
 
             if (message.startsWith('UNITY_FAIL')) {
-                console.error('[UnityViewerDirect] Unity error:', message);
                 setLoadingMessage('AR Engine Error');
                 Alert.alert('AR Error', message.includes(':') ? message.split(':')[1] : 'Unknown error');
                 return;
             }
 
-            // Handle route data saving
             try {
                 const routeData = JSON.parse(message);
                 if (routeData.route_name && routeData.points && autoSaveRouteData) {
-                    // Generate numeric route name with # prefix
                     const numericId = Date.now().toString();
                     const routeName = `#${numericId}`;
                     const displayName = routeData.display_name || routeData.custom_name || routeName;
@@ -71,7 +62,6 @@ const UnityViewerDirect = ({
                 // Not JSON data, continue with normal message handling
             }
 
-            // Forward message to parent component
             if (onUnityMessage) onUnityMessage(message);
 
         } catch (error) {
@@ -79,75 +69,95 @@ const UnityViewerDirect = ({
         }
     }, [onUnityReady, onUnityMessage, autoSaveRouteData, modelId, cragId, fadeAnim]);
 
-    // Send message to Unity
     const sendToUnity = useCallback((gameObject, methodName, message) => {
         try {
             if (unityRef?.current) {
-                console.log(`[UnityViewerDirect] 📤 Sending to Unity: ${gameObject}.${methodName}`);
                 unityRef.current.postMessage(gameObject, methodName, message);
                 return true;
-            } else {
-                console.warn(`[UnityViewerDirect] ❌ Cannot send to Unity: unityRef is null`);
-                return false;
             }
+            return false;
         } catch (error) {
-            console.error(`[UnityViewerDirect] ❌ Error sending to Unity:`, error);
             return false;
         }
     }, []);
 
-    // Clear Unity scene
     const clearUnityScene = useCallback(() => {
-        console.log('[UnityViewerDirect] 🧹 Clearing Unity scene...');
         const clearData = { action: 'clear_scene', reason: 'load_new', timestamp: Date.now() };
         return sendToUnity('UnityReceiver', 'ClearScene', JSON.stringify(clearData));
     }, [sendToUnity]);
 
-    // Load scene data to Unity
     const loadUnityScene = useCallback(async (sceneData) => {
-        console.log('[UnityViewerDirect] 🎬 Loading Unity scene...');
-
-        // First clear the scene
-        console.log('[UnityViewerDirect] 🧹 Clearing scene before load...');
         clearUnityScene();
-
-        // Wait for clear to complete, then load new scene
         return new Promise((resolve) => {
             setTimeout(() => {
-                console.log('[UnityViewerDirect] 📥 Loading new scene data...');
                 const success = sendToUnity('UnityReceiver', 'LoadIndoorScene', JSON.stringify(sceneData));
-                if (success) {
-                    console.log('[UnityViewerDirect] ✅ Scene data sent to Unity');
-                } else {
-                    console.log('[UnityViewerDirect] ❌ Failed to send scene data');
-                }
                 resolve(success);
-            }, 1000); // 300ms delay after clear
+            }, 1000);
         });
     }, [sendToUnity, clearUnityScene]);
 
-    // Main effect: Load scene when model data is available
+    const loadOutdoorScene = useCallback(async (sceneData = "") => {
+        clearUnityScene();
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const success = sendToUnity('UnityReceiver', 'LoadOutdoorScene', sceneData);
+                resolve(success);
+            }, 1000);
+        });
+    }, [sendToUnity, clearUnityScene]);
+
     useEffect(() => {
         if (!modelData?.path) return;
 
-        console.log('[UnityViewerDirect] 🚀 Starting Unity with model:', modelData.path);
         setLoadingMessage('Preparing 3D Model...');
+
+        const findModelFileRecursively = async (dirPath, maxDepth = 5, currentDepth = 0) => {
+            if (currentDepth >= maxDepth) return null;
+            
+            try {
+                const items = await RNFS.readDir(dirPath);
+                
+                const modelFile = items.find(item => 
+                    !item.isDirectory() && 
+                    (item.name.toLowerCase().endsWith('.glb') || 
+                     item.name.toLowerCase().endsWith('.gltf'))
+                );
+                
+                if (modelFile) {
+                    return modelFile.path;
+                }
+                
+                for (const item of items) {
+                    if (item.isDirectory()) {
+                        const foundPath = await findModelFileRecursively(item.path, maxDepth, currentDepth + 1);
+                        if (foundPath) {
+                            return foundPath;
+                        }
+                    }
+                }
+                
+                return null;
+            } catch (error) {
+                return null;
+            }
+        };
 
         const loadScene = async () => {
             try {
-                // Find the .glb file in the directory
                 let glbPath = modelData.path;
-                if (!glbPath.endsWith('.glb')) {
-                    const files = await RNFS.readDir(modelData.path);
-                    const glbFile = files.find(file => file.name.endsWith('.glb'));
-                    if (!glbFile) {
+                if (!glbPath.toLowerCase().endsWith('.glb') && !glbPath.toLowerCase().endsWith('.gltf')) {
+                    setLoadingMessage('Searching for 3D Model...');
+                    glbPath = await findModelFileRecursively(modelData.path);
+                    if (!glbPath) {
                         setLoadingMessage('3D Model Not Found');
+                        Alert.alert(
+                            'Model Not Found',
+                            'No .glb or .gltf model file found in the selected folder or its subfolders.'
+                        );
                         return;
                     }
-                    glbPath = glbFile.path;
                 }
 
-                // Prepare scene data
                 const sceneData = {
                     path: glbPath,
                     normalizationJson: modelData.normalizationJson || {
@@ -158,23 +168,16 @@ const UnityViewerDirect = ({
                     routeJson: modelData.routeJson || []
                 };
 
-                console.log('[UnityViewerDirect] Scene data prepared for:', glbPath);
-
-                // Wait for Unity to initialize, then send data
                 setLoadingMessage('Starting AR Engine...');
                 setTimeout(async () => {
-                    // Always clear before load
                     clearUnityScene();
-
-                    // Wait a bit, then load
                     setTimeout(() => {
                         setLoadingMessage('Loading 3D Model...');
                         loadUnityScene(sceneData);
-                    }, 200); // 200ms delay after clear
-                }, 3000); // 3 second initial delay
+                    }, 200);
+                }, 3000);
 
             } catch (error) {
-                console.error('[UnityViewerDirect] ❌ Error preparing scene:', error);
                 setLoadingMessage('Error Loading 3D Model');
             }
         };
@@ -182,12 +185,10 @@ const UnityViewerDirect = ({
         loadScene();
     }, [modelData, clearUnityScene, loadUnityScene]);
 
-    // Reset state when component unmounts or loses focus
     useFocusEffect(
         useCallback(() => {
             clearUnityScene()
             return () => {
-                console.log('[UnityViewerDirect] Component unfocused, resetting state');
                 setShowUnity(false);
                 fadeAnim.setValue(1);
             };
@@ -200,19 +201,14 @@ const UnityViewerDirect = ({
                 ref={unityRef}
                 style={{ flex: 1 }}
                 onUnityMessage={handleMessage}
-                onPlayerReady={() => {
-                    console.log('[UnityViewerDirect] 🎮 Unity player ready');
-                    setIsPlayerReady(true);
-                }}
                 onPlayerQuit={() => {
-                    console.log('[UnityViewerDirect] Unity player quit');
                     setShowUnity(false);
                     setLoadingMessage('AR Engine Stopped');
                     fadeAnim.setValue(1);
                 }}
             />
 
-            {/* Loading overlay - show until Unity is ready */}
+
             {!showUnity && (
                 <Animated.View style={[styles.loadingOverlay, { opacity: fadeAnim }]}>
                     <View style={styles.loadingContent}>

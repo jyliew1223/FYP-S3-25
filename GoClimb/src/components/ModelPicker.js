@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -16,13 +16,11 @@ import { useTheme } from '../context/ThemeContext';
 import { findCragFolder } from '../utils/LocalModelChecker';
 import { downloadFolderFromJson } from '../services/firebase/FileDownloadHelper';
 
-
 export default function ModelPicker({ 
   cragId, 
   onModelSelect, 
-  enableDirectAR = false, // New prop to enable direct AR launch
-  cragName = null, // Optional crag name for AR screen
-  onARClose = null // Callback when AR is closed
+  enableDirectAR = false,
+  cragName = null
 }) {
   const { colors } = useTheme();
   const navigation = useNavigation();
@@ -38,7 +36,6 @@ export default function ModelPicker({
         const response = await fetchAllModelsByCragId(cragId);
 
         if (response && Array.isArray(response)) {
-          // Check each model for local availability
           const modelsWithPaths = await Promise.all(
             response.map(async model => {
               try {
@@ -49,7 +46,6 @@ export default function ModelPicker({
                   isAvailable: localPath !== null,
                 };
               } catch (err) {
-                console.log(`[ModelPicker] Error checking model ${model.model_id}:`, err);
                 return {
                   ...model,
                   localPath: null,
@@ -60,11 +56,9 @@ export default function ModelPicker({
           );
           setModels(modelsWithPaths);
         } else {
-          console.warn('Unexpected response:', response);
           setModels([]);
         }
       } catch (error) {
-        console.error('Failed to fetch models:', error);
       } finally {
         setLoading(false);
       }
@@ -80,18 +74,13 @@ export default function ModelPicker({
     setFetchingRouteData(true);
 
     try {
-      // Fetch model route data (AR display routes) for the selected model
-      console.log('[ModelPicker] Fetching model route data for model:', model.model_id);
       const routeDataResponse = await ModelRouteDataService.FetchModelRouteDatasByModelId(model.model_id);
       
       let modelRouteData = [];
       if (routeDataResponse && routeDataResponse.success && routeDataResponse.data) {
-        // Transform backend data to Unity format
         modelRouteData = routeDataResponse.data.map(item => {
-          // Extract route name from the route object or route_data
           const routeName = item.route?.route_name || item.route_data?.route_name || 'Unknown Route';
           
-          // Extract points from route_data
           let points = [];
           if (item.route_data && item.route_data.points && Array.isArray(item.route_data.points)) {
             points = item.route_data.points.map(point => ({
@@ -109,23 +98,16 @@ export default function ModelPicker({
             points: points
           };
         });
-        
-        console.log('[ModelPicker] Transformed', modelRouteData.length, 'routes for Unity');
-      } else {
-        console.log('[ModelPicker] No model route data found for model:', model.model_id);
       }
 
       const modelDataForUnity = {
         ...model,
         path: model.localPath,
-        normalization_data: model.normalization_data, // Pass normalization data to Unity
-        modelRouteData: modelRouteData, // Pass model route data (AR display routes) to Unity
+        normalization_data: model.normalization_data,
+        modelRouteData: modelRouteData,
       };
       
-      console.log('[ModelPicker] Sending model data to Unity with', modelRouteData.length, 'model routes');
-      
       if (enableDirectAR) {
-        // Launch AR directly
         const unityData = {
           ...modelDataForUnity,
           normalizationJson: modelDataForUnity.normalization_data || {
@@ -136,28 +118,23 @@ export default function ModelPicker({
           routeJson: modelDataForUnity.modelRouteData || []
         };
         
-        console.log('[ModelPicker] Launching AR directly');
         navigation.navigate('UnityAR', {
           modelData: unityData,
           cragId: cragId,
           cragName: cragName
         });
       } else if (onModelSelect) {
-        // Use callback for external handling
         onModelSelect(modelDataForUnity);
       }
     } catch (error) {
-      console.error('[ModelPicker] Error fetching model route data:', error);
-      // Still proceed with model selection even if route data fails
       const fallbackModelData = {
         ...model,
         path: model.localPath,
         normalization_data: model.normalization_data,
-        modelRouteData: [], // Empty array if model route data fetch fails
+        modelRouteData: [],
       };
       
       if (enableDirectAR) {
-        // Launch AR directly with fallback data
         const unityData = {
           ...fallbackModelData,
           normalizationJson: fallbackModelData.normalization_data || {
@@ -182,7 +159,6 @@ export default function ModelPicker({
   };
 
   const handleDownload = async (model, event) => {
-    // Stop event propagation to prevent selecting the item
     if (event) {
       event.stopPropagation();
     }
@@ -194,14 +170,9 @@ export default function ModelPicker({
 
     try {
       setDownloadingModels(prev => new Set(prev).add(model.model_id));
-
-      console.log('Starting download for model:', model.model_id);
       await downloadFolderFromJson(model.download_urls_json, false);
 
-      // Check if model is now available
       const localPath = await findCragFolder(model.model_id);
-
-      // Update the model in the list
       setModels(prevModels =>
         prevModels.map(m =>
           m.model_id === model.model_id
@@ -212,7 +183,6 @@ export default function ModelPicker({
 
       Alert.alert('Success', 'Model downloaded successfully!');
     } catch (error) {
-      console.error('Download error:', error);
       Alert.alert('Error', 'Failed to download model. Please try again.');
     } finally {
       setDownloadingModels(prev => {
@@ -228,7 +198,6 @@ export default function ModelPicker({
     return model.name || `Model uploaded by ${model.user?.username || 'Unknown'}`;
   };
 
-  const hasAvailableModels = models.some(m => m.isAvailable);
   const hasModels = models.length > 0;
 
   if (loading) {
@@ -241,10 +210,6 @@ export default function ModelPicker({
       </View>
     );
   }
-
-
-
-  // Show models directly as a list (no dropdown)
   return (
     <View style={styles.container}>
       {!hasModels ? (
@@ -385,7 +350,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -395,49 +359,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-  },
-  dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  dropdownText: {
-    flex: 1,
-    fontSize: 15,
-    marginRight: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxHeight: '70%',
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  closeButton: {
-    padding: 4,
   },
   option: {
     flexDirection: 'row',

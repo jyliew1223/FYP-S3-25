@@ -241,6 +241,31 @@ export default function ProfileScreen() {
           </View>
         )}
 
+        {/* Model Management Menu Item */}
+        <TouchableOpacity
+          style={[
+            styles.menuCard,
+            { backgroundColor: colors.surface, borderColor: colors.divider },
+          ]}
+          onPress={() => navigation.navigate('ModelManagement')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuRow}>
+            <View style={[styles.menuIcon, { backgroundColor: colors.bg }]}>
+              <Ionicons name="cube-outline" size={24} color={colors.accent} />
+            </View>
+            <View style={styles.menuContent}>
+              <Text style={[styles.menuTitle, { color: colors.text }]}>
+                My 3D Models
+              </Text>
+              <Text style={[styles.menuSubtitle, { color: colors.textDim }]}>
+                Manage your uploaded models
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
+          </View>
+        </TouchableOpacity>
+
         {/* Bouldering stats card */}
         <View
           style={[
@@ -389,6 +414,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
+  menuCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  menuContent: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  menuSubtitle: {
+    fontSize: 12,
+  },
+
   headerRow: {
     flexDirection: 'row',
     gap: 16,
@@ -459,5 +514,14 @@ const styles = StyleSheet.create({
 
   activitiesCard: {
     height: 260,
+  },
+
+  chip: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: 'center',
+    gap: 2,
   },
 });

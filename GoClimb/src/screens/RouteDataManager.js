@@ -36,7 +36,6 @@ export default function RouteDataManager() {
   const [routeSelectionModal, setRouteSelectionModal] = useState(null);
   const [availableRoutes, setAvailableRoutes] = useState([]);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
-  const [filter, setFilter] = useState('all');
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
 
@@ -678,44 +677,7 @@ export default function RouteDataManager() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Route Data Manager</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <TouchableOpacity 
-            onPress={() => handleFilterChange('all')}
-            style={[
-              styles.filterButton,
-              filter === 'all' && { backgroundColor: colors.accent + '20' }
-            ]}>
-            <Ionicons 
-              name="apps" 
-              size={18} 
-              color={filter === 'all' ? colors.accent : colors.text} 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => handleFilterChange('local')}
-            style={[
-              styles.filterButton,
-              filter === 'local' && { backgroundColor: colors.accent + '20' }
-            ]}>
-            <Ionicons 
-              name="phone-portrait" 
-              size={18} 
-              color={filter === 'local' ? colors.accent : colors.text} 
-            />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => handleFilterChange('server')}
-            style={[
-              styles.filterButton,
-              filter === 'server' && { backgroundColor: colors.accent + '20' }
-            ]}>
-            <Ionicons 
-              name="cloud" 
-              size={18} 
-              color={filter === 'server' ? colors.accent : colors.text} 
-            />
-          </TouchableOpacity>
-        </View>
+        <View style={{ width: 24 }} />
       </View>
 
       {routeDataList.length === 0 ? (

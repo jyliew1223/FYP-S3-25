@@ -17,6 +17,7 @@ import RouteDetails from '../screens/RouteDetails';
 import AR from '../screens/AR';
 import ARCragList from '../screens/ARCragList';
 import UnityARScreen from '../screens/UnityARScreen';
+import UnityOutdoorARScreen from '../screens/UnityOutdoorARScreen';
 
 import Forum from '../screens/Forum';
 import PostDetail from '../screens/PostDetail';
@@ -24,6 +25,7 @@ import CreatePostScreen from '../screens/CreatePostScreen';
 import RouteDataManager from '../screens/RouteDataManager';
 import RankingOptionsScreen from '../screens/RankingOptionsScreen';
 import RankingListScreen from '../screens/RankingListScreen';
+import ModelManagementScreen from '../screens/ModelManagementScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -89,8 +91,17 @@ export default function RootNavigator({ navTheme }) {
           component={UnityARScreen}
           options={{ 
             headerShown: false,
-            gestureEnabled: false, // Disable swipe back gesture for fullscreen
-            animation: 'fade' // Smooth transition
+            gestureEnabled: false,
+            animation: 'fade'
+          }}
+        />
+        <Stack.Screen 
+          name="UnityOutdoorAR" 
+          component={UnityOutdoorARScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: false,
+            animation: 'fade'
           }}
         />
 
@@ -114,6 +125,11 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen
           name="RouteDataManager"
           component={RouteDataManager}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="ModelManagement"
+          component={ModelManagementScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

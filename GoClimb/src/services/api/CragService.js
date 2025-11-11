@@ -2,7 +2,6 @@
 
 import { CustomApiRequest, RequestMethod, BaseApiResponse } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
-import InitFirebaseApps from '../firebase/InitFirebaseApps';
 import App from '../../../App';
 
 const GRADE_TABLE = {
@@ -104,7 +103,6 @@ class GenericGetResponse extends BaseApiResponse {
 }
 
 async function fetchCragInfoGET(numericPkCragId) {
-  await InitFirebaseApps();
 
   const query = `?crag_id=${encodeURIComponent(numericPkCragId)}`;
 
@@ -136,7 +134,6 @@ async function fetchCragInfoGET(numericPkCragId) {
 }
 
 export async function fetchRoutesByCragIdGET(cragIdParam) {
-  await InitFirebaseApps();
 
   const payload = { crag_id: cragIdParam };
 
@@ -207,7 +204,6 @@ export async function fetchRouteByIdGET(routeId) {
 }
 
 export async function fetchRandomCrags(count = 10, blacklist = []) {
-  await InitFirebaseApps();
 
   const payload = {
     count: count.toString(),
@@ -286,8 +282,8 @@ export async function fetchAllCrag() {
     true
   );
 
-  const ok = await req.sendRequest(GenericGetResponse);
-  const res = req.Response;
+  const ok = await req.sendRequest();
+  const res = req.JsonObject;
 
   console.log('[fetchAllCrag] response:', res);
   console.log('[fetchAllCrag] raw data:', res?.data);
@@ -301,10 +297,7 @@ export async function fetchAllCrag() {
 
   const arr = Array.isArray(res.data) ? res.data : [];
   console.log('[fetchAllCrag] processing array:', arr);
-  
-  // Try returning raw data first to test
-  console.log('[fetchAllCrag] returning raw data for testing:', arr);
-  
+
   return {
     success: true,
     crags: arr, // Return raw data temporarily for debugging

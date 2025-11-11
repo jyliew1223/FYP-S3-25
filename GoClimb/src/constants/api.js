@@ -62,7 +62,11 @@ export const API_ENDPOINTS = {
     GET_ROUTES_BY_CRAG_ID: 'get_route_by_crag_id',
   }),
   CRAG_MODEL: withBase('crag_model/', {
-    GET_MODELS_BY_CRAG_ID: 'get_models_by_crag_id'
+    GET_MODELS_BY_CRAG_ID: 'get_models_by_crag_id',
+    UPLOAD: 'create_crag_model',
+    GET_BY_USER_ID: 'get_models_by_user_id',
+    DELETE: 'delete_crag_model',
+    UPDATE: 'update_crag_model'
   }),
   MODEL_ROUTE_DATA: withBase('model_route_data/', {
     CREATE: 'create_model_route_data',

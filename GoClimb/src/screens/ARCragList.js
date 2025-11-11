@@ -1,4 +1,3 @@
-// GoClimb/src/screens/ARCragList.js
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -26,6 +25,7 @@ export default function ARCragList() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCrag, setSelectedCrag] = useState(null);
   const [showModelPicker, setShowModelPicker] = useState(false);
+
 
   const loadCrags = useCallback(async () => {
     try {
@@ -62,15 +62,17 @@ export default function ARCragList() {
     setSelectedCrag(null);
   }, []);
 
+  const handleRealFieldAR = useCallback(() => {
+    navigation.navigate('UnityOutdoorAR');
+  }, [navigation]);
 
+  const getLocationText = useCallback((item) => {
+    const { city, country } = item.location_details || {};
+    return (city && country) ? `${city}, ${country}` : 
+           country || city || item.country || 'Unknown Location';
+  }, []);
 
   const renderCragItem = useCallback(({ item }) => {
-    // Format location from the API response structure
-    const getLocationText = (item) => {
-      const { city, country } = item.location_details || {};
-      return (city && country) ? `${city}, ${country}` : 
-             country || city || item.country || 'Unknown Location';
-    };
 
     return (
       <TouchableOpacity
@@ -96,7 +98,7 @@ export default function ARCragList() {
         </View>
       </TouchableOpacity>
     );
-  }, [colors, handleCragPress]);
+  }, [colors, handleCragPress, getLocationText]);
 
   const keyExtractor = useCallback((item) => item.crag_id || item.crag_pretty_id || item.id, []);
 
@@ -117,8 +119,6 @@ export default function ARCragList() {
       </SafeAreaView>
     );
   }
-
-
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -146,6 +146,15 @@ export default function ARCragList() {
               Select a crag to start your AR climbing experience
             </Text>
           </View>
+
+          <TouchableOpacity 
+            style={[styles.realFieldButton, { backgroundColor: colors.accent }]}
+            onPress={handleRealFieldAR}
+          >
+            <Ionicons name="globe-outline" size={24} color="#FFFFFF" />
+            <Text style={styles.realFieldButtonText}>Real Field AR</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
           
           <FlatList
             data={crags}
@@ -165,15 +174,20 @@ export default function ARCragList() {
         </>
       )}
 
-      {/* Model Picker Modal */}
+
       {showModelPicker && selectedCrag && (
         <Modal
           visible={showModelPicker}
-          transparent
+          transparent={true}
           animationType="slide"
           onRequestClose={handleCloseModelPicker}
         >
           <View style={styles.modelPickerOverlay}>
+            <TouchableOpacity 
+              style={styles.modalBackdrop} 
+              activeOpacity={1} 
+              onPress={handleCloseModelPicker}
+            />
             <View style={[styles.modelPickerContainer, { backgroundColor: colors.surface }]}>
               <View style={[styles.modelPickerHeader, { borderBottomColor: colors.divider }]}>
                 <TouchableOpacity onPress={handleCloseModelPicker}>
@@ -200,6 +214,10 @@ export default function ARCragList() {
           </View>
         </Modal>
       )}
+
+
+
+
     </SafeAreaView>
   );
 }
@@ -221,6 +239,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
+
   center: {
     flex: 1,
     justifyContent: 'center',
@@ -252,6 +271,31 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     flex: 1,
+  },
+  realFieldButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  realFieldButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: 12,
   },
   listContainer: {
     padding: 16,
@@ -297,11 +341,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-  // Model Picker Modal styles
+
   modelPickerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modelPickerContainer: {
     height: '80%',
@@ -326,4 +377,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+
+
+
 });
