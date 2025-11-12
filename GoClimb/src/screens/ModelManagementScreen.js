@@ -29,13 +29,13 @@ import { findCragFolder } from '../utils/LocalModelChecker';
 export default function ModelManagementScreen() {
   const navigation = useNavigation();
   const { colors } = useTheme();
-  
+
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingIds, setDeletingIds] = useState(new Set());
   const [downloadingIds, setDownloadingIds] = useState(new Set());
-  
+
   // Edit related states
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
@@ -49,7 +49,7 @@ export default function ModelManagementScreen() {
     rot_offset_y: '0',
     rot_offset_z: '0'
   });
-  
+
   // Upload related states
   const [crags, setCrags] = useState([]);
   const [selectedZipFile, setSelectedZipFile] = useState(null);
@@ -74,9 +74,9 @@ export default function ModelManagementScreen() {
       } else {
         setLoading(true);
       }
-      
+
       const response = await fetchCragByUserId();
-      
+
       if (response.success) {
         const modelsWithAvailability = await checkLocalAvailability(response.data || []);
         setModels(modelsWithAvailability);
@@ -109,12 +109,12 @@ export default function ModelManagementScreen() {
           style: 'destructive',
           onPress: async () => {
             setDeletingIds(prev => new Set([...prev, modelId]));
-            
+
             try {
               console.log('Attempting to delete model with ID:', modelId);
               const response = await deleteModel(modelId);
               console.log('Delete response:', response);
-              
+
               if (response?.success) {
                 setModels(prev => prev.filter(model => model.model_id !== modelId));
               } else {
@@ -163,47 +163,135 @@ export default function ModelManagementScreen() {
     loadCrags();
   }, [loadCrags]);
 
-  // Upload functionality
-  const requestStoragePermission = useCallback(async () => {
+  // Check if storage permissions are already granted
+  const checkStoragePermission = useCallback(async () => {
     if (Platform.OS !== 'android') return true;
 
     try {
-      const granted = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-      ]);
+      const apiLevel = Platform.Version;
+      
+      // For Android 13+ (API 33+), check granular media permissions
+      if (apiLevel >= 33) {
+        const permissions = [
+          'android.permission.READ_MEDIA_IMAGES',
+          'android.permission.READ_MEDIA_VIDEO',
+          'android.permission.READ_MEDIA_AUDIO',
+        ];
 
-      const readGranted = granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
-      const writeGranted = granted[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
+        const results = await Promise.all(
+          permissions.map(permission => PermissionsAndroid.check(permission))
+        );
 
-      return readGranted && writeGranted;
+        // Return true if at least one media permission is granted
+        return results.some(result => result === true);
+      }
+      // For Android 11-12 (API 30-32)
+      else if (apiLevel >= 30) {
+        return await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+      }
+      // For older Android versions
+      else {
+        const readGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE);
+        const writeGranted = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE);
+        return readGranted && writeGranted;
+      }
     } catch (error) {
+      console.error('Permission check error:', error);
       return false;
     }
   }, []);
 
+  // Request storage permissions (only if not already granted)
+  const requestStoragePermission = useCallback(async () => {
+    if (Platform.OS !== 'android') return true;
+
+    try {
+      // First check if we already have permissions to avoid unnecessary requests
+      const hasExistingPermission = await checkStoragePermission();
+      if (hasExistingPermission) {
+        return true;
+      }
+
+      const apiLevel = Platform.Version;
+      
+      // For Android 13+ (API 33+), request granular media permissions
+      if (apiLevel >= 33) {
+        const permissions = [
+          'android.permission.READ_MEDIA_IMAGES',
+          'android.permission.READ_MEDIA_VIDEO',
+          'android.permission.READ_MEDIA_AUDIO',
+        ];
+
+        const granted = await PermissionsAndroid.requestMultiple(permissions);
+        
+        // Check if at least one media permission was granted
+        return Object.values(granted).some(
+          permission => permission === PermissionsAndroid.RESULTS.GRANTED
+        );
+      }
+      // For Android 11-12 (API 30-32)
+      else if (apiLevel >= 30) {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      }
+      // For older Android versions
+      else {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+        ]);
+
+        const readGranted = granted[PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
+        const writeGranted = granted[PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE] === PermissionsAndroid.RESULTS.GRANTED;
+
+        return readGranted && writeGranted;
+      }
+    } catch (error) {
+      console.error('Permission request error:', error);
+      return false;
+    }
+  }, [checkStoragePermission]);
+
   const handleDocumentPicker = useCallback(async () => {
     try {
-      const hasPermission = await requestStoragePermission();
-      
-      if (!hasPermission) {
-        Alert.alert(
-          'Permission Required',
-          'Storage permission is required to access files. Please grant permission in Settings.'
-        );
-        return;
+      // For Android versions below 13, handle permissions
+      // Android 13+ uses scoped storage and doesn't need explicit permissions for document picker
+      if (Platform.OS === 'android' && Platform.Version < 33) {
+        // First check if we already have permission
+        const hasExistingPermission = await checkStoragePermission();
+        
+        if (!hasExistingPermission) {
+          // Only request permission if we don't have it
+          const hasPermission = await requestStoragePermission();
+
+          if (!hasPermission) {
+            Alert.alert(
+              'Permission Required',
+              'File access permission is needed to upload models. You can still try to select a file as the system picker may work without additional permissions.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Try Anyway', style: 'default' }
+              ]
+            );
+            // Continue anyway - document picker might still work with scoped storage
+          }
+        }
       }
 
       const result = await pick({
         type: [types.allFiles],
+        allowMultiSelection: false,
+        copyTo: 'cachesDirectory', // Helps with Android 15 compatibility
       });
-      
+
       if (result && result.length > 0) {
         const file = result[0];
-        const isZipFile = file.name.toLowerCase().endsWith('.zip') || 
-                         file.type === 'application/zip' ||
-                         file.type === 'application/x-zip-compressed';
-        
+        const isZipFile = file.name.toLowerCase().endsWith('.zip') ||
+          file.type === 'application/zip' ||
+          file.type === 'application/x-zip-compressed';
+
         if (isZipFile) {
           setSelectedZipFile(file);
           setTimeout(() => {
@@ -216,13 +304,17 @@ export default function ModelManagementScreen() {
           );
         }
       }
-      
+
     } catch (error) {
       if (error.code !== 'DOCUMENT_PICKER_CANCELED') {
-        Alert.alert('Error', `Failed to open file picker:\n${error.message || error.toString()}`);
+        console.error('Document picker error:', error);
+        Alert.alert(
+          'Error', 
+          'Failed to open file picker. Please try again or select the file from a different location.'
+        );
       }
     }
-  }, [requestStoragePermission]);
+  }, [checkStoragePermission, requestStoragePermission]);
 
   const handleCragSelectionCancel = useCallback(() => {
     setShowCragSelection(false);
@@ -264,13 +356,13 @@ export default function ModelManagementScreen() {
     }
 
     setShowNameInput(false);
-    
+
     try {
       Alert.alert(
         'Uploading...',
         `Uploading "${modelName}" to "${selectedCragForUpload.name}"\n\nPlease wait...`
       );
-      
+
       const normalizationDataObj = {
         scale: parseFloat(normalizationData.scale) || 0.001,
         pos_offset: {
@@ -291,13 +383,13 @@ export default function ModelManagementScreen() {
         uploadType: 'zip_file',
         normalization_data: normalizationDataObj
       };
-      
+
       const result = await UploadModel(
         selectedCragForUpload.crag_id || selectedCragForUpload.crag_pretty_id,
         modelData,
         selectedZipFile
       );
-      
+
       if (result.success) {
         Alert.alert(
           'Upload Successful! 🎉',
@@ -311,7 +403,7 @@ export default function ModelManagementScreen() {
           result.message || 'Failed to upload the ZIP file. Please try again.'
         );
       }
-      
+
     } catch (error) {
       Alert.alert(
         'Upload Error',
@@ -324,8 +416,8 @@ export default function ModelManagementScreen() {
 
   const getLocationText = useCallback((item) => {
     const { city, country } = item.location_details || {};
-    return (city && country) ? `${city}, ${country}` : 
-           country || city || item.country || 'Unknown Location';
+    return (city && country) ? `${city}, ${country}` :
+      country || city || item.country || 'Unknown Location';
   }, []);
 
   // Unity IndoorScene functionality
@@ -357,7 +449,7 @@ export default function ModelManagementScreen() {
   const handleEditModel = useCallback((model) => {
     setEditingModel(model);
     setEditModelName(model.name || '');
-    
+
     // Set normalization data from model or use defaults
     const normData = model.normalization_data || {};
     setEditNormalizationData({
@@ -369,7 +461,7 @@ export default function ModelManagementScreen() {
       rot_offset_y: normData.rot_offset?.y?.toString() || '0',
       rot_offset_z: normData.rot_offset?.z?.toString() || '0'
     });
-    
+
     setShowEditModal(true);
   }, []);
 
@@ -425,7 +517,7 @@ export default function ModelManagementScreen() {
               : model
           )
         );
-        
+
         Alert.alert('Success', 'Model updated successfully!');
         handleEditCancel();
       } else {
@@ -446,11 +538,11 @@ export default function ModelManagementScreen() {
 
     try {
       setDownloadingIds(prev => new Set(prev).add(model.model_id));
-      
+
       await downloadFolderFromJson(model.download_urls_json, false);
-      
+
       const localPath = await findCragFolder(model.model_id);
-      
+
       if (localPath) {
         // Update the model's local availability in the state
         setModels(prevModels =>
@@ -518,7 +610,7 @@ export default function ModelManagementScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>My Models</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.uploadButton, { backgroundColor: colors.accent }]}
           onPress={handleDocumentPicker}
         >
@@ -591,7 +683,7 @@ export default function ModelManagementScreen() {
               </Text>
               <View style={{ width: 24 }} />
             </View>
-            
+
             <View style={styles.cragSelectionBody}>
               <Text style={[styles.uploadInfo, { color: colors.textDim }]}>
                 Uploading ZIP file: {selectedZipFile.name}
@@ -599,7 +691,7 @@ export default function ModelManagementScreen() {
               <Text style={[styles.uploadSize, { color: colors.textDim }]}>
                 Size: {Math.round(selectedZipFile.size / 1024)} KB
               </Text>
-              
+
               <FlatList
                 data={crags}
                 keyExtractor={(item) => item.crag_id || item.crag_pretty_id || item.id}
@@ -612,14 +704,14 @@ export default function ModelManagementScreen() {
                     onPress={() => handleCragSelectedForUpload(crag)}
                   >
                     <View style={styles.cragSelectionInfo}>
-                      <Text 
+                      <Text
                         style={[styles.cragSelectionName, { color: colors.text }]}
                         numberOfLines={1}
                         ellipsizeMode="tail"
                       >
                         {crag.name}
                       </Text>
-                      <Text 
+                      <Text
                         style={[styles.cragSelectionLocation, { color: colors.textDim }]}
                         numberOfLines={1}
                         ellipsizeMode="tail"
@@ -644,9 +736,9 @@ export default function ModelManagementScreen() {
           onRequestClose={handleNameInputCancel}
         >
           <View style={styles.nameInputOverlay}>
-            <TouchableOpacity 
-              style={styles.modalBackdrop} 
-              activeOpacity={1} 
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
               onPress={handleNameInputCancel}
             />
             <View style={[styles.nameInputContainer, { backgroundColor: colors.surface }]}>
@@ -661,16 +753,16 @@ export default function ModelManagementScreen() {
                   <Ionicons name="checkmark" size={24} color={colors.accent} />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.nameInputBody}>
                 <Text style={[styles.nameInputLabel, { color: colors.text }]}>
                   Model Name
                 </Text>
                 <TextInput
-                  style={[styles.nameInputField, { 
-                    backgroundColor: colors.bg, 
+                  style={[styles.nameInputField, {
+                    backgroundColor: colors.bg,
                     borderColor: colors.divider,
-                    color: colors.text 
+                    color: colors.text
                   }]}
                   value={modelName}
                   onChangeText={setModelName}
@@ -683,15 +775,15 @@ export default function ModelManagementScreen() {
                 <Text style={[styles.nameInputLabel, { color: colors.text, marginTop: 16 }]}>
                   Normalization Settings
                 </Text>
-                
+
                 <View style={styles.normalizationRow}>
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Scale</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={normalizationData.scale}
                       onChangeText={(text) => setNormalizationData(prev => ({ ...prev, scale: text }))}
@@ -707,10 +799,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>X</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={normalizationData.pos_offset_x}
                       onChangeText={(text) => setNormalizationData(prev => ({ ...prev, pos_offset_x: text }))}
@@ -722,10 +814,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Y</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={normalizationData.pos_offset_y}
                       onChangeText={(text) => setNormalizationData(prev => ({ ...prev, pos_offset_y: text }))}
@@ -737,10 +829,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Z</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={normalizationData.pos_offset_z}
                       onChangeText={(text) => setNormalizationData(prev => ({ ...prev, pos_offset_z: text }))}
@@ -756,10 +848,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>X</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={normalizationData.rot_offset_x}
                       onChangeText={(text) => setNormalizationData(prev => ({ ...prev, rot_offset_x: text }))}
@@ -771,10 +863,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Y</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={normalizationData.rot_offset_y}
                       onChangeText={(text) => setNormalizationData(prev => ({ ...prev, rot_offset_y: text }))}
@@ -786,10 +878,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Z</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={normalizationData.rot_offset_z}
                       onChangeText={(text) => setNormalizationData(prev => ({ ...prev, rot_offset_z: text }))}
@@ -799,23 +891,23 @@ export default function ModelManagementScreen() {
                     />
                   </View>
                 </View>
-                
+
                 <Text style={[styles.nameInputInfo, { color: colors.textDim }]}>
                   Uploading to: {selectedCragForUpload.name}
                 </Text>
                 <Text style={[styles.nameInputFileInfo, { color: colors.textDim }]}>
                   File: {selectedZipFile?.name}
                 </Text>
-                
+
                 <View style={styles.nameInputButtons}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.nameInputButton, styles.cancelButton, { borderColor: colors.divider }]}
                     onPress={handleNameInputCancel}
                   >
                     <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={[styles.nameInputButton, styles.confirmButton, { backgroundColor: colors.accent }]}
                     onPress={handleNameInputConfirm}
                   >
@@ -837,9 +929,9 @@ export default function ModelManagementScreen() {
           onRequestClose={handleEditCancel}
         >
           <View style={styles.nameInputOverlay}>
-            <TouchableOpacity 
-              style={styles.modalBackdrop} 
-              activeOpacity={1} 
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
               onPress={handleEditCancel}
             />
             <View style={[styles.nameInputContainer, { backgroundColor: colors.surface }]}>
@@ -854,16 +946,16 @@ export default function ModelManagementScreen() {
                   <Ionicons name="checkmark" size={24} color={colors.accent} />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.nameInputBody}>
                 <Text style={[styles.nameInputLabel, { color: colors.text }]}>
                   Model Name
                 </Text>
                 <TextInput
-                  style={[styles.nameInputField, { 
-                    backgroundColor: colors.bg, 
+                  style={[styles.nameInputField, {
+                    backgroundColor: colors.bg,
                     borderColor: colors.divider,
-                    color: colors.text 
+                    color: colors.text
                   }]}
                   value={editModelName}
                   onChangeText={setEditModelName}
@@ -876,15 +968,15 @@ export default function ModelManagementScreen() {
                 <Text style={[styles.nameInputLabel, { color: colors.text, marginTop: 16 }]}>
                   Normalization Settings
                 </Text>
-                
+
                 <View style={styles.normalizationRow}>
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Scale</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={editNormalizationData.scale}
                       onChangeText={(text) => setEditNormalizationData(prev => ({ ...prev, scale: text }))}
@@ -900,10 +992,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>X</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={editNormalizationData.pos_offset_x}
                       onChangeText={(text) => setEditNormalizationData(prev => ({ ...prev, pos_offset_x: text }))}
@@ -915,10 +1007,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Y</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={editNormalizationData.pos_offset_y}
                       onChangeText={(text) => setEditNormalizationData(prev => ({ ...prev, pos_offset_y: text }))}
@@ -930,10 +1022,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Z</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={editNormalizationData.pos_offset_z}
                       onChangeText={(text) => setEditNormalizationData(prev => ({ ...prev, pos_offset_z: text }))}
@@ -949,10 +1041,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>X</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={editNormalizationData.rot_offset_x}
                       onChangeText={(text) => setEditNormalizationData(prev => ({ ...prev, rot_offset_x: text }))}
@@ -964,10 +1056,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Y</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={editNormalizationData.rot_offset_y}
                       onChangeText={(text) => setEditNormalizationData(prev => ({ ...prev, rot_offset_y: text }))}
@@ -979,10 +1071,10 @@ export default function ModelManagementScreen() {
                   <View style={styles.normalizationField}>
                     <Text style={[styles.normalizationLabel, { color: colors.textDim }]}>Z</Text>
                     <TextInput
-                      style={[styles.normalizationInput, { 
-                        backgroundColor: colors.bg, 
+                      style={[styles.normalizationInput, {
+                        backgroundColor: colors.bg,
                         borderColor: colors.divider,
-                        color: colors.text 
+                        color: colors.text
                       }]}
                       value={editNormalizationData.rot_offset_z}
                       onChangeText={(text) => setEditNormalizationData(prev => ({ ...prev, rot_offset_z: text }))}
@@ -992,20 +1084,20 @@ export default function ModelManagementScreen() {
                     />
                   </View>
                 </View>
-                
+
                 <Text style={[styles.nameInputInfo, { color: colors.textDim }]}>
                   Editing: {editingModel.name}
                 </Text>
-                
+
                 <View style={styles.nameInputButtons}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[styles.nameInputButton, styles.cancelButton, { borderColor: colors.divider }]}
                     onPress={handleEditCancel}
                   >
                     <Text style={[styles.cancelButtonText, { color: colors.text }]}>Cancel</Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={[styles.nameInputButton, styles.confirmButton, { backgroundColor: colors.accent }]}
                     onPress={handleEditConfirm}
                   >
@@ -1047,10 +1139,10 @@ function ModelCard({ model, colors, onDelete, onDownload, onOpenUnity, onEdit, i
               </Text>
             )}
             <View style={styles.statusIndicator}>
-              <Ionicons 
-                name={model.isAvailable ? "checkmark-circle" : "cloud-outline"} 
-                size={14} 
-                color={model.isAvailable ? colors.accent : colors.textDim} 
+              <Ionicons
+                name={model.isAvailable ? "checkmark-circle" : "cloud-outline"}
+                size={14}
+                color={model.isAvailable ? colors.accent : colors.textDim}
               />
               <Text style={[styles.statusText, { color: model.isAvailable ? colors.accent : colors.textDim }]}>
                 {model.isAvailable ? 'Downloaded' : 'Cloud only'}
@@ -1124,7 +1216,7 @@ function ModelCard({ model, colors, onDelete, onDownload, onOpenUnity, onEdit, i
           </TouchableOpacity>
         </View>
       </View>
-      
+
       {model.description && (
         <Text style={[styles.modelDescription, { color: colors.textDim }]} numberOfLines={2}>
           {model.description}
@@ -1136,7 +1228,7 @@ function ModelCard({ model, colors, onDelete, onDownload, onOpenUnity, onEdit, i
 
 function formatFileSize(bytes) {
   if (!bytes) return 'Unknown';
-  
+
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
