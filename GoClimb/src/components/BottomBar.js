@@ -5,11 +5,13 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 
 export default function BottomBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const nav = useNavigation();
+  const { user } = useAuth();
 
   // Get current route name
   const currentRoute = state.routes[state.index];
@@ -19,7 +21,14 @@ export default function BottomBar({ state, descriptors, navigation }) {
   const showLogClimbButton = ['Home', 'Map', 'Routes'].includes(currentRouteName);
 
   const handleLogClimb = () => {
-    nav.navigate('LogClimb');
+    // Check if user is logged in
+    if (!user) {
+      // Redirect to signup/login if not logged in
+      nav.navigate('SignUp');
+    } else {
+      // Navigate to log climb screen if logged in
+      nav.navigate('LogClimb');
+    }
   };
 
   return (

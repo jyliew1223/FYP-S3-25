@@ -1,17 +1,24 @@
 // src/screens/MapScreen.js
 
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, PermissionsAndroid, Platform, ActivityIndicator, Text } from 'react-native';
+import { StyleSheet, View, PermissionsAndroid, Platform, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapView from 'react-native-map-clustering';
 import { useNavigation } from '@react-navigation/native';
-import { fetchAllCragsBootstrap } from '../services/api/CragService';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { fetchAllCragsBootstrap, fetchRoutesByCragIdGET } from '../services/api/CragService';
+import { convertNumericGradeToFont } from '../utils/gradeConverter';
+import { useTheme } from '../context/ThemeContext';
 
 export default function MapScreen() {
     const navigation = useNavigation();
+    const { colors } = useTheme();
     const [hasLocationPermission, setHasLocationPermission] = useState(Platform.OS === 'ios');
     const [crags, setCrags] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedCrag, setSelectedCrag] = useState(null);
+    const [cragRoutes, setCragRoutes] = useState([]);
+    const [loadingRoutes, setLoadingRoutes] = useState(false);
 
     useEffect(() => {
         const requestLocationPermission = async () => {
@@ -42,10 +49,57 @@ export default function MapScreen() {
         loadCrags();
     }, []);
 
-    const handleMarkerPress = (crag) => {
+    const handleMarkerPress = async (crag) => {
         console.log('[MapScreen] Marker pressed:', crag.name);
-        // Navigate to crag details or show info
-        navigation.navigate('Crags');
+        setSelectedCrag(crag);
+        setLoadingRoutes(true);
+        setCragRoutes([]);
+
+        try {
+            const cragIdToUse = crag.crag_pretty_id || crag.crag_pk;
+            const { success, routes } = await fetchRoutesByCragIdGET(cragIdToUse);
+            
+            if (success && routes) {
+                setCragRoutes(routes);
+            }
+        } catch (error) {
+            console.log('[MapScreen] Error loading routes:', error);
+        }
+        
+        setLoadingRoutes(false);
+    };
+
+    const handleSeeAllRoutes = () => {
+        if (!selectedCrag) return;
+        
+        // Navigate to Routes tab (which is CragsScreen) and pass the crag to auto-expand
+        navigation.navigate('MainTabs', {
+            screen: 'Routes',
+            params: {
+                expandCragId: selectedCrag.crag_pk,
+            },
+        });
+        
+        setSelectedCrag(null);
+    };
+
+    const calculateAverageGrade = (routes) => {
+        if (!routes || routes.length === 0) return '—';
+        
+        const grades = routes
+            .map(route => {
+                const gradeRaw = route.route_grade || route.grade || route.gradeRaw;
+                return Number(gradeRaw);
+            })
+            .filter(grade => !isNaN(grade) && grade > 0);
+        
+        if (grades.length === 0) return '—';
+        
+        const sum = grades.reduce((acc, grade) => acc + grade, 0);
+        const avg = sum / grades.length;
+        const roundedDown = Math.floor(avg);
+        
+        return convertNumericGradeToFont(roundedDown);
     };
 
     const renderCluster = (cluster) => {
@@ -125,6 +179,69 @@ export default function MapScreen() {
                 <View style={styles.loadingOverlay}>
                     <ActivityIndicator size="large" color="#FF6B6B" />
                     <Text style={styles.loadingText}>Loading crags...</Text>
+                </View>
+            )}
+
+            {/* Crag Info Card */}
+            {selectedCrag && (
+                <View style={[styles.cragInfoCard, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                    <View style={styles.cragInfoHeader}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.cragInfoTitle, { color: colors.text }]}>
+                                {selectedCrag.name}
+                            </Text>
+                            <Text style={[styles.cragInfoSubtitle, { color: colors.textDim }]}>
+                                {selectedCrag.country || 'Climbing Crag'}
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => setSelectedCrag(null)}
+                            style={styles.closeButton}
+                        >
+                            <Ionicons name="close" size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
+
+                    {loadingRoutes ? (
+                        <View style={styles.cragInfoLoading}>
+                            <ActivityIndicator color={colors.accent} />
+                            <Text style={[styles.cragInfoLoadingText, { color: colors.textDim }]}>
+                                Loading routes...
+                            </Text>
+                        </View>
+                    ) : (
+                        <>
+                            <View style={styles.cragInfoStats}>
+                                <View style={styles.statItem}>
+                                    <Ionicons name="trail-sign" size={20} color={colors.accent} />
+                                    <Text style={[styles.statValue, { color: colors.text }]}>
+                                        {cragRoutes.length}
+                                    </Text>
+                                    <Text style={[styles.statLabel, { color: colors.textDim }]}>
+                                        {cragRoutes.length === 1 ? 'Route' : 'Routes'}
+                                    </Text>
+                                </View>
+                                <View style={styles.statDivider} />
+                                <View style={styles.statItem}>
+                                    <Ionicons name="stats-chart" size={20} color={colors.accent} />
+                                    <Text style={[styles.statValue, { color: colors.text }]}>
+                                        {calculateAverageGrade(cragRoutes)}
+                                    </Text>
+                                    <Text style={[styles.statLabel, { color: colors.textDim }]}>
+                                        Avg. Grade
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <TouchableOpacity
+                                style={[styles.seeAllButton, { backgroundColor: colors.accent }]}
+                                onPress={handleSeeAllRoutes}
+                            >
+                                <Text style={styles.seeAllButtonText}>See All Routes</Text>
+                                <Ionicons name="arrow-forward" size={18} color="white" />
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             )}
         </View>
@@ -210,5 +327,81 @@ const styles = StyleSheet.create({
         borderRightColor: 'transparent',
         borderTopColor: '#4A90E2',
         marginTop: -2,
+    },
+    // Crag info card styles
+    cragInfoCard: {
+        position: 'absolute',
+        bottom: 20,
+        left: 16,
+        right: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    cragInfoHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 16,
+    },
+    cragInfoTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        marginBottom: 4,
+    },
+    cragInfoSubtitle: {
+        fontSize: 14,
+    },
+    closeButton: {
+        padding: 4,
+        marginLeft: 8,
+    },
+    cragInfoLoading: {
+        paddingVertical: 20,
+        alignItems: 'center',
+    },
+    cragInfoLoadingText: {
+        marginTop: 8,
+        fontSize: 14,
+    },
+    cragInfoStats: {
+        flexDirection: 'row',
+        marginBottom: 16,
+    },
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+        gap: 4,
+    },
+    statValue: {
+        fontSize: 24,
+        fontWeight: '800',
+        marginTop: 4,
+    },
+    statLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    statDivider: {
+        width: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        marginHorizontal: 16,
+    },
+    seeAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        borderRadius: 12,
+        gap: 8,
+    },
+    seeAllButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

@@ -17,7 +17,7 @@ import {
   fetchRoutesByCragIdGET,
 } from '../services/api/CragService';
 
-export default function CragsScreen({ navigation }) {
+export default function CragsScreen({ navigation, route }) {
   const { colors } = useTheme();
 
   // crags array we render in UI
@@ -63,6 +63,17 @@ export default function CragsScreen({ navigation }) {
   useEffect(() => {
     loadCrags();
   }, []);
+
+  // Handle auto-expand from navigation params
+  useEffect(() => {
+    const expandCragId = route?.params?.expandCragId;
+    if (expandCragId && crags.length > 0) {
+      const cragToExpand = crags.find(c => c.crag_pk === expandCragId);
+      if (cragToExpand) {
+        onToggleCrag(cragToExpand);
+      }
+    }
+  }, [route?.params?.expandCragId, crags]);
 
   async function onToggleCrag(crag) {
     const pk = crag.crag_pk;

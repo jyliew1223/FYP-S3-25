@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -31,23 +30,29 @@ export default function EditProfileScreen() {
   const [username, setUsername] = useState(currentUsername);
   const [email, setEmail] = useState(currentEmail);
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState({ message: '', type: '' }); // type: 'success' | 'error'
+
+  const showToast = (message, type = 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast({ message: '', type: '' }), 3000);
+  };
 
   const handleSave = async () => {
     // Validation
     if (!username.trim()) {
-      Alert.alert('Error', 'Username cannot be empty');
+      showToast('Username cannot be empty', 'error');
       return;
     }
 
     if (!email.trim()) {
-      Alert.alert('Error', 'Email cannot be empty');
+      showToast('Email cannot be empty', 'error');
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
+      showToast('Please enter a valid email address', 'error');
       return;
     }
 
@@ -60,21 +65,16 @@ export default function EditProfileScreen() {
       });
 
       if (result.ok) {
-        Alert.alert('Success', 'Profile updated successfully', [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
+        showToast('Profile updated successfully!', 'success');
+        setTimeout(() => {
+          navigation.goBack();
+        }, 1500);
       } else {
-        Alert.alert(
-          'Error',
-          result.message || 'Failed to update profile',
-        );
+        showToast(result.message || 'Failed to update profile', 'error');
       }
     } catch (error) {
       console.log('[EditProfileScreen] Error:', error);
-      Alert.alert('Error', error.message || 'Failed to update profile');
+      showToast(error.message || 'Failed to update profile', 'error');
     } finally {
       setLoading(false);
     }
@@ -117,6 +117,26 @@ export default function EditProfileScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Toast Notification */}
+      {toast.message ? (
+        <View
+          style={[
+            styles.toast,
+            {
+              backgroundColor: toast.type === 'success' ? '#4CAF50' : '#FF6B6B',
+            },
+          ]}
+        >
+          <Ionicons
+            name={toast.type === 'success' ? 'checkmark-circle' : 'alert-circle'}
+            size={20}
+            color="white"
+            style={{ marginRight: 8 }}
+          />
+          <Text style={styles.toastText}>{toast.message}</Text>
+        </View>
+      ) : null}
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -231,5 +251,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 8,
     lineHeight: 18,
+  },
+  toast: {
+    position: 'absolute',
+    top: 70,
+    left: 16,
+    right: 16,
+    zIndex: 1000,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  toastText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
   },
 });

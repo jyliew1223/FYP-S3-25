@@ -11,7 +11,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -33,6 +33,7 @@ export default function PostDetail() {
   const navigation = useNavigation();
   const route = useRoute();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const { postId } = route.params || {};
 
@@ -589,6 +590,7 @@ export default function PostDetail() {
           {
             backgroundColor: colors.surface,
             borderTopColor: colors.divider,
+            bottom: insets.bottom,
           },
         ]}
       >

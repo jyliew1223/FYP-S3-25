@@ -244,41 +244,55 @@ export default function HomeScreen() {
 
             <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
-            <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} colors={colors} />
-            <DrawerItem 
-              icon="camera-outline" 
-              label="AR Experience" 
-              onPress={() => {
-                setMenuOpen(false);
-                navigation.navigate('ARCragList');
-              }} 
-              colors={colors} 
-            />
+            <View style={{ flex: 1 }}>
+              <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} colors={colors} />
+              
+              {/* Only show these options if user is logged in */}
+              {user && (
+                <>
+                  <DrawerItem 
+                    icon="camera-outline" 
+                    label="AR Experience" 
+                    onPress={() => {
+                      setMenuOpen(false);
+                      navigation.navigate('ARCragList');
+                    }} 
+                    colors={colors} 
+                  />
 
-            <DrawerItem 
-              icon="folder-outline" 
-              label="Route Data Manager" 
-              onPress={() => {
-                setMenuOpen(false);
-                navigation.navigate('RouteDataManager');
-              }} 
-              colors={colors} 
-            />
-            <DrawerItem 
-              icon="cube-outline" 
-              label="My 3D Models" 
-              onPress={() => {
-                setMenuOpen(false);
-                navigation.navigate('ModelManagement');
-              }} 
-              colors={colors} 
-            />
-            <DrawerItem
-              icon={user ? 'log-out-outline' : 'log-in-outline'}
-              label={user ? 'Logout' : 'Login / Sign Up'}
-              onPress={handleLoginLogout}
-              colors={colors}
-            />
+                  <DrawerItem 
+                    icon="folder-outline" 
+                    label="Route Data Manager" 
+                    onPress={() => {
+                      setMenuOpen(false);
+                      navigation.navigate('RouteDataManager');
+                    }} 
+                    colors={colors} 
+                  />
+                  
+                  <DrawerItem 
+                    icon="cube-outline" 
+                    label="My 3D Models" 
+                    onPress={() => {
+                      setMenuOpen(false);
+                      navigation.navigate('ModelManagement');
+                    }} 
+                    colors={colors} 
+                  />
+                </>
+              )}
+            </View>
+
+            {/* Login/Logout at the bottom */}
+            <View style={{ paddingBottom: 20 }}>
+              <View style={[styles.divider, { backgroundColor: colors.divider, marginBottom: 12 }]} />
+              <DrawerItem
+                icon={user ? 'log-out-outline' : 'log-in-outline'}
+                label={user ? 'Logout' : 'Login / Sign Up'}
+                onPress={handleLoginLogout}
+                colors={colors}
+              />
+            </View>
           </Animated.View>
         </>
       )}

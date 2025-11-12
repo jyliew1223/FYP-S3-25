@@ -89,8 +89,8 @@ android {
         versionCode 1
         versionName "1.0"
         
-        ndk {
-            abiFilters "arm64-v8a" // Match Unity's architecture
+        ndk {  
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
     }
     signingConfigs {
@@ -115,6 +115,31 @@ android {
     }
     buildFeatures {
         buildConfig true // <--- enable BuildConfig generation
+    }
+    
+    sourceSets {
+        main {
+            jniLibs.srcDirs = [
+                'src/main/jniLibs',
+                '../unityLibrary/src/main/jniLibs'
+            ]
+        }
+    }
+    
+    packagingOptions {
+        // Handle duplicate libc++_shared.so from Unity and React Native
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+        pickFirst 'lib/x86/libc++_shared.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+        
+        // Exclude duplicate React Native libs but keep react-native-screens
+        pickFirst '**/libjsi.so'
+        pickFirst '**/libreactnativejni.so'
+        pickFirst '**/libfbjni.so'
+        
+        // DO NOT exclude librnscreens.so - we need it!
+        pickFirst 'lib/**/librnscreens.so'
     }
 }
 

@@ -46,6 +46,10 @@ export default function LogClimbScreen() {
   // Modal states
   const [cragModalVisible, setCragModalVisible] = useState(false);
   const [routeModalVisible, setRouteModalVisible] = useState(false);
+  
+  // Dropdown position tracking
+  const [cragDropdownLayout, setCragDropdownLayout] = useState(null);
+  const [routeDropdownLayout, setRouteDropdownLayout] = useState(null);
 
   // Dropdown data
   const [cragData, setCragData] = useState([]);
@@ -54,6 +58,10 @@ export default function LogClimbScreen() {
   const [cragsMap, setCragsMap] = useState({});
   const [routesMap, setRoutesMap] = useState({});
   const [loadingData, setLoadingData] = useState(false);
+
+  // Search states
+  const [cragSearchQuery, setCragSearchQuery] = useState('');
+  const [routeSearchQuery, setRouteSearchQuery] = useState('');
 
   // Modal state
   const [datePickerVisible, setDatePickerVisible] = useState(false);
@@ -186,6 +194,10 @@ export default function LogClimbScreen() {
         setDateClimbed(getTodayDate());
         setTopped(false);
         setAttempts('1');
+        // Navigate back to home screen
+        setTimeout(() => {
+          navigation.navigate('MainTabs', { screen: 'Home' });
+        }, 500);
       } else {
         showToast(res?.message || 'Failed to log climb');
       }
@@ -242,41 +254,57 @@ export default function LogClimbScreen() {
 
           {/* Crag Selector */}
           <Text style={[styles.label, { color: colors.text }]}>Crag *</Text>
-          <TouchableOpacity
-            onPress={() => setCragModalVisible(true)}
-            style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.divider }]}
-          >
-            <Text style={[
-              selectedCragKey ? styles.selectedTextStyle : styles.placeholderStyle, 
-              { color: selectedCragKey ? colors.text : colors.textDim }
-            ]}>
-              {selectedCragKey ? cragData.find(c => c.value === selectedCragKey)?.label : "Select a crag"}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={colors.textDim} />
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.currentTarget.measure((x, y, width, height, pageX, pageY) => {
+                  setCragDropdownLayout({ x: pageX, y: pageY, width, height });
+                  setCragModalVisible(true);
+                });
+              }}
+              style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.divider }]}
+            >
+              <Text style={[
+                selectedCragKey ? styles.selectedTextStyle : styles.placeholderStyle, 
+                { color: selectedCragKey ? colors.text : colors.textDim }
+              ]}>
+                {selectedCragKey ? cragData.find(c => c.value === selectedCragKey)?.label : "Select a crag"}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={colors.textDim} />
+            </TouchableOpacity>
+          </View>
 
           {/* Route Selector */}
           <Text style={[styles.label, { color: colors.text }]}>Route *</Text>
-          <TouchableOpacity
-            onPress={() => selectedCragKey && setRouteModalVisible(true)}
-            style={[
-              styles.dropdown, 
-              { 
-                backgroundColor: colors.surface, 
-                borderColor: colors.divider,
-                opacity: selectedCragKey ? 1 : 0.5,
-              }
-            ]}
-            disabled={!selectedCragKey}
-          >
-            <Text style={[
-              selectedRouteKey ? styles.selectedTextStyle : styles.placeholderStyle, 
-              { color: selectedRouteKey ? colors.text : colors.textDim }
-            ]}>
-              {selectedRouteKey ? filteredRouteData.find(r => r.value === selectedRouteKey)?.label : (selectedCragKey ? "Select a route" : "Select a crag first")}
-            </Text>
-            <Ionicons name="chevron-down" size={20} color={colors.textDim} />
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              onPress={(e) => {
+                if (selectedCragKey) {
+                  e.currentTarget.measure((x, y, width, height, pageX, pageY) => {
+                    setRouteDropdownLayout({ x: pageX, y: pageY, width, height });
+                    setRouteModalVisible(true);
+                  });
+                }
+              }}
+              style={[
+                styles.dropdown, 
+                { 
+                  backgroundColor: colors.surface, 
+                  borderColor: colors.divider,
+                  opacity: selectedCragKey ? 1 : 0.5,
+                }
+              ]}
+              disabled={!selectedCragKey}
+            >
+              <Text style={[
+                selectedRouteKey ? styles.selectedTextStyle : styles.placeholderStyle, 
+                { color: selectedRouteKey ? colors.text : colors.textDim }
+              ]}>
+                {selectedRouteKey ? filteredRouteData.find(r => r.value === selectedRouteKey)?.label : (selectedCragKey ? "Select a route" : "Select a crag first")}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color={colors.textDim} />
+            </TouchableOpacity>
+          </View>
 
           {/* Date Climbed */}
           <Text style={[styles.label, { color: colors.text }]}>Date Climbed *</Text>
@@ -391,89 +419,191 @@ export default function LogClimbScreen() {
       </Modal>
 
       {/* Crag Selection Modal */}
-      <Modal
-        visible={cragModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setCragModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setCragModalVisible(false)}
+      {cragModalVisible && cragDropdownLayout && (
+        <Modal
+          visible={cragModalVisible}
+          transparent={true}
+          animationType="none"
+          onRequestClose={() => {
+            setCragModalVisible(false);
+            setCragSearchQuery('');
+          }}
         >
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Crag</Text>
-              <TouchableOpacity onPress={() => setCragModalVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalList}>
-              {cragData.map((crag) => (
-                <TouchableOpacity
-                  key={crag.value}
-                  style={[styles.modalItem, { borderBottomColor: colors.divider }]}
-                  onPress={() => {
-                    setSelectedCragKey(crag.value);
-                    setSelectedRouteKey(''); // Reset route selection
-                    setCragModalVisible(false);
-                  }}
-                >
-                  <Text style={[styles.modalItemText, { color: colors.text }]}>
-                    {crag.label}
+          <TouchableOpacity
+            style={styles.dropdownOverlay}
+            activeOpacity={1}
+            onPress={() => {
+              setCragModalVisible(false);
+              setCragSearchQuery('');
+            }}
+          >
+            <View 
+              style={[
+                styles.dropdownMenu, 
+                { 
+                  backgroundColor: colors.surface,
+                  borderColor: colors.divider,
+                  top: cragDropdownLayout.y + cragDropdownLayout.height - 25,
+                  left: cragDropdownLayout.x,
+                  width: cragDropdownLayout.width,
+                }
+              ]}
+            >
+              {/* Search Input */}
+              <View style={[styles.searchContainer, { borderBottomColor: colors.divider }]}>
+                <Ionicons name="search" size={18} color={colors.textDim} style={styles.searchIcon} />
+                <TextInput
+                  value={cragSearchQuery}
+                  onChangeText={setCragSearchQuery}
+                  placeholder="Search crags..."
+                  placeholderTextColor={colors.textDim}
+                  style={[styles.searchInput, { color: colors.text }]}
+                  autoFocus
+                />
+                {cragSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setCragSearchQuery('')}>
+                    <Ionicons name="close-circle" size={18} color={colors.textDim} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {loadingData ? (
+                <View style={styles.dropdownLoading}>
+                  <ActivityIndicator color={colors.accent} />
+                  <Text style={[styles.dropdownLoadingText, { color: colors.textDim }]}>
+                    Loading crags...
                   </Text>
-                  {selectedCragKey === crag.value && (
-                    <Ionicons name="checkmark" size={20} color={colors.accent} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                </View>
+              ) : cragData.length === 0 ? (
+                <View style={styles.dropdownLoading}>
+                  <Text style={[styles.dropdownLoadingText, { color: colors.textDim }]}>
+                    No crags found
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView style={styles.dropdownList} nestedScrollEnabled>
+                  {cragData
+                    .filter(crag => 
+                      crag.label.toLowerCase().includes(cragSearchQuery.toLowerCase())
+                    )
+                    .map((crag) => (
+                      <TouchableOpacity
+                        key={crag.value}
+                        style={[styles.dropdownItem, { borderBottomColor: colors.divider }]}
+                        onPress={() => {
+                          setSelectedCragKey(crag.value);
+                          setSelectedRouteKey('');
+                          setCragModalVisible(false);
+                          setCragSearchQuery('');
+                        }}
+                      >
+                        <Text style={[styles.dropdownItemText, { color: colors.text }]} numberOfLines={1}>
+                          {crag.label}
+                        </Text>
+                        {selectedCragKey === crag.value && (
+                          <Ionicons name="checkmark" size={18} color={colors.accent} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
 
       {/* Route Selection Modal */}
-      <Modal
-        visible={routeModalVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setRouteModalVisible(false)}
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setRouteModalVisible(false)}
+      {routeModalVisible && routeDropdownLayout && (
+        <Modal
+          visible={routeModalVisible}
+          transparent={true}
+          animationType="none"
+          onRequestClose={() => {
+            setRouteModalVisible(false);
+            setRouteSearchQuery('');
+          }}
         >
-          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Route</Text>
-              <TouchableOpacity onPress={() => setRouteModalVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalList}>
-              {filteredRouteData.map((route) => (
-                <TouchableOpacity
-                  key={route.value}
-                  style={[styles.modalItem, { borderBottomColor: colors.divider }]}
-                  onPress={() => {
-                    setSelectedRouteKey(route.value);
-                    setRouteModalVisible(false);
-                  }}
-                >
-                  <Text style={[styles.modalItemText, { color: colors.text }]}>
-                    {route.label}
+          <TouchableOpacity
+            style={styles.dropdownOverlay}
+            activeOpacity={1}
+            onPress={() => {
+              setRouteModalVisible(false);
+              setRouteSearchQuery('');
+            }}
+          >
+            <View 
+              style={[
+                styles.dropdownMenu, 
+                { 
+                  backgroundColor: colors.surface,
+                  borderColor: colors.divider,
+                  top: routeDropdownLayout.y + routeDropdownLayout.height - 25,
+                  left: routeDropdownLayout.x,
+                  width: routeDropdownLayout.width,
+                }
+              ]}
+            >
+              {/* Search Input */}
+              <View style={[styles.searchContainer, { borderBottomColor: colors.divider }]}>
+                <Ionicons name="search" size={18} color={colors.textDim} style={styles.searchIcon} />
+                <TextInput
+                  value={routeSearchQuery}
+                  onChangeText={setRouteSearchQuery}
+                  placeholder="Search routes..."
+                  placeholderTextColor={colors.textDim}
+                  style={[styles.searchInput, { color: colors.text }]}
+                  autoFocus
+                />
+                {routeSearchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setRouteSearchQuery('')}>
+                    <Ionicons name="close-circle" size={18} color={colors.textDim} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {loadingData ? (
+                <View style={styles.dropdownLoading}>
+                  <ActivityIndicator color={colors.accent} />
+                  <Text style={[styles.dropdownLoadingText, { color: colors.textDim }]}>
+                    Loading routes...
                   </Text>
-                  {selectedRouteKey === route.value && (
-                    <Ionicons name="checkmark" size={20} color={colors.accent} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                </View>
+              ) : filteredRouteData.length === 0 ? (
+                <View style={styles.dropdownLoading}>
+                  <Text style={[styles.dropdownLoadingText, { color: colors.textDim }]}>
+                    No routes found
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView style={styles.dropdownList} nestedScrollEnabled>
+                  {filteredRouteData
+                    .filter(route => 
+                      route.label.toLowerCase().includes(routeSearchQuery.toLowerCase())
+                    )
+                    .map((route) => (
+                      <TouchableOpacity
+                        key={route.value}
+                        style={[styles.dropdownItem, { borderBottomColor: colors.divider }]}
+                        onPress={() => {
+                          setSelectedRouteKey(route.value);
+                          setRouteModalVisible(false);
+                          setRouteSearchQuery('');
+                        }}
+                      >
+                        <Text style={[styles.dropdownItemText, { color: colors.text }]} numberOfLines={1}>
+                          {route.label}
+                        </Text>
+                        {selectedRouteKey === route.value && (
+                          <Ionicons name="checkmark" size={18} color={colors.accent} />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                </ScrollView>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -692,40 +822,65 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Modal styles
-  modalOverlay: {
+  // Dropdown styles
+  dropdownOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'transparent',
   },
-  modalContent: {
-    maxHeight: '70%',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  dropdownMenu: {
+    position: 'absolute',
+    borderRadius: 10,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+    maxHeight: 300,
+    overflow: 'hidden',
   },
-  modalHeader: {
+  dropdownList: {
+    maxHeight: 250,
+  },
+  dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  dropdownItemText: {
+    fontSize: 15,
+    flex: 1,
+    marginRight: 8,
   },
-  modalList: {
-    maxHeight: 400,
-  },
-  modalItem: {
+
+  // Search styles
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  modalItemText: {
-    fontSize: 16,
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
     flex: 1,
+    fontSize: 15,
+    paddingVertical: 2,
+  },
+
+  // Loading state
+  dropdownLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownLoadingText: {
+    fontSize: 14,
+    marginTop: 8,
   },
 });

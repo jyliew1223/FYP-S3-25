@@ -25,6 +25,7 @@ export default function LoginScreen() {
   const [pass, setPass] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   function humanize(code) {
     switch (code) {
@@ -112,21 +113,34 @@ export default function LoginScreen() {
             },
           ]}
         />
-        <TextInput
-          placeholder="Password"
-          placeholderTextColor={colors.textDim}
-          value={pass}
-          onChangeText={setPass}
-          secureTextEntry
-          style={[
-            styles.input,
-            {
-              color: colors.text,
-              borderColor: colors.border,
-              backgroundColor: colors.surface,
-            },
-          ]}
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            placeholder="Password"
+            placeholderTextColor={colors.textDim}
+            value={pass}
+            onChangeText={setPass}
+            secureTextEntry={!showPassword}
+            style={[
+              styles.input,
+              styles.passwordInput,
+              {
+                color: colors.text,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+              },
+            ]}
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeButton}
+          >
+            <Ionicons
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={22}
+              color={colors.textDim}
+            />
+          </TouchableOpacity>
+        </View>
 
         <TouchableOpacity
           disabled={busy}
@@ -180,6 +194,18 @@ const styles = StyleSheet.create({
   },
   content: { flex: 1, padding: 20, gap: 12 },
   input: { borderWidth: 1, borderRadius: 10, padding: 12 },
+  passwordContainer: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 50,
+  },
+  eyeButton: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+    padding: 4,
+  },
   cta: { padding: 14, borderRadius: 10, marginTop: 6 },
   ctaText: { color: '#fff', textAlign: 'center', fontWeight: '700' },
   err: { marginTop: 6, textAlign: 'center' },

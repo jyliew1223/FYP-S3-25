@@ -16,7 +16,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
-import { fetchCurrentUserFromDjango } from '../services/api/AuthApi';
+import { fetchCurrentUserFromDjango, fetchUserByIdFromDjango } from '../services/api/AuthApi';
 import { fetchUserClimbStatsMock } from '../services/api/MockProfile';
 import { getUserClimbLogs, deleteClimbLog } from '../services/api/ClimbLogService';
 import { convertNumericGradeToFont } from '../utils/gradeConverter';
@@ -55,25 +55,85 @@ export default function ProfileScreen({ route }) {
   const [climbLogs, setClimbLogs] = useState([]);
   const [menuVisible, setMenuVisible] = useState(null);
 
+  // Calculate stats from climb logs
+  const calculateStatsFromLogs = (logs) => {
+    if (!logs || logs.length === 0) {
+      return {
+        bouldersSent: 0,
+        avgGradeBouldering: '—',
+        avgAttemptsBouldering: 0,
+      };
+    }
+
+    // Filter topped logs only
+    const toppedLogs = logs.filter(log => log.status === true);
+    
+    // Get unique route IDs to avoid counting duplicates
+    const uniqueRouteIds = new Set();
+    const uniqueToppedLogs = toppedLogs.filter(log => {
+      const routeId = log.route?.route_pretty_id || log.route?.route_id || log.route?.id;
+      if (routeId && !uniqueRouteIds.has(routeId)) {
+        uniqueRouteIds.add(routeId);
+        return true;
+      }
+      return false;
+    });
+
+    const bouldersSent = uniqueToppedLogs.length;
+
+    // Calculate average grade from topped logs
+    let avgGradeBouldering = '—';
+    if (toppedLogs.length > 0) {
+      const grades = toppedLogs
+        .map(log => {
+          const gradeRaw = log.route?.grade || log.route?.route_grade || log.route?.gradeRaw;
+          return Number(gradeRaw);
+        })
+        .filter(grade => !isNaN(grade) && grade > 0);
+
+      if (grades.length > 0) {
+        const sum = grades.reduce((acc, grade) => acc + grade, 0);
+        const avg = sum / grades.length;
+        const roundedDown = Math.floor(avg);
+        avgGradeBouldering = convertNumericGradeToFont(roundedDown);
+      }
+    }
+
+    // Calculate average attempts from all logs
+    let avgAttemptsBouldering = 0;
+    if (logs.length > 0) {
+      const attempts = logs
+        .map(log => Number(log.attempt))
+        .filter(attempt => !isNaN(attempt) && attempt > 0);
+      
+      if (attempts.length > 0) {
+        const sum = attempts.reduce((acc, attempt) => acc + attempt, 0);
+        avgAttemptsBouldering = Math.round(sum / attempts.length);
+      }
+    }
+
+    return {
+      bouldersSent,
+      avgGradeBouldering,
+      avgAttemptsBouldering,
+    };
+  };
+
   useEffect(() => {
     // load Django profile (userId, username, email, profile_picture_url, etc.)
     (async () => {
       try {
         setLoadingProfile(true);
-        // For now, we only support viewing own profile
-        // TODO: Add API endpoint to fetch other users' profiles by userId
-        if (!isOwnProfile) {
-          // Viewing another user's profile - not yet implemented
-          Alert.alert(
-            'Coming Soon',
-            'Viewing other users\' profiles will be available soon!',
-          );
-          setProfileInfo(null);
-          setLoadingProfile(false);
-          return;
+        
+        let resp;
+        if (isOwnProfile) {
+          // Fetch current user's profile
+          resp = await fetchCurrentUserFromDjango();
+        } else {
+          // Fetch another user's profile by ID
+          resp = await fetchUserByIdFromDjango(viewingUserId);
         }
         
-        const resp = await fetchCurrentUserFromDjango();
         if (!resp.ok) {
           console.log('Profile fetch failed:', resp.debugRaw);
           Alert.alert(
@@ -142,8 +202,11 @@ export default function ProfileScreen({ route }) {
   const username = usernameFromDjango || fallbackName;
   const avatarUrl = avatarUrlFromDjango || null;
 
-  // merge stats
-  const merged = { ...defaultStats, ...(stats || {}) };
+  // Calculate stats from climb logs
+  const calculatedStats = calculateStatsFromLogs(climbLogs);
+  
+  // merge stats (calculated stats override mock stats)
+  const merged = { ...defaultStats, ...(stats || {}), ...calculatedStats };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -370,6 +433,7 @@ export default function ProfileScreen({ route }) {
                   isOwnProfile={isOwnProfile}
                   menuVisible={menuVisible}
                   setMenuVisible={setMenuVisible}
+                  allLogs={climbLogs}
                   onDelete={async (logId) => {
                     try {
                       const res = await deleteClimbLog(logId);
@@ -473,7 +537,7 @@ function StatChip({ label, value, colors }) {
 }
 
 // Climb log item component
-function ClimbLogItem({ log, colors, isOwnProfile, menuVisible, setMenuVisible, onDelete }) {
+function ClimbLogItem({ log, colors, isOwnProfile, menuVisible, setMenuVisible, onDelete, allLogs }) {
   const isMenuOpen = menuVisible === log.id;
   const gradeRaw = log.route?.grade || log.route?.route_grade || log.route?.gradeRaw;
   const gradeDisplay = convertNumericGradeToFont(gradeRaw);
@@ -483,6 +547,33 @@ function ClimbLogItem({ log, colors, isOwnProfile, menuVisible, setMenuVisible, 
     if (!dateStr) return '';
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
+
+  // Check if this is a true flash (first attempt on this route ever)
+  const isFlash = () => {
+    if (log.attempt !== 1 || !log.status) {
+      return false;
+    }
+
+    const routeId = log.route?.route_pretty_id || log.route?.route_id || log.route?.id;
+    if (!routeId || !allLogs) {
+      return false;
+    }
+
+    // Get all logs for this route, sorted by date
+    const routeLogs = allLogs
+      .filter(l => {
+        const lRouteId = l.route?.route_pretty_id || l.route?.route_id || l.route?.id;
+        return lRouteId === routeId;
+      })
+      .sort((a, b) => new Date(a.dateClimbed) - new Date(b.dateClimbed));
+
+    // Check if this is the first log for this route
+    if (routeLogs.length > 0 && routeLogs[0].id === log.id) {
+      return true;
+    }
+
+    return false;
   };
 
   return (
@@ -556,6 +647,11 @@ function ClimbLogItem({ log, colors, isOwnProfile, menuVisible, setMenuVisible, 
         {log.status && (
           <View style={[styles.badge, { backgroundColor: '#4CAF50' }]}>
             <Text style={[styles.badgeText, { color: 'white' }]}>Topped</Text>
+          </View>
+        )}
+        {isFlash() && (
+          <View style={[styles.badge, { backgroundColor: '#FFD700' }]}>
+            <Text style={[styles.badgeText, { color: '#000' }]}>⚡ Flashed!</Text>
           </View>
         )}
       </View>

@@ -34,6 +34,12 @@ class MainApplication : Application(), ReactApplication {
 
   override fun onCreate() {
     super.onCreate()
+    // Explicitly load react-native-screens native library before React Native initialization
+    try {
+      System.loadLibrary("rnscreens")
+    } catch (e: UnsatisfiedLinkError) {
+      android.util.Log.e("MainApplication", "Failed to load rnscreens library", e)
+    }
     loadReactNative(this)
   }
 }

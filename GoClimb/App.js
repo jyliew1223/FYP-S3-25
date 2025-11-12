@@ -44,8 +44,8 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          {/* <UnityViewer showTestButton={true} /> */}
-          {/* <ModelPicker cragId={someCragId} /> */}
+          {/* <UnityViewer showTestButton={true} />
+          <ModelPicker cragId={someCragId} /> */}
           <AppInner />
         </AuthProvider>
       </ThemeProvider>
