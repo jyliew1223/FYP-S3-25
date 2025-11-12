@@ -113,17 +113,22 @@ def extract_files_and_clean_data(request: Request, file_field_name: str = "image
             else:
                 clean_data[key] = str(value).strip() if value is not None else ""
 
-        # Handle tags specially (can be JSON string or comma-separated)
-        if "tags" in clean_data and clean_data["tags"]:
-            try:
-                import json
-
-                clean_data["tags"] = json.loads(clean_data["tags"])
-            except:
-                # Split by comma if not valid JSON
-                clean_data["tags"] = [
-                    tag.strip() for tag in clean_data["tags"].split(",") if tag.strip()
-                ]
+        # Handle JSON fields specially (tags, normalization_data, etc.)
+        json_fields = ["tags", "normalization_data", "location_details", "route_data"]
+        
+        for field in json_fields:
+            if field in clean_data and clean_data[field]:
+                try:
+                    import json
+                    clean_data[field] = json.loads(clean_data[field])
+                except json.JSONDecodeError:
+                    # For tags, fall back to comma-separated parsing
+                    if field == "tags":
+                        clean_data[field] = [
+                            tag.strip() for tag in clean_data[field].split(",") if tag.strip()
+                        ]
+                    # For other JSON fields, keep as string if parsing fails
+                    pass
     else:
         # JSON data - use as is
         clean_data = request.data if isinstance(request.data, dict) else {}
