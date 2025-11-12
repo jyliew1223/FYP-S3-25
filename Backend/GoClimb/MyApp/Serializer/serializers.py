@@ -38,7 +38,23 @@ class UserSerializer(serializers.ModelSerializer):
             "profile_picture_url",
         ]
 
-        read_only_fields = ["user_id", "profile_picture_url"]
+        read_only_fields = ["profile_picture_url"]
+    
+    def create(self, validated_data):
+        """Override create to handle user_id field properly."""
+        # Extract user_id from validated_data since it's not editable in the model
+        user_id = validated_data.pop('user_id', None)
+        
+        # Create user instance without saving to DB yet
+        user = User(**validated_data)
+        
+        # Set the user_id directly on the instance
+        if user_id:
+            user.user_id = user_id
+        
+        # Now save to database
+        user.save()
+        return user
 
 class CragSerializer(serializers.ModelSerializer):
     crag_id = serializers.SerializerMethodField()
