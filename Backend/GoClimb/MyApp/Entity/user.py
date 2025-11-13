@@ -8,7 +8,7 @@ class User(models.Model):
         db_table = "user"
         managed = True
 
-    user_id = models.CharField(max_length=128, primary_key=True, editable=False)
+    user_id = models.CharField(max_length=128, primary_key=True)
     username = models.CharField(max_length=100, unique=True)
     email = models.EmailField(max_length=255, unique=True)
     profile_picture = models.CharField(max_length=500, null=True)

@@ -56,17 +56,6 @@ def signup_view(request: Request) -> Response:
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    serializer = UserSerializer(data={"username": username, "email": email})
-    if not serializer.is_valid():
-        return Response(
-            {
-                "success": False,
-                "message": "Invalid input.",
-                "errors": serializer.errors,
-            },
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
     try:
 
         user = user_controller.signup_user(id_token, username, email, profile_picture)

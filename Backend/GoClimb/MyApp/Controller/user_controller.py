@@ -29,7 +29,6 @@ def verify_firebase_token(token: str) -> dict:
     try:
         # First try to verify as ID token
         decoded_token = auth.verify_id_token(token)
-        print(f"✓ Verified as ID token: {decoded_token}")
         return decoded_token
     except auth.InvalidIdTokenError:
         try:
@@ -38,12 +37,8 @@ def verify_firebase_token(token: str) -> dict:
             # For testing purposes, we'll decode it manually
             import jwt
             decoded_token = jwt.decode(token, options={"verify_signature": False})
-            print(f"✓ Verified as custom token: {decoded_token}")
             return decoded_token
         except Exception as custom_error:
-            print(f"✗ Failed to verify token as both ID token and custom token")
-            print(f"  ID token error: Token verification failed")
-            print(f"  Custom token error: {str(custom_error)}")
             raise InvalidUIDError("Invalid Firebase token - could not verify as ID token or custom token")
 
 
@@ -76,7 +71,6 @@ def signup_user(
         # Verify Firebase token (handles both ID tokens and custom tokens)
         decoded_token = verify_firebase_token(id_token)
         user_id = decoded_token.get("uid") or decoded_token.get("user_id")
-        print(f"Extracted user_id: {user_id}")
         
         if not user_id:
             raise InvalidUIDError("User ID is null or empty.")
@@ -124,7 +118,6 @@ def signup_user(
 
         return user
     except Exception as e:
-        print(f"Error in signup_user: {e}")
         raise
 
 

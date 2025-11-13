@@ -98,7 +98,7 @@ def create_firebase_account(
             "role": role
         }
         
-    except exceptions.EmailAlreadyExistsError:
+    except exceptions.AlreadyExistsError:
         print(f"✗ Email already exists: {email}")
         return {"success": False, "error": "Email already exists"}
     except Exception as e:
