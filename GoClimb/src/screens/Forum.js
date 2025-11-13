@@ -44,6 +44,7 @@ export default function Forum({navigation}) {
   const [loading, setLoading] = useState(true);
   const [likedPosts, setLikedPosts] = useState(new Set());
   const [menuVisible, setMenuVisible] = useState(null);
+  const [sortBy, setSortBy] = useState('newest'); // newest, oldest, mostLiked, leastLiked
 
   // toast banner
   const [toast, setToast] = useState('');
@@ -130,19 +131,19 @@ export default function Forum({navigation}) {
     }, [route.params, showToast]),
   );
 
-  // Pull-to-refresh
+  // Pull-to-refresh - reload all posts
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    const blacklist = posts.map(p => p.id);
-    const postsData = await loadPosts(blacklist);
+    const postsData = await loadPosts([]); // Empty blacklist to get fresh posts
     setPosts(postsData);
     setRefreshing(false);
-  }, [posts, loadPosts]);
+  }, [loadPosts]);
 
-  // Local search and chronological sorting
+  // Local search and sorting
   const filtered = useMemo(() => {
     let result = posts;
 
+    // Apply search filter
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       result = posts.filter(
@@ -153,12 +154,34 @@ export default function Forum({navigation}) {
       );
     }
 
+    // Apply sorting
     return result.sort((a, b) => {
-      const timeA = a.createdAt || 0;
-      const timeB = b.createdAt || 0;
-      return timeB - timeA;
+      switch (sortBy) {
+        case 'newest':
+          // Newest first (default)
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        
+        case 'oldest':
+          // Oldest first
+          return (a.createdAt || 0) - (b.createdAt || 0);
+        
+        case 'mostLiked':
+          // Most liked first, then by newest
+          const likeDiff = (b.likes || 0) - (a.likes || 0);
+          if (likeDiff !== 0) return likeDiff;
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        
+        case 'leastLiked':
+          // Least liked first, then by newest
+          const likeDiffAsc = (a.likes || 0) - (b.likes || 0);
+          if (likeDiffAsc !== 0) return likeDiffAsc;
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        
+        default:
+          return (b.createdAt || 0) - (a.createdAt || 0);
+      }
     });
-  }, [posts, query]);
+  }, [posts, query, sortBy]);
 
   const openPost = post => navigation.navigate('PostDetail', {postId: post.id});
 
@@ -366,6 +389,57 @@ export default function Forum({navigation}) {
         ) : null}
       </View>
 
+      {/* Sort chips - horizontal scrollable - only show when not loading */}
+      {!loading && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.sortChipsContainer}
+          contentContainerStyle={styles.sortChipsContent}
+        >
+          {/* Dynamically order chips - selected one first */}
+          {[
+            { key: 'newest', label: 'Newest First' },
+            { key: 'oldest', label: 'Oldest First' },
+            { key: 'mostLiked', label: 'Most Liked' },
+            { key: 'leastLiked', label: 'Least Liked' },
+          ]
+            .sort((a, b) => {
+              // Selected chip goes first
+              if (a.key === sortBy) return -1;
+              if (b.key === sortBy) return 1;
+              return 0;
+            })
+            .map((option) => (
+              <TouchableOpacity
+                key={option.key}
+                style={[
+                  styles.sortChip,
+                  {
+                    backgroundColor: sortBy === option.key ? '#4CAF50' : colors.surfaceAlt,
+                    borderColor: sortBy === option.key ? '#4CAF50' : colors.divider,
+                  },
+                ]}
+                onPress={() => setSortBy(option.key)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.sortChipText,
+                    {
+                      color: sortBy === option.key ? '#FFFFFF' : colors.textDim,
+                      fontWeight: sortBy === option.key ? '700' : '600',
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+        </ScrollView>
+      )}
+
       {/* list */}
       {loading ? (
         <View style={styles.center}>
@@ -378,7 +452,8 @@ export default function Forum({navigation}) {
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={{height: 10}} />}
           contentContainerStyle={{
-            padding: 16,
+            paddingTop: 8,
+            paddingHorizontal: 16,
             paddingBottom: 24,
           }}
           refreshing={refreshing}
@@ -658,7 +733,8 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
     gap: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 12,
@@ -668,6 +744,29 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 14,
+  },
+  sortChipsContainer: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  sortChipsContent: {
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  sortChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 38,
+    minWidth: 110,
+    maxWidth: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sortChipText: {
+    fontSize: 13,
+    lineHeight: 16,
   },
 
   center: {

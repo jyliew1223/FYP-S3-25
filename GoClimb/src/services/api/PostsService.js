@@ -468,20 +468,51 @@ export async function unlikePost(postId) {
 }
 
 // CREATE POST
-export async function createPost({ title, content, tags }) {
+export async function createPost({ title, content, tags, images = [] }) {
   const user = getAuth().currentUser;
   if (!user) throw new Error('No Firebase session found.');
+
+  let payload;
+
+  // If images are provided, use FormData for multipart upload
+  if (images && images.length > 0) {
+    const formData = new FormData();
+    formData.append('user_id', user.uid);
+    formData.append('title', title);
+    formData.append('content', content);
+    
+    // Append tags as JSON string or individual items
+    formData.append('tags', JSON.stringify(tags));
+
+    // Append each image
+    images.forEach((image, index) => {
+      const fileUri = image.fileCopyUri || image.uri;
+      const fileName = image.name || `image_${index}.jpg`;
+      const fileType = image.type || 'image/jpeg';
+
+      formData.append('images', {
+        uri: fileUri,
+        type: fileType,
+        name: fileName,
+      });
+    });
+
+    payload = formData;
+  } else {
+    // No images, use regular JSON payload
+    payload = new CreatePostPayload({
+      user_id: user.uid,
+      title,
+      content,
+      tags,
+    });
+  }
 
   const req = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST.CREATE_POST,
-    new CreatePostPayload({
-      user_id: user.uid,
-      title,
-      content,
-      tags,
-    }),
+    payload,
     true,
   );
 

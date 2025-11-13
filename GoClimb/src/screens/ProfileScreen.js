@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { fetchCurrentUserFromDjango, fetchUserByIdFromDjango } from '../services/api/AuthApi';
@@ -119,39 +119,49 @@ export default function ProfileScreen({ route }) {
     };
   };
 
-  useEffect(() => {
-    // load Django profile (userId, username, email, profile_picture_url, etc.)
-    (async () => {
-      try {
-        setLoadingProfile(true);
-        
-        let resp;
-        if (isOwnProfile) {
-          // Fetch current user's profile
-          resp = await fetchCurrentUserFromDjango();
-        } else {
-          // Fetch another user's profile by ID
-          resp = await fetchUserByIdFromDjango(viewingUserId);
-        }
-        
-        if (!resp.ok) {
-          console.log('Profile fetch failed:', resp.debugRaw);
-          Alert.alert(
-            'Error',
-            resp.message || 'Could not load profile from server.',
-          );
-          setProfileInfo(null);
-        } else {
-          setProfileInfo(resp.user); // resp.user is a UserModel
-        }
-      } catch (err) {
-        console.log('Profile fetch exception:', err);
-        Alert.alert('Error', err.message || 'Unexpected error loading profile.');
-        setProfileInfo(null);
-      } finally {
-        setLoadingProfile(false);
+  // Function to load profile data
+  const loadProfileData = async () => {
+    try {
+      setLoadingProfile(true);
+      
+      let resp;
+      if (isOwnProfile) {
+        // Fetch current user's profile
+        resp = await fetchCurrentUserFromDjango();
+      } else {
+        // Fetch another user's profile by ID
+        resp = await fetchUserByIdFromDjango(viewingUserId);
       }
-    })();
+      
+      if (!resp.ok) {
+        console.log('Profile fetch failed:', resp.debugRaw);
+        Alert.alert(
+          'Error',
+          resp.message || 'Could not load profile from server.',
+        );
+        setProfileInfo(null);
+      } else {
+        setProfileInfo(resp.user); // resp.user is a UserModel
+      }
+    } catch (err) {
+      console.log('Profile fetch exception:', err);
+      Alert.alert('Error', err.message || 'Unexpected error loading profile.');
+      setProfileInfo(null);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  // Refresh profile when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      loadProfileData();
+    }, [viewingUserId, user?.uid])
+  );
+
+  useEffect(() => {
+    // Initial load
+    loadProfileData();
 
     // load climb stats (for all profiles)
     // TODO: When backend supports fetching other users' stats, pass viewingUserId
@@ -338,6 +348,7 @@ export default function ProfileScreen({ route }) {
                         navigation.navigate('EditProfile', {
                           username: username,
                           email: emailFromDjango || user?.email,
+                          profilePicture: avatarUrl,
                         });
                       }}
                     >
@@ -357,30 +368,32 @@ export default function ProfileScreen({ route }) {
           </View>
         )}
 
-        {/* Model Management Menu Item */}
-        <TouchableOpacity
-          style={[
-            styles.menuCard,
-            { backgroundColor: colors.surface, borderColor: colors.divider },
-          ]}
-          onPress={() => navigation.navigate('ModelManagement')}
-          activeOpacity={0.7}
-        >
-          <View style={styles.menuRow}>
-            <View style={[styles.menuIcon, { backgroundColor: colors.bg }]}>
-              <Ionicons name="cube-outline" size={24} color={colors.accent} />
+        {/* Model Management Menu Item - Only show for own profile */}
+        {isOwnProfile && (
+          <TouchableOpacity
+            style={[
+              styles.menuCard,
+              { backgroundColor: colors.surface, borderColor: colors.divider },
+            ]}
+            onPress={() => navigation.navigate('ModelManagement')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuRow}>
+              <View style={[styles.menuIcon, { backgroundColor: colors.bg }]}>
+                <Ionicons name="cube-outline" size={24} color={colors.accent} />
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={[styles.menuTitle, { color: colors.text }]}>
+                  My 3D Models
+                </Text>
+                <Text style={[styles.menuSubtitle, { color: colors.textDim }]}>
+                  Manage your uploaded models
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
             </View>
-            <View style={styles.menuContent}>
-              <Text style={[styles.menuTitle, { color: colors.text }]}>
-                My 3D Models
-              </Text>
-              <Text style={[styles.menuSubtitle, { color: colors.textDim }]}>
-                Manage your uploaded models
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        )}
 
         {/* Bouldering stats card */}
         <View

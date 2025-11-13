@@ -181,14 +181,18 @@ class UpdateUserPayload extends BaseApiPayload {
       user_id: 'user_id',
       username: 'username',
       email: 'email',
+      profile_picture: 'profile_picture',
     };
   }
 
-  constructor({ user_id, username, email } = {}) {
+  constructor({ user_id, username, email, profile_picture } = {}) {
     super();
     this.user_id = user_id;
     this.username = username;
     this.email = email;
+    if (profile_picture !== undefined) {
+      this.profile_picture = profile_picture;
+    }
   }
 }
 
@@ -211,7 +215,7 @@ class UpdateUserResponse extends BaseApiResponse {
   }
 }
 
-export async function updateUserInDjango({ username, email }) {
+export async function updateUserInDjango({ username, email, profile_picture }) {
   console.log('[updateUserInDjango] === START ===');
   
   const currentUser = getAuth().currentUser;
@@ -222,11 +226,18 @@ export async function updateUserInDjango({ username, email }) {
 
   console.log('[updateUserInDjango] Current user UID:', currentUser.uid);
 
-  const payload = new UpdateUserPayload({
+  const payloadData = {
     user_id: currentUser.uid,
     username: username,
     email: email,
-  });
+  };
+
+  // Only include profile_picture if it's provided
+  if (profile_picture !== undefined) {
+    payloadData.profile_picture = profile_picture;
+  }
+
+  const payload = new UpdateUserPayload(payloadData);
 
   console.log('[updateUserInDjango] Payload:', JSON.stringify(payload.toJson()));
 

@@ -15,7 +15,6 @@ import MapScreen from '../screens/MapScreen';
 import BottomBar from '../components/BottomBar';
 import CragsScreen from '../screens/CragsScreen';
 import RouteDetails from '../screens/RouteDetails';
-import AR from '../screens/AR';
 import ARCragList from '../screens/ARCragList';
 import UnityARScreen from '../screens/UnityARScreen';
 import UnityOutdoorARScreen from '../screens/UnityOutdoorARScreen';
@@ -28,6 +27,7 @@ import RankingOptionsScreen from '../screens/RankingOptionsScreen';
 import RankingListScreen from '../screens/RankingListScreen';
 import ModelManagementScreen from '../screens/ModelManagementScreen';
 import LogClimbScreen from '../screens/LogClimbScreen';
+import FAQScreen from '../screens/FAQScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -76,7 +76,6 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="AR" component={AR} />
 
         {/* Ranking-related */}
         <Stack.Screen
@@ -141,6 +140,11 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen
           name="ModelManagement"
           component={ModelManagementScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="FAQ"
+          component={FAQScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

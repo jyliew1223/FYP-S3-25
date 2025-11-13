@@ -11,12 +11,15 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
+  FlatList,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import auth from '@react-native-firebase/auth';
 import { CommonActions, useNavigation } from '@react-navigation/native';
+import * as DocumentPicker from '@react-native-documents/picker';
 
 import { createPost } from '../services/api/PostsService';
 
@@ -27,6 +30,7 @@ export default function CreatePostScreen() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tagText, setTagText] = useState('');
+  const [selectedImages, setSelectedImages] = useState([]); // Array of selected images
   const [posting, setPosting] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -46,6 +50,64 @@ export default function CreatePostScreen() {
 
   function goBack() {
     navigation.goBack();
+  }
+
+  async function handlePickImages() {
+    console.log('[CreatePost] handlePickImages called');
+    
+    try {
+      console.log('[CreatePost] Opening DocumentPicker...');
+      
+      const result = await DocumentPicker.pick({
+        type: [DocumentPicker.types.images],
+        allowMultiSelection: true,
+        copyTo: 'cachesDirectory',
+      });
+
+      console.log('[CreatePost] DocumentPicker result:', result);
+
+      if (result && result.length > 0) {
+        console.log('[CreatePost] Selected images count:', result.length);
+        
+        // Validate total number of images (max 5)
+        const totalImages = selectedImages.length + result.length;
+        if (totalImages > 5) {
+          console.log('[CreatePost] Too many images:', totalImages);
+          showToast('Maximum 5 images allowed');
+          return;
+        }
+
+        // Validate each file size (max 5MB per image)
+        for (const file of result) {
+          if (file.size && file.size > 5 * 1024 * 1024) {
+            console.log('[CreatePost] Image too large:', file.size);
+            showToast('Each image must be less than 5MB');
+            return;
+          }
+        }
+
+        console.log('[CreatePost] Adding images to selection');
+        setSelectedImages([...selectedImages, ...result]);
+        showToast(`${result.length} image(s) selected`, 1500);
+      } else {
+        console.log('[CreatePost] No images selected or result is empty');
+      }
+    } catch (err) {
+      console.log('[CreatePost] DocumentPicker error:', err);
+      console.log('[CreatePost] Error code:', err.code);
+      console.log('[CreatePost] Error message:', err.message);
+      
+      if (DocumentPicker.isCancel(err)) {
+        console.log('[CreatePost] User cancelled picker');
+      } else {
+        console.error('[CreatePost] Unexpected error:', err);
+        showToast('Failed to pick images: ' + err.message);
+      }
+    }
+  }
+
+  function removeImage(index) {
+    setSelectedImages(selectedImages.filter((_, i) => i !== index));
   }
 
   async function onSubmit() {
@@ -76,6 +138,7 @@ export default function CreatePostScreen() {
       title: cleanTitle,
       content: cleanBody,
       tags: tagList,
+      images: selectedImages, // Pass selected images
     });
 
     setPosting(false);
@@ -256,6 +319,75 @@ export default function CreatePostScreen() {
             onChangeText={setTagText}
           />
 
+          {/* Images */}
+          <Text
+            style={[
+              styles.label,
+              { color: colors.text, marginTop: 16 },
+            ]}
+          >
+            Images (optional, max 5)
+          </Text>
+          
+          {/* Add Image Button */}
+          <TouchableOpacity
+            style={[
+              styles.addImageButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.divider,
+              },
+            ]}
+            onPress={handlePickImages}
+            disabled={selectedImages.length >= 5}
+          >
+            <Ionicons
+              name="images-outline"
+              size={24}
+              color={selectedImages.length >= 5 ? colors.textDim : colors.accent}
+            />
+            <Text
+              style={{
+                color: selectedImages.length >= 5 ? colors.textDim : colors.text,
+                fontSize: 14,
+                marginLeft: 8,
+              }}
+            >
+              {selectedImages.length >= 5
+                ? 'Maximum images reached'
+                : 'Add Images'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Selected Images Preview */}
+          {selectedImages.length > 0 && (
+            <View style={styles.imagesPreviewContainer}>
+              <FlatList
+                data={selectedImages}
+                horizontal
+                keyExtractor={(item, index) => index.toString()}
+                renderItem={({ item, index }) => (
+                  <View style={styles.imagePreviewWrapper}>
+                    <Image
+                      source={{ uri: item.uri }}
+                      style={styles.imagePreview}
+                    />
+                    <TouchableOpacity
+                      style={[
+                        styles.removeImageButton,
+                        { backgroundColor: colors.surface },
+                      ]}
+                      onPress={() => removeImage(index)}
+                    >
+                      <Ionicons name="close" size={16} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+                showsHorizontalScrollIndicator={false}
+              />
+            </View>
+          )}
+
           {/* Warning if not logged in */}
           {!isLoggedIn ? (
             <View
@@ -421,5 +553,46 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  addImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+
+  imagesPreviewContainer: {
+    marginTop: 12,
+  },
+
+  imagePreviewWrapper: {
+    position: 'relative',
+    marginRight: 12,
+  },
+
+  imagePreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+
+  removeImageButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });

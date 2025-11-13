@@ -17,8 +17,11 @@ export default function BottomBar({ state, descriptors, navigation }) {
   const currentRoute = state.routes[state.index];
   const currentRouteName = currentRoute?.name;
 
-  // Show "Log a Climb" button only on these screens
-  const showLogClimbButton = ['Home', 'Map', 'Routes'].includes(currentRouteName);
+  // Show "Log a Climb" button on Home and Map screens
+  const showLogClimbButton = ['Home', 'Map'].includes(currentRouteName);
+  
+  // Show "Real Field AR" button on Routes screen
+  const showRealFieldARButton = currentRouteName === 'Routes';
 
   const handleLogClimb = () => {
     // Check if user is logged in
@@ -31,9 +34,13 @@ export default function BottomBar({ state, descriptors, navigation }) {
     }
   };
 
+  const handleRealFieldAR = () => {
+    nav.navigate('UnityOutdoorAR');
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.surface, borderTopColor: colors.divider, paddingBottom: Math.max(insets.bottom, 6) }]}>
-      {/* Log a Climb Button - Only on specific screens */}
+      {/* Log a Climb Button - Only on Home and Map screens */}
       {showLogClimbButton && (
         <TouchableOpacity
           onPress={handleLogClimb}
@@ -42,6 +49,19 @@ export default function BottomBar({ state, descriptors, navigation }) {
         >
           <Ionicons name="add-circle" size={20} color="white" />
           <Text style={styles.logClimbText}>Log a Climb</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Real Field AR Button - Only on Routes screen */}
+      {showRealFieldARButton && (
+        <TouchableOpacity
+          onPress={handleRealFieldAR}
+          style={[styles.realFieldARButton, { backgroundColor: colors.accent }]}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="globe-outline" size={24} color="white" />
+          <Text style={styles.realFieldARText}>Real Field AR</Text>
+          <Ionicons name="arrow-forward" size={20} color="white" />
         </TouchableOpacity>
       )}
 
@@ -103,6 +123,29 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 15,
     fontWeight: '700',
+  },
+  realFieldARButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  realFieldARText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
   },
   bar: {
     flexDirection: 'row',

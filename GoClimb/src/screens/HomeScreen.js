@@ -14,7 +14,7 @@ import {
   Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -46,23 +46,33 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [MENU_W]);
 
-  // Fetch user profile picture
-  useEffect(() => {
+  // Function to fetch profile picture
+  const fetchProfilePicture = async () => {
     if (user) {
-      (async () => {
-        try {
-          const resp = await fetchCurrentUserFromDjango();
-          if (resp.ok && resp.user?.profile_picture_url) {
-            setProfilePicture(resp.user.profile_picture_url);
-          }
-        } catch (err) {
-          console.log('Failed to fetch profile picture:', err);
+      try {
+        const resp = await fetchCurrentUserFromDjango();
+        if (resp.ok && resp.user?.profile_picture_url) {
+          setProfilePicture(resp.user.profile_picture_url);
         }
-      })();
+      } catch (err) {
+        console.log('Failed to fetch profile picture:', err);
+      }
     } else {
       setProfilePicture(null);
     }
+  };
+
+  // Fetch user profile picture on mount and when screen comes into focus
+  useEffect(() => {
+    fetchProfilePicture();
   }, [user]);
+
+  // Refresh profile picture when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProfilePicture();
+    }, [user])
+  );
 
   useEffect(() => {
     const timing = (val, toValue, duration = 260) =>
@@ -246,6 +256,16 @@ export default function HomeScreen() {
 
             <View style={{ flex: 1 }}>
               <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} colors={colors} />
+              
+              <DrawerItem 
+                icon="help-circle-outline" 
+                label="FAQ" 
+                onPress={() => {
+                  setMenuOpen(false);
+                  navigation.navigate('FAQ');
+                }} 
+                colors={colors} 
+              />
               
               {/* Only show these options if user is logged in */}
               {user && (

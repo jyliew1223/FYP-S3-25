@@ -31,22 +31,29 @@ const RankingOptionsScreen = () => {
       title: "Most Climbs",
       description: "Climbers with the most routes completed",
       icon: "trending-up",
+      available: true,
     },
     {
       type: "highestBoulder",
       title: "Highest Average Grades",
-      description: "Climbers with the best average grades",
+      description: "Climbers with the highest average grades",
       icon: "bar-chart",
+      available: true,
     },
     {
       type: "topClimbers",
       title: "Top Climbers",
-      description: "Overall top performers by grade",
+      description: "Overall top climbers by combined score",
       icon: "trophy",
+      available: true,
     },
   ];
 
-  const handleRankingSelect = (type) => {
+  const handleRankingSelect = (type, available) => {
+    if (!available) {
+      return;
+    }
+
     navigation.navigate("RankingList", {
       type,
       timeframe: selectedTimeframe,
@@ -88,25 +95,39 @@ const RankingOptionsScreen = () => {
           {rankingOptions.map((option) => (
             <TouchableOpacity
               key={option.type}
-              style={[styles.rankingCard, { 
-                backgroundColor: colors.surface,
-                borderColor: colors.divider 
-              }]}
-              onPress={() => handleRankingSelect(option.type)}
+              style={[
+                styles.rankingCard, 
+                { 
+                  backgroundColor: colors.surface,
+                  borderColor: colors.divider,
+                  opacity: option.available ? 1 : 0.5,
+                }
+              ]}
+              onPress={() => handleRankingSelect(option.type, option.available)}
               activeOpacity={0.7}
+              disabled={!option.available}
             >
               <View style={[styles.iconContainer, { backgroundColor: colors.surfaceAlt }]}>
-                <Ionicons name={option.icon} size={28} color={colors.accent} />
+                <Ionicons 
+                  name={option.icon} 
+                  size={28} 
+                  color={option.available ? colors.accent : colors.textDim} 
+                />
               </View>
               <View style={styles.textContainer}>
                 <Text style={[styles.buttonLabel, { color: colors.text }]}>
                   {option.title}
+                  {!option.available && ' 🔒'}
                 </Text>
                 <Text style={[styles.buttonDescription, { color: colors.textDim }]}>
                   {option.description}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={24} color={colors.textDim} />
+              <Ionicons 
+                name="chevron-forward" 
+                size={24} 
+                color={option.available ? colors.textDim : colors.divider} 
+              />
             </TouchableOpacity>
           ))}
         </View>
@@ -287,6 +308,20 @@ const styles = StyleSheet.create({
   modalOptionText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 24,
+    gap: 12,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 

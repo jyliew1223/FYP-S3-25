@@ -26,7 +26,7 @@ export const API_ENDPOINTS = {
     GET_USER: 'get_user',
     GET_USER_BY_ID: 'get_user_by_id/',
     UPDATE_USER: 'update/',
-    GET_MONTTHLY_USER_RANKING: 'get_monthly_user_ranking',
+    GET_MONTTHLY_USER_RANKING: 'get_monthly_user_ranking/',
   }),
   POST: withBase('post/', {
     CREATE_POST: 'create_post',

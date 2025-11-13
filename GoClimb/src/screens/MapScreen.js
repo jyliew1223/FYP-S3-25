@@ -9,6 +9,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { fetchAllCragsBootstrap, fetchRoutesByCragIdGET } from '../services/api/CragService';
 import { convertNumericGradeToFont } from '../utils/gradeConverter';
 import { useTheme } from '../context/ThemeContext';
+import { fetchCurrentWeather, formatTemp, formatWind } from '../services/api/WeatherService';
 
 export default function MapScreen() {
     const navigation = useNavigation();
@@ -19,6 +20,8 @@ export default function MapScreen() {
     const [selectedCrag, setSelectedCrag] = useState(null);
     const [cragRoutes, setCragRoutes] = useState([]);
     const [loadingRoutes, setLoadingRoutes] = useState(false);
+    const [weather, setWeather] = useState(null);
+    const [loadingWeather, setLoadingWeather] = useState(false);
 
     useEffect(() => {
         const requestLocationPermission = async () => {
@@ -53,20 +56,36 @@ export default function MapScreen() {
         console.log('[MapScreen] Marker pressed:', crag.name);
         setSelectedCrag(crag);
         setLoadingRoutes(true);
+        setLoadingWeather(true);
         setCragRoutes([]);
+        setWeather(null);
 
+        const lat = crag.location_lat || crag.locationLat;
+        const lon = crag.location_lon || crag.locationLon;
+
+        // Load routes and weather in parallel
         try {
-            const cragIdToUse = crag.crag_pretty_id || crag.crag_pk;
-            const { success, routes } = await fetchRoutesByCragIdGET(cragIdToUse);
-            
-            if (success && routes) {
-                setCragRoutes(routes);
+            const [routesResult, weatherResult] = await Promise.all([
+                (async () => {
+                    const cragIdToUse = crag.crag_pretty_id || crag.crag_pk;
+                    return await fetchRoutesByCragIdGET(cragIdToUse);
+                })(),
+                fetchCurrentWeather(lat, lon)
+            ]);
+
+            if (routesResult.success && routesResult.routes) {
+                setCragRoutes(routesResult.routes);
+            }
+
+            if (weatherResult) {
+                setWeather(weatherResult);
             }
         } catch (error) {
-            console.log('[MapScreen] Error loading routes:', error);
+            console.log('[MapScreen] Error loading data:', error);
         }
         
         setLoadingRoutes(false);
+        setLoadingWeather(false);
     };
 
     const handleSeeAllRoutes = () => {
@@ -202,15 +221,74 @@ export default function MapScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {loadingRoutes ? (
+                    {loadingRoutes || loadingWeather ? (
                         <View style={styles.cragInfoLoading}>
                             <ActivityIndicator color={colors.accent} />
                             <Text style={[styles.cragInfoLoadingText, { color: colors.textDim }]}>
-                                Loading routes...
+                                Loading data...
                             </Text>
                         </View>
                     ) : (
                         <>
+                            {/* Weather Section */}
+                            {weather && (
+                                <View style={[styles.weatherSection, { backgroundColor: colors.bg, borderColor: colors.divider }]}>
+                                    <View style={styles.weatherHeader}>
+                                        <Text style={styles.weatherIcon}>{weather.icon}</Text>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.weatherTemp, { color: colors.text }]}>
+                                                {formatTemp(weather.temp)}
+                                            </Text>
+                                            <Text style={[styles.weatherDesc, { color: colors.textDim }]}>
+                                                {weather.description}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.climbingStatusContainer}>
+                                            <View style={[
+                                                styles.climbingBadge,
+                                                { 
+                                                    backgroundColor: 
+                                                        weather.climbing.status === 'excellent' ? '#4CAF50' :
+                                                        weather.climbing.status === 'good' ? '#8BC34A' :
+                                                        weather.climbing.status === 'fair' ? '#FFC107' : '#FF5252'
+                                                }
+                                            ]}>
+                                                <Text style={styles.climbingBadgeText}>
+                                                    {weather.climbing.status === 'excellent' ? '🎯' :
+                                                     weather.climbing.status === 'good' ? '👍' :
+                                                     weather.climbing.status === 'fair' ? '⚠️' : '❌'}
+                                                </Text>
+                                            </View>
+                                            <Text style={[styles.climbingStatusText, { 
+                                                color: 
+                                                    weather.climbing.status === 'excellent' ? '#4CAF50' :
+                                                    weather.climbing.status === 'good' ? '#8BC34A' :
+                                                    weather.climbing.status === 'fair' ? '#FFC107' : '#FF5252'
+                                            }]}>
+                                                {weather.climbing.status === 'excellent' ? 'Excellent' :
+                                                 weather.climbing.status === 'good' ? 'Good' :
+                                                 weather.climbing.status === 'fair' ? 'Fair' : 'Poor'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.weatherDetails}>
+                                        <View style={styles.weatherDetailItem}>
+                                            <Ionicons name="water-outline" size={14} color={colors.textDim} />
+                                            <Text style={[styles.weatherDetailText, { color: colors.textDim }]}>
+                                                {weather.humidity}%
+                                            </Text>
+                                        </View>
+                                        <View style={styles.weatherDetailItem}>
+                                            <Ionicons name="speedometer-outline" size={14} color={colors.textDim} />
+                                            <Text style={[styles.weatherDetailText, { color: colors.textDim }]}>
+                                                {formatWind(weather.windSpeed)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
+
+                            {/* Stats Section */}
                             <View style={styles.cragInfoStats}>
                                 <View style={styles.statItem}>
                                     <Ionicons name="trail-sign" size={20} color={colors.accent} />
@@ -403,5 +481,61 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 16,
         fontWeight: '700',
+    },
+    // Weather styles
+    weatherSection: {
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: 12,
+        marginBottom: 16,
+    },
+    weatherHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    weatherIcon: {
+        fontSize: 40,
+        marginRight: 12,
+    },
+    weatherTemp: {
+        fontSize: 24,
+        fontWeight: '800',
+    },
+    weatherDesc: {
+        fontSize: 12,
+        textTransform: 'capitalize',
+    },
+    climbingStatusContainer: {
+        alignItems: 'center',
+        gap: 4,
+    },
+    climbingBadge: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    climbingBadgeText: {
+        fontSize: 16,
+    },
+    climbingStatusText: {
+        fontSize: 11,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    weatherDetails: {
+        flexDirection: 'row',
+        gap: 16,
+    },
+    weatherDetailItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    weatherDetailText: {
+        fontSize: 12,
+        fontWeight: '600',
     },
 });

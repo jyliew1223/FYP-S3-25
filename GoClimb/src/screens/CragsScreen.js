@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -16,6 +17,7 @@ import {
   fetchAllCragsBootstrap,
   fetchRoutesByCragIdGET,
 } from '../services/api/CragService';
+import ModelPicker from '../components/ModelPicker';
 
 export default function CragsScreen({ navigation, route }) {
   const { colors } = useTheme();
@@ -39,6 +41,10 @@ export default function CragsScreen({ navigation, route }) {
   // cache of routes per crag_pk
   // crag_pk -> [{ route_id, name, gradeFont, ... }]
   const routesCacheRef = useRef(new Map());
+
+  // AR Model Picker state
+  const [selectedCragForAR, setSelectedCragForAR] = useState(null);
+  const [showModelPicker, setShowModelPicker] = useState(false);
 
   // load crags function
   const loadCrags = async () => {
@@ -125,6 +131,16 @@ export default function CragsScreen({ navigation, route }) {
     });
   }
 
+  function handleARPress(crag) {
+    setSelectedCragForAR(crag);
+    setShowModelPicker(true);
+  }
+
+  function handleCloseModelPicker() {
+    setShowModelPicker(false);
+    setSelectedCragForAR(null);
+  }
+
   function renderCragCard(crag) {
     const pk = crag.crag_pk;
     const isExpanded = expandedCragPk === pk;
@@ -173,6 +189,17 @@ export default function CragsScreen({ navigation, route }) {
         {/* ROUTE LIST */}
         {isExpanded ? (
           <View style={styles.routesListWrapper}>
+            {/* AR Button - Always shown at top when expanded */}
+            <TouchableOpacity
+              style={[styles.arButton, { backgroundColor: colors.accent }]}
+              onPress={() => handleARPress(crag)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="camera" size={24} color="#FFFFFF" />
+              <Text style={styles.arButtonText}>AR Experience</Text>
+              <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
             {isLoadingRoutes ? (
               <View style={styles.routesLoadingRow}>
                 <ActivityIndicator size="small" color={colors.accent} />
@@ -293,6 +320,47 @@ export default function CragsScreen({ navigation, route }) {
           {crags.map(renderCragCard)}
         </ScrollView>
       )}
+
+      {/* Model Picker Modal */}
+      {showModelPicker && selectedCragForAR && (
+        <Modal
+          visible={showModelPicker}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={handleCloseModelPicker}
+        >
+          <View style={styles.modelPickerOverlay}>
+            <TouchableOpacity 
+              style={styles.modalBackdrop} 
+              activeOpacity={1} 
+              onPress={handleCloseModelPicker}
+            />
+            <View style={[styles.modelPickerContainer, { backgroundColor: colors.surface }]}>
+              <View style={[styles.modelPickerHeader, { borderBottomColor: colors.divider }]}>
+                <TouchableOpacity onPress={handleCloseModelPicker}>
+                  <Ionicons name="chevron-back" size={24} color={colors.text} />
+                </TouchableOpacity>
+                <Text style={[styles.modelPickerTitle, { color: colors.text }]}>
+                  Select Model for {selectedCragForAR.name}
+                </Text>
+                <View style={{ width: 24 }} />
+              </View>
+              
+              <View style={styles.modelPickerContent}>
+                <ModelPicker
+                  cragId={selectedCragForAR.crag_id || selectedCragForAR.crag_pretty_id}
+                  enableDirectAR={true}
+                  cragName={selectedCragForAR.name}
+                  onARClose={() => {
+                    setShowModelPicker(false);
+                    setSelectedCragForAR(null);
+                  }}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -390,5 +458,66 @@ const styles = StyleSheet.create({
   routeGrade: {
     fontSize: 14,
     fontWeight: '800',
+  },
+
+  arButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  arButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: 12,
+  },
+
+  modelPickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modelPickerContainer: {
+    height: '80%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modelPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  modelPickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'center',
+  },
+  modelPickerContent: {
+    flex: 1,
+    padding: 16,
   },
 });
