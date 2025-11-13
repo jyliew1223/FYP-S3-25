@@ -279,6 +279,34 @@ class ModelRouteDataSerializer(serializers.ModelSerializer):
 
 from MyApp.Entity.postcomment import PostComment
 
+# Ranking Serializers
+class WeeklyRankingSerializer(serializers.Serializer):
+    user = UserSerializer(read_only=True)
+    rank = serializers.IntegerField()
+    total_routes = serializers.IntegerField()
+
+
+class AlltimeRankingSerializer(serializers.Serializer):
+    user = UserSerializer(read_only=True)
+    rank = serializers.IntegerField()
+    total_routes = serializers.IntegerField()
+
+
+class AverageGradeRankingSerializer(serializers.Serializer):
+    user = UserSerializer(read_only=True)
+    rank = serializers.IntegerField()
+    average_grade = serializers.FloatField()
+    total_routes = serializers.IntegerField()
+
+
+class TopClimbersSerializer(serializers.Serializer):
+    user = UserSerializer(read_only=True)
+    rank = serializers.IntegerField()
+    total_score = serializers.IntegerField()
+    total_routes = serializers.IntegerField()
+    average_grade = serializers.FloatField()
+
+
 class PostCommentSerializer(serializers.ModelSerializer):
     comment_id = serializers.SerializerMethodField()
 

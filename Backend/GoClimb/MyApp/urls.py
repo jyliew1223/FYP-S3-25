@@ -19,6 +19,7 @@ urlpatterns = [
     path("post/", include("MyApp.Url.post_url")),
     path("comment/", include("MyApp.Url.post_comment_url")),
     path("route/", include("MyApp.Url.route_url")),
+    path("ranking/", include("MyApp.Url.ranking_url")),
 
     path("user/", include("MyApp.Url.user_url")),   # USER_02
     path("user/", include("MyApp.Url.user_url")),   # USER_03
