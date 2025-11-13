@@ -35,6 +35,12 @@ export default function BottomBar({ state, descriptors, navigation }) {
   };
 
   const handleRealFieldAR = () => {
+    // Check if user is logged in
+    if (!user) {
+      nav.navigate('SignUp');
+      return;
+    }
+    
     nav.navigate('UnityOutdoorAR');
   };
 

@@ -18,9 +18,11 @@ import {
   fetchRoutesByCragIdGET,
 } from '../services/api/CragService';
 import ModelPicker from '../components/ModelPicker';
+import { useAuth } from '../context/AuthContext';
 
 export default function CragsScreen({ navigation, route }) {
   const { colors } = useTheme();
+  const { user } = useAuth();
 
   // crags array we render in UI
   // each: {
@@ -132,6 +134,12 @@ export default function CragsScreen({ navigation, route }) {
   }
 
   function handleARPress(crag) {
+    // Check if user is logged in
+    if (!user) {
+      navigation.navigate('SignUp');
+      return;
+    }
+    
     setSelectedCragForAR(crag);
     setShowModelPicker(true);
   }
@@ -298,6 +306,13 @@ export default function CragsScreen({ navigation, route }) {
         >
           Crags & Routes
         </Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('CreateCragRoute')}
+          style={styles.addButton}
+        >
+          <Ionicons name="add-circle-outline" size={20} color={colors.accent} style={{ marginRight: 4 }} />
+          <Text style={[styles.addButtonText, { color: colors.accent }]}>Add</Text>
+        </TouchableOpacity>
       </View>
 
       {loadingCrags ? (
@@ -370,11 +385,23 @@ const styles = StyleSheet.create({
     height: 56,
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 
   centerBox: {

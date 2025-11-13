@@ -28,6 +28,7 @@ import RankingListScreen from '../screens/RankingListScreen';
 import ModelManagementScreen from '../screens/ModelManagementScreen';
 import LogClimbScreen from '../screens/LogClimbScreen';
 import FAQScreen from '../screens/FAQScreen';
+import CreateCragRouteScreen from '../screens/CreateCragRouteScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -145,6 +146,11 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen
           name="FAQ"
           component={FAQScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CreateCragRoute"
+          component={CreateCragRouteScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

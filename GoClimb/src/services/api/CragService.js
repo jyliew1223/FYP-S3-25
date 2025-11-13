@@ -302,3 +302,146 @@ export async function fetchAllCrag() {
     crags: arr, // Return raw data temporarily for debugging
   };
 }
+
+export async function fetchTrendingCrags(count = 5) {
+  const payload = { count: String(count) };
+
+  const req = new CustomApiRequest(
+    RequestMethod.GET,
+    API_ENDPOINTS.BASE_URL,
+    '/crag/get_trending_crags/',
+    payload,
+    true
+  );
+
+  const ok = await req.sendRequest(GenericGetResponse);
+  const res = req.Response;
+
+  console.log('[fetchTrendingCrags] response:', res);
+
+  if (!ok || !res?.success) {
+    return {
+      success: false,
+      crags: [],
+    };
+  }
+
+  const arr = Array.isArray(res.data) ? res.data : [];
+  return {
+    success: true,
+    crags: arr.map(item => ({
+      ...normalizeCrag(item.crag, null),
+      growth: item.growth,
+      growth_rate: item.growth_rate,
+      current_count: item.current_count,
+    })),
+  };
+}
+
+// Client-side route search - fetches all crags and their routes, then filters
+export async function searchRoutes(query) {
+  try {
+    // Get all crags
+    const cragsResult = await fetchAllCrag();
+    if (!cragsResult.success || !cragsResult.crags) {
+      return { success: false, routes: [] };
+    }
+
+    const searchTerm = query.toLowerCase().trim();
+    const allRoutes = [];
+
+    // Fetch routes for each crag and filter by search term
+    for (const crag of cragsResult.crags.slice(0, 10)) { // Limit to first 10 crags for performance
+      const cragId = crag.crag_id || crag.crag_pretty_id;
+      if (!cragId) continue;
+
+      const routesResult = await fetchRoutesByCragIdGET(cragId);
+      if (routesResult.success && routesResult.routes) {
+        // Filter routes that match the search term
+        const matchingRoutes = routesResult.routes.filter(route =>
+          route.name.toLowerCase().includes(searchTerm)
+        );
+        allRoutes.push(...matchingRoutes);
+      }
+    }
+
+    return {
+      success: true,
+      routes: allRoutes.slice(0, 20), // Limit to 20 results
+    };
+  } catch (error) {
+    console.log('[searchRoutes] error:', error);
+    return { success: false, routes: [] };
+  }
+}
+
+export async function createCrag(cragData) {
+  const payload = {
+    name: cragData.name,
+    location_lat: cragData.location_lat,
+    location_lon: cragData.location_lon,
+    description: cragData.description || '',
+  };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    '/crag/create_crag/',
+    payload,
+    true
+  );
+
+  const ok = await req.sendRequest(GenericGetResponse);
+  const res = req.Response;
+
+  console.log('[createCrag] response:', res);
+
+  if (!ok || !res?.success) {
+    return {
+      success: false,
+      message: res?.message || 'Failed to create crag',
+      crag: null,
+    };
+  }
+
+  return {
+    success: true,
+    message: res.message,
+    crag: normalizeCrag(res.data, null),
+  };
+}
+
+export async function createRoute(routeData) {
+  const payload = {
+    crag_id: routeData.crag_id,
+    route_name: routeData.route_name,
+    route_grade: routeData.route_grade,
+  };
+
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    '/route/create_route/',
+    payload,
+    true
+  );
+
+  const ok = await req.sendRequest(GenericGetResponse);
+  const res = req.Response;
+
+  console.log('[createRoute] response:', res);
+
+  if (!ok || !res?.success) {
+    return {
+      success: false,
+      message: res?.message || 'Failed to create route',
+      route: null,
+    };
+  }
+
+  return {
+    success: true,
+    message: res.message,
+    route: normalizeRoute(res.data),
+  };
+}

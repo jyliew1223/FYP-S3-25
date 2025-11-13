@@ -156,7 +156,7 @@ export default function MapScreen() {
                     latitudeDelta: 0.5,
                     longitudeDelta: 0.5,
                 }}
-                clusterColor="#FF6B6B"
+                clusterColor="#4CAF50"
                 clusterTextColor="#FFFFFF"
                 clusterFontFamily="System"
                 radius={50}
@@ -185,7 +185,7 @@ export default function MapScreen() {
                         >
                             <View style={styles.markerContainer}>
                                 <View style={styles.markerBubble}>
-                                    <Text style={styles.markerText}>🧗</Text>
+                                    <Text style={styles.markerText}>🪨</Text>
                                 </View>
                                 <View style={styles.markerArrow} />
                             </View>
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     clusterBubble: {
-        backgroundColor: '#FF6B6B',
+        backgroundColor: '#4CAF50',
         borderRadius: 25,
         width: 50,
         height: 50,
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     markerBubble: {
-        backgroundColor: '#4A90E2',
+        backgroundColor: '#4CAF50',
         borderRadius: 20,
         width: 40,
         height: 40,
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
         borderTopWidth: 10,
         borderLeftColor: 'transparent',
         borderRightColor: 'transparent',
-        borderTopColor: '#4A90E2',
+        borderTopColor: '#4CAF50',
         marginTop: -2,
     },
     // Crag info card styles
