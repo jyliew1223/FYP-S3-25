@@ -290,6 +290,7 @@ class ModelRouteDataSerializer(serializers.ModelSerializer):
         return obj.formatted_id
 
 from MyApp.Entity.postcomment import PostComment
+from MyApp.Entity.payment import UserPayment
 
 # Ranking Serializers
 class WeeklyRankingSerializer(serializers.Serializer):
@@ -351,3 +352,32 @@ class PostCommentSerializer(serializers.ModelSerializer):
 
     def get_comment_id(self, obj):
         return obj.formatted_id
+
+
+class UserPaymentSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    amount_dollars = serializers.ReadOnlyField()
+    is_used = serializers.ReadOnlyField()
+
+    class Meta:
+        model = UserPayment
+        fields = [
+            "id",
+            "payment_intent_id",
+            "amount",
+            "amount_dollars",
+            "currency",
+            "status",
+            "user",
+            "created_at",
+            "used_at",
+            "is_used",
+            "metadata",
+        ]
+        read_only_fields = [
+            "id",
+            "amount_dollars",
+            "is_used",
+            "user",
+            "created_at",
+        ]

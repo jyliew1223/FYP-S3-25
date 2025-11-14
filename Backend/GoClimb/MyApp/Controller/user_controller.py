@@ -35,6 +35,7 @@ def signup_user(
     username: str,
     email: str,
     profile_picture: Optional[InMemoryUploadedFile] = None,
+    payment_intent_id: Optional[str] = None,
 ) -> User:
     from MyApp.Serializer.serializers import UserSerializer
 
@@ -57,6 +58,13 @@ def signup_user(
         user = User.objects.filter(user_id=user_id).first()
         if user:
             raise UserAlreadyExistsError("User ID already linked to another account.")
+
+        # Verify payment if payment_intent_id is provided
+        if payment_intent_id:
+            from MyApp.Controller import payment_controller
+            payment_result = payment_controller.verify_payment(payment_intent_id, user_id)
+            if not payment_result['success']:
+                raise ValueError(f"Payment verification failed: {payment_result['error']}")
 
         # Prepare user data
         user_data = {
