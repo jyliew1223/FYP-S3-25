@@ -9,18 +9,6 @@ from django.core.exceptions import ObjectDoesNotExist
 
 
 def create_crag(crag_data: dict) -> Crag:
-    """
-    Controller: Business logic to create a crag.
-    
-    Args:
-        crag_data: Dictionary containing crag data
-    
-    Returns:
-        Crag entity
-    
-    Raises:
-        ValueError: If data validation fails
-    """
     from MyApp.Serializer.serializers import CragSerializer
     
     serializer = CragSerializer(data=crag_data)
@@ -32,19 +20,6 @@ def create_crag(crag_data: dict) -> Crag:
 
 
 def delete_crag(crag_id: str) -> bool:
-    """
-    Controller: Business logic to delete a crag.
-    
-    Args:
-        crag_id: The crag ID (can be prefixed like "CRAG-000001" or raw like "1")
-    
-    Returns:
-        True if successful
-    
-    Raises:
-        ValueError: If crag_id is empty
-        ObjectDoesNotExist: If crag not found
-    """
     if not crag_id:
         raise ValueError("crag_id is required")
 
@@ -147,10 +122,6 @@ def get_trending_crags(count: int) -> list[dict[str, Any]]:
 # --------------------
 
 def create_crag(*, name, location_lat, location_lon, description=""):
-    """
-    Create and return a Crag row.
-    Only uses fields that exist in your current CragSerializer.
-    """
     if not isinstance(name, str) or not name.strip():
         raise ValueError("Invalid name")
 
@@ -172,24 +143,6 @@ def create_crag(*, name, location_lat, location_lon, description=""):
 
 
 def create_crag_with_images(*, name, location_lat, location_lon, description="", user_id, images=None):
-    """
-    Create a crag with image uploads.
-    
-    Args:
-        name: Crag name
-        location_lat: Latitude
-        location_lon: Longitude  
-        description: Optional description
-        user_id: ID of the user creating the crag
-        images: List of uploaded image files
-        
-    Returns:
-        Crag object with images uploaded to Firebase Storage
-        
-    Raises:
-        ValueError: If validation fails or image upload fails
-        ObjectDoesNotExist: If user not found
-    """
     from MyApp.Firebase.helpers import upload_multiple_images_to_storage
     from MyApp.Entity.user import User
     from MyApp.Utils.helper import PrefixedIDConverter
@@ -278,21 +231,6 @@ def get_random_crag(count: int = 10, blacklist: list[str] | None = None):
 
 
 def get_all_crag_ids():
-    """
-    Controller: Get all crag IDs that exist in the database with selected fields.
-    
-    Returns:
-        List of dictionaries containing crag_id, name, and location_details for all crags
-        
-    Example:
-        [
-            {
-                "crag_id": "CRAG-000001", 
-                "name": "Test Crag",
-                "location_details": {"city": "New York", "country": "USA"}
-            }
-        ]
-    """
     # Get crag objects to access properties
     crags = Crag.objects.all().order_by('crag_id')
     
@@ -309,19 +247,6 @@ def get_all_crag_ids():
 
 
 def search_crags(query: str, limit: int = 20):
-    """
-    Controller: Search crags by name or description.
-    
-    Args:
-        query: Search query string
-        limit: Maximum number of results to return
-        
-    Returns:
-        QuerySet of Crag objects matching the search
-        
-    Raises:
-        ValueError: If query is empty or limit is invalid
-    """
     if not query or not query.strip():
         raise ValueError("Search query is required")
     
@@ -340,19 +265,6 @@ def search_crags(query: str, limit: int = 20):
 
 
 def get_crags_by_user_id(user_id: str):
-    """
-    Controller: Get all crags created by a specific user.
-    
-    Args:
-        user_id: The user ID (can be prefixed like "USER-000001" or raw)
-        
-    Returns:
-        QuerySet of Crag objects created by the user
-        
-    Raises:
-        ValueError: If user_id is empty
-        ObjectDoesNotExist: If user not found
-    """
     if not user_id:
         raise ValueError("user_id is required")
     

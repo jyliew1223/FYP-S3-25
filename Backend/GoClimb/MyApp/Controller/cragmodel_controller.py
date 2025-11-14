@@ -6,18 +6,6 @@ from MyApp.Entity.crag import Crag
 from MyApp.Utils.helper import PrefixedIDConverter
 
 def get_models_by_crag_id(crag_id: str) -> Optional[QuerySet[CragModel]]:
-    """
-    Controller: Get all crag models for a specific crag.
-    
-    Args:
-        crag_id: Crag ID to get models for (formatted or raw)
-    
-    Returns:
-        QuerySet of CragModel objects or None if crag not found
-    
-    Raises:
-        ValueError: If crag_id is invalid
-    """
     if not crag_id:
         raise ValueError("crag_id is required")
 
@@ -30,18 +18,6 @@ def get_models_by_crag_id(crag_id: str) -> Optional[QuerySet[CragModel]]:
 
 
 def get_models_by_user_id(user_id: str) -> Optional[QuerySet[CragModel]]:
-    """
-    Controller: Get all crag models created by a specific user.
-    
-    Args:
-        user_id: User ID to get models for
-    
-    Returns:
-        QuerySet of CragModel objects or None if user not found
-    
-    Raises:
-        ValueError: If user_id is invalid
-    """
     if not user_id:
         raise ValueError("user_id is required")
 
@@ -64,21 +40,6 @@ def create_crag_model(
     data: dict, 
     model_files: Optional[List[InMemoryUploadedFile]] = None
 ):
-    """
-    Controller: Business logic to create a crag model.
-    
-    Args:
-        user_id: User ID creating the model
-        data: Dictionary containing model data (crag_id, name, etc.)
-        model_files: Optional list of zipped model files
-    
-    Returns:
-        CragModel entity
-    
-    Raises:
-        ValueError: If data validation fails
-        User.DoesNotExist: If user not found
-    """
     user = User.objects.get(pk=user_id)
 
     # Add user_id to data for serializer
@@ -110,21 +71,6 @@ def create_crag_model(
 
 
 def delete_crag_model(model_id: str, user_id: str) -> bool:
-    """
-    Controller: Business logic to delete a crag model.
-    
-    Args:
-        model_id: Model ID to delete (formatted or raw)
-        user_id: User ID requesting deletion (for authorization)
-    
-    Returns:
-        bool: True if deletion successful
-    
-    Raises:
-        ValueError: If model_id is invalid
-        CragModel.DoesNotExist: If model not found
-        PermissionError: If user doesn't own the model
-    """
     if not model_id:
         raise ValueError("model_id is required")
     
@@ -160,23 +106,6 @@ def update_crag_model(
     data: dict, 
     model_files: Optional[List[InMemoryUploadedFile]] = None
 ) -> CragModel:
-    """
-    Controller: Business logic to update a crag model.
-    
-    Args:
-        model_id: Model ID to update (formatted or raw)
-        user_id: User ID requesting update (for authorization)
-        data: Dictionary containing updated model data
-        model_files: Optional list of new zipped model files
-    
-    Returns:
-        Updated CragModel entity
-    
-    Raises:
-        ValueError: If model_id is invalid or validation fails
-        CragModel.DoesNotExist: If model not found
-        PermissionError: If user doesn't own the model
-    """
     if not model_id:
         raise ValueError("model_id is required")
     

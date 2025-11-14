@@ -34,19 +34,6 @@ def get_random_post(count: int = 10, blacklist: list[str] | None = None):
     return posts
 
 def search_posts(query: str, limit: int = 20):
-    """
-    Controller: Search posts by title, content, or tags.
-    
-    Args:
-        query: Search query string
-        limit: Maximum number of results to return
-        
-    Returns:
-        QuerySet of Post objects matching the search
-        
-    Raises:
-        ValueError: If query is empty or limit is invalid
-    """
     if not query or not query.strip():
         raise ValueError("Search query is required")
     
@@ -68,19 +55,6 @@ def search_posts(query: str, limit: int = 20):
 
 
 def search_posts_by_tags(tags: list, limit: int = 20):
-    """
-    Controller: Search posts by specific tags.
-    
-    Args:
-        tags: List of tag strings to search for
-        limit: Maximum number of results to return
-        
-    Returns:
-        QuerySet of Post objects matching the tags
-        
-    Raises:
-        ValueError: If tags is empty or limit is invalid
-    """
     if not tags or len(tags) == 0:
         raise ValueError("At least one tag is required")
     
@@ -139,19 +113,6 @@ from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 
 def delete_post(post_id: str) -> bool:
-    """
-    Controller: Business logic to delete a post.
-    
-    Args:
-        post_id: The post ID (can be prefixed like "POST-000001" or raw like "1")
-    
-    Returns:
-        True if successful
-    
-    Raises:
-        ValueError: If post_id is empty
-        ObjectDoesNotExist: If post not found
-    """
     if not post_id:
         raise ValueError("post_id is required")
 
@@ -178,21 +139,6 @@ from MyApp.Serializer.serializers import PostSerializer
 from MyApp.Firebase.helpers import upload_multiple_images_to_storage
 
 def create_post(user_id: str, data: dict, images: Optional[List[InMemoryUploadedFile]] = None):
-    """
-    Controller: Business logic to create a post.
-    
-    Args:
-        user_id: User ID creating the post
-        data: Dictionary containing post data
-        images: Optional list of image files
-    
-    Returns:
-        Post entity
-    
-    Raises:
-        ValueError: If data validation fails
-        User.DoesNotExist: If user not found
-    """
     user = User.objects.get(pk=user_id)
 
     # Add user_id to data for serializer

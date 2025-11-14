@@ -11,18 +11,6 @@ from MyApp.Entity.climblog import ClimbLog
 
 
 def get_weekly_user_ranking(count: int = 50) -> List[Dict[str, Any]]:
-    """
-    Get weekly user ranking based on number of climbs.
-    
-    Args:
-        count: Number of users to return
-        
-    Returns:
-        List of user rankings with climb counts
-        
-    Raises:
-        ValueError: If count is invalid
-    """
     if count <= 0:
         raise ValueError("Count must be a positive integer.")
     
@@ -61,18 +49,6 @@ def get_weekly_user_ranking(count: int = 50) -> List[Dict[str, Any]]:
 
 
 def get_alltime_user_ranking(count: int = 50) -> List[Dict[str, Any]]:
-    """
-    Get all-time user ranking based on number of climbs.
-    
-    Args:
-        count: Number of users to return
-        
-    Returns:
-        List of user rankings with climb counts
-        
-    Raises:
-        ValueError: If count is invalid
-    """
     if count <= 0:
         raise ValueError("Count must be a positive integer.")
     
@@ -105,19 +81,6 @@ def get_alltime_user_ranking(count: int = 50) -> List[Dict[str, Any]]:
 
 
 def get_average_grade_ranking(count: int = 50, timeframe: str = "alltime") -> List[Dict[str, Any]]:
-    """
-    Get user ranking based on average grade climbed.
-    
-    Args:
-        count: Number of users to return
-        timeframe: Time period ("monthly", "weekly", "alltime")
-        
-    Returns:
-        List of user rankings with average grades
-        
-    Raises:
-        ValueError: If parameters are invalid
-    """
     if count <= 0:
         raise ValueError("Count must be a positive integer.")
     
@@ -172,21 +135,6 @@ def get_average_grade_ranking(count: int = 50, timeframe: str = "alltime") -> Li
 
 
 def get_top_climbers(count: int = 50, timeframe: str = "alltime") -> List[Dict[str, Any]]:
-    """
-    Get top climbers based on combined score (quantity + quality).
-    
-    Scoring: total_score = (total_routes * 10) + (average_grade * 100)
-    
-    Args:
-        count: Number of users to return
-        timeframe: Time period ("monthly", "weekly", "alltime")
-        
-    Returns:
-        List of top climbers with combined scores
-        
-    Raises:
-        ValueError: If parameters are invalid
-    """
     if count <= 0:
         raise ValueError("Count must be a positive integer.")
     

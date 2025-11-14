@@ -67,19 +67,6 @@ def get_route_by_id(route_id: str):
 
 
 def get_routes_by_user_id(user_id: str):
-    """
-    Controller: Get all routes created by a specific user.
-    
-    Args:
-        user_id: The user ID (can be prefixed like "USER-000001" or raw)
-        
-    Returns:
-        QuerySet of Route objects created by the user
-        
-    Raises:
-        ValueError: If user_id is empty
-        ObjectDoesNotExist: If user not found
-    """
     if not user_id:
         raise ValueError("user_id is required")
     

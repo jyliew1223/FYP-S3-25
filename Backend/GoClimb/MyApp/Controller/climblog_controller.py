@@ -25,18 +25,6 @@ def get_user_climb_state(user_id: str) -> int:
 
 
 def create_climb_log(climb_data: dict) -> ClimbLog:
-    """
-    Controller: Business logic to create a climb log.
-    
-    Args:
-        climb_data: Dictionary containing climb log data
-    
-    Returns:
-        ClimbLog entity
-    
-    Raises:
-        ValueError: If data validation fails
-    """
     serializer = ClimbLogSerializer(data=climb_data)
     if not serializer.is_valid():
         raise ValueError(serializer.errors)
@@ -46,19 +34,6 @@ def create_climb_log(climb_data: dict) -> ClimbLog:
 
 
 def delete_climb_log(log_id: str) -> bool:
-    """
-    Controller: Business logic to delete a climb log.
-    
-    Args:
-        log_id: The climb log ID (can be prefixed like "LOG-123" or raw like "123")
-    
-    Returns:
-        True if successful
-    
-    Raises:
-        ValueError: If log_id is empty
-        ObjectDoesNotExist: If climb log not found
-    """
     if not log_id:
         raise ValueError("log_id is required")
 

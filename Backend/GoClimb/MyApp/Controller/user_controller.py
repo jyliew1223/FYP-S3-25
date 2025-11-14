@@ -14,18 +14,6 @@ from MyApp.Exceptions.exceptions import UserAlreadyExistsError, InvalidUIDError
 
 
 def verify_firebase_token(token: str) -> dict:
-    """
-    Verify Firebase token - handles both ID tokens and custom tokens.
-    
-    Args:
-        token: Firebase token (ID token or custom token)
-        
-    Returns:
-        Decoded token data
-        
-    Raises:
-        InvalidUIDError: If token verification fails
-    """
     try:
         # First try to verify as ID token
         decoded_token = auth.verify_id_token(token)
@@ -48,23 +36,6 @@ def signup_user(
     email: str,
     profile_picture: Optional[InMemoryUploadedFile] = None,
 ) -> User:
-    """
-    Controller: Business logic to create a new user.
-
-    Args:
-        id_token: Firebase ID token or custom token
-        username: Username for the new user
-        email: Email for the new user
-        profile_picture: Optional profile picture file
-
-    Returns:
-        User entity
-
-    Raises:
-        InvalidUIDError: If user ID is invalid
-        UserAlreadyExistsError: If email/user already exists
-        ValueError: If validation fails
-    """
     from MyApp.Serializer.serializers import UserSerializer
 
     try:
@@ -135,19 +106,6 @@ def get_user_by_id(user_id: str) -> Optional[User]:
 
 
 def search_users(query: str, limit: int = 20):
-    """
-    Controller: Search users by username or email.
-    
-    Args:
-        query: Search query string
-        limit: Maximum number of results to return
-        
-    Returns:
-        QuerySet of User objects matching the search
-        
-    Raises:
-        ValueError: If query is empty or limit is invalid
-    """
     if not query or not query.strip():
         raise ValueError("Search query is required")
     
@@ -207,21 +165,6 @@ def update_user(
     update_data: dict,
     profile_picture: Optional[InMemoryUploadedFile] = None,
 ) -> User:
-    """
-    Controller: Update user details using serializer.
-
-    Args:
-        user_id: User ID to identify the user
-        update_data: Dictionary containing fields to update
-        profile_picture: New profile picture file (optional)
-
-    Returns:
-        Updated User entity
-
-    Raises:
-        InvalidUIDError: If user ID is invalid
-        ValueError: If validation fails
-    """
     from MyApp.Serializer.serializers import UserSerializer
     from firebase_admin import storage
 
