@@ -636,6 +636,7 @@ class AllEndpointsSuccessTestCase(TestCase):
             "crag_id": self.test_crag.formatted_id,
             "route_name": "New Route",
             "route_grade": "5",
+            "user_id": self.test_user.user_id,
         }
 
         response = self.client.post(url, data=data, format="json")
@@ -1838,7 +1839,8 @@ class AllEndpointsSuccessTestCase(TestCase):
             "name": "New Test Crag",
             "location_lat": 35.6762,
             "location_lon": 139.6503,
-            "description": "A new climbing crag for testing"
+            "description": "A new climbing crag for testing",
+            "user_id": self.test_user.user_id,
         }
         response = self.client.post(url, data, format="json")
         self.print_endpoint_result("CRAG - CREATE", url, response, data)
