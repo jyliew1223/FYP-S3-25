@@ -1866,6 +1866,23 @@ class AllEndpointsSuccessTestCase(TestCase):
             )
 
     @patch("firebase_admin.app_check.verify_token")
+    def test_41b_crag_delete(self, mock_verify_app_check):
+        """Test deleting a crag"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        url = reverse("delete_crag")
+        data = {"crag_id": self.test_crag.formatted_id}
+        response = self.client.delete(url, data, format="json")
+        self.print_endpoint_result("CRAG - DELETE", url, response, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertEqual(response_data.get("message"), "Crag deleted successfully.")
+
+    @patch("firebase_admin.app_check.verify_token")
     def test_42_user_get_user_by_id(self, mock_verify_app_check):
         """Test getting user by ID"""
         

@@ -229,3 +229,74 @@ def get_route_by_id_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+@api_view(["GET"])
+def get_routes_by_user_id_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to get all routes created by a user.
+    
+    Query Parameters:
+        user_id: string (required) - ID of the user
+    
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": [Route objects],
+        "errors": dict
+    }
+    """
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    user_id = request.query_params.get("user_id", "").strip()
+    if not user_id:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"user_id": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        routes = route_controller.get_routes_by_user_id(user_id)
+        serializer = RouteSerializer(routes, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Routes fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"user_id": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except ObjectDoesNotExist:
+        return Response(
+            {
+                "success": False,
+                "message": "User not found.",
+                "errors": {"user_id": "Invalid user ID."},
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while fetching routes.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

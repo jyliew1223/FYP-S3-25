@@ -7,6 +7,8 @@ from MyApp.Boundary.crag_boundary import (
     get_random_crag_view,
     get_all_crag_ids_view,
     create_crag_view,  # CREATING_01
+    delete_crag_view,
+    get_crags_by_user_id_view,
 )
 
 urlpatterns = [
@@ -20,4 +22,6 @@ urlpatterns = [
     path("get_random_crags/", get_random_crag_view, name="get_random_crag"),
     path("get_all_crag_ids/", get_all_crag_ids_view, name="get_all_crag_ids"),
     path("create_crag/", create_crag_view, name="create_crag"),  # CREATING_01
+    path("delete_crag/", delete_crag_view, name="delete_crag"),
+    path("get_crags_by_user_id/", get_crags_by_user_id_view, name="get_crags_by_user_id"),
 ]

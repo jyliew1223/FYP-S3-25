@@ -306,3 +306,34 @@ def get_all_crag_ids():
         })
     
     return crag_list
+
+
+def get_crags_by_user_id(user_id: str):
+    """
+    Controller: Get all crags created by a specific user.
+    
+    Args:
+        user_id: The user ID (can be prefixed like "USER-000001" or raw)
+        
+    Returns:
+        QuerySet of Crag objects created by the user
+        
+    Raises:
+        ValueError: If user_id is empty
+        ObjectDoesNotExist: If user not found
+    """
+    if not user_id:
+        raise ValueError("user_id is required")
+    
+    # Convert formatted user ID to raw ID if needed
+    raw_user_id = PrefixedIDConverter.to_raw_id(user_id) if isinstance(user_id, str) and user_id.startswith('USER-') else user_id
+    
+    # Check if user exists
+    from MyApp.Entity.user import User
+    try:
+        User.objects.get(user_id=raw_user_id)
+    except User.DoesNotExist:
+        raise ObjectDoesNotExist(f"User with ID {user_id} does not exist")
+    
+    # Return crags created by this user
+    return Crag.objects.filter(user__user_id=raw_user_id).order_by('-crag_id')

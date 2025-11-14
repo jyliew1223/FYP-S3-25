@@ -5,6 +5,7 @@ from MyApp.Boundary.route_boundary import (
     delete_route_view,
     get_route_by_crag_id_view,
     get_route_by_id_view,
+    get_routes_by_user_id_view,
 )
 
 urlpatterns = [
@@ -19,5 +20,10 @@ urlpatterns = [
         "get_route_by_id/",
         get_route_by_id_view,
         name="get_route_by_id",
+    ),
+    path(
+        "get_routes_by_user_id/",
+        get_routes_by_user_id_view,
+        name="get_routes_by_user_id",
     ),
 ]
