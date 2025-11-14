@@ -67,6 +67,48 @@ def search_posts(query: str, limit: int = 20):
     return posts
 
 
+def search_posts_by_tags(tags: list, limit: int = 20):
+    """
+    Controller: Search posts by specific tags.
+    
+    Args:
+        tags: List of tag strings to search for
+        limit: Maximum number of results to return
+        
+    Returns:
+        QuerySet of Post objects matching the tags
+        
+    Raises:
+        ValueError: If tags is empty or limit is invalid
+    """
+    if not tags or len(tags) == 0:
+        raise ValueError("At least one tag is required")
+    
+    if limit <= 0:
+        raise ValueError("Limit must be a positive integer")
+    
+    # Clean up tags (remove empty strings and strip whitespace)
+    clean_tags = [tag.strip().lower() for tag in tags if tag and tag.strip()]
+    
+    if not clean_tags:
+        raise ValueError("At least one valid tag is required")
+    
+    # Search for posts that contain any of the specified tags
+    from django.db.models import Q
+    
+    # Build query to match any of the tags (case-insensitive)
+    tag_queries = Q()
+    for tag in clean_tags:
+        tag_queries |= Q(tags__icontains=tag)
+    
+    posts = Post.objects.filter(
+        tag_queries,
+        status="active"  # Only active posts
+    ).order_by('-created_at')[:limit]
+    
+    return posts
+
+
 def get_post_by_user_id(
     user_id: str, count: int = 10, blacklist: list[str] | None = None
 ):

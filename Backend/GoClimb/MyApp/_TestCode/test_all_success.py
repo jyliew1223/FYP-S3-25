@@ -2002,3 +2002,43 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.assertTrue(response_data.get("success"))
         self.assertIn("data", response_data)
         self.assertIsInstance(response_data["data"], list)
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_47_search_posts_by_tags(self, mock_verify_app_check):
+        """Test searching posts by specific tags"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        # Create additional test posts with specific tags
+        Post.objects.create(
+            user=self.test_user,
+            title="Advanced Bouldering Tips",
+            content="Master advanced bouldering techniques and training methods",
+            tags=["bouldering", "advanced", "training"],
+            status="active",
+        )
+        Post.objects.create(
+            user=self.test_user,
+            title="Sport Climbing Safety",
+            content="Essential safety tips for sport climbing outdoors",
+            tags=["sport", "safety", "outdoor"],
+            status="active",
+        )
+
+        url = reverse("search_posts_by_tags")
+        data = {"tags": ["bouldering", "training"], "limit": 5}
+        response = self.client.post(url, data, format="json")
+        self.print_endpoint_result("SEARCH - POSTS BY TAGS", url, response, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)
+        
+        # Verify that returned posts contain the searched tags
+        for post in response_data["data"]:
+            post_tags = [tag.lower() for tag in post["tags"]]
+            has_matching_tag = any(tag in post_tags for tag in ["bouldering", "training"])
+            self.assertTrue(has_matching_tag, f"Post should contain 'bouldering' or 'training' tag: {post['tags']}")

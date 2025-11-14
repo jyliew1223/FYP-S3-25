@@ -421,3 +421,78 @@ def search_posts_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["POST"])
+def search_posts_by_tags_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to search posts by tags.
+    
+    Request Body:
+        tags: array of strings (required) - List of tags to search for
+        limit: number (optional, default: 20) - Maximum results to return
+    
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": [Post objects],
+        "errors": dict
+    }
+    """
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    tags = request.data.get("tags", [])
+    limit_str = request.data.get("limit", 20)
+    
+    # Validate tags
+    if not tags or not isinstance(tags, list):
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"tags": "This field is required and must be an array."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Validate limit
+    try:
+        limit = int(limit_str) if limit_str else 20
+        if limit <= 0:
+            limit = 20
+    except (ValueError, TypeError):
+        limit = 20
+
+    try:
+        posts = post_controller.search_posts_by_tags(tags, limit)
+        serializer = PostSerializer(posts, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Posts found successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"validation": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while searching posts by tags.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
