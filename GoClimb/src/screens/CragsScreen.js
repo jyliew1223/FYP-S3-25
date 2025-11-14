@@ -136,7 +136,7 @@ export default function CragsScreen({ navigation, route }) {
   function handleARPress(crag) {
     // Check if user is logged in
     if (!user) {
-      navigation.navigate('SignUp');
+      navigation.navigate('PreSignUp');
       return;
     }
     

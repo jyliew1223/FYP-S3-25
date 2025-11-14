@@ -207,13 +207,13 @@ export default function HomeScreen() {
       await auth().signOut();
       navigation.navigate('MainTabs', { screen: 'Home' });
     } else {
-      navigation.navigate('SignUp');
+      navigation.navigate('PreSignUp');
     }
   };
 
   const goToProfile = () => {
     if (user) navigation.navigate('Profile');
-    else navigation.navigate('SignUp');
+    else navigation.navigate('PreSignUp');
   };
 
   return (

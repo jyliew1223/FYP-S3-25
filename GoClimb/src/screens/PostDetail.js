@@ -125,7 +125,7 @@ export default function PostDetail() {
   async function toggleLike() {
     // Check if user is logged in
     if (!isLoggedIn) {
-      navigation.navigate('SignUp');
+      navigation.navigate('PreSignUp');
       return;
     }
 
@@ -168,7 +168,7 @@ export default function PostDetail() {
   // comment submit
   async function sendComment() {
     if (!isLoggedIn) {
-      navigation.navigate('SignUp'); // adjust if your signup route is different
+      navigation.navigate('PreSignUp'); // adjust if your signup route is different
       return;
     }
 
@@ -388,6 +388,12 @@ export default function PostDetail() {
   const isOwnPost = currentUser && post.author?.id === currentUser.uid;
 
   const handleProfilePress = (userId) => {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      navigation.navigate('PreSignUp');
+      return;
+    }
+    
     if (userId) {
       navigation.navigate('Profile', { userId });
     }

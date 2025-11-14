@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { registerUserInDjango } from '../services/api/AuthApi';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_ENDPOINTS } from '../constants/api';
 
 // validation helpers
 function isValidEmail(str) {
@@ -34,7 +36,7 @@ function isStrongPassword(str) {
   return true;
 }
 
-export default function SignUpScreen() {
+export default function SignUpScreen({ route }) {
   const navigation = useNavigation();
   const { colors } = useTheme();
 
@@ -44,6 +46,76 @@ export default function SignUpScreen() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Check if user has paid and verify payment
+  useEffect(() => {
+    const checkPayment = async () => {
+      const { paid, paymentId } = route?.params || {};
+      
+      if (!paid || !paymentId) {
+        Alert.alert(
+          'Payment Required',
+          'Please complete payment before signing up.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('PreSignUp'),
+            },
+          ],
+          { cancelable: false }
+        );
+        return;
+      }
+
+      // Verify payment with backend
+      try {
+        const response = await fetch(API_ENDPOINTS.PAYMENT.VERIFY_PAYMENT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            paymentIntentId: paymentId,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!data.verified) {
+          Alert.alert(
+            'Payment Verification Failed',
+            'Your payment could not be verified. Please try again.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.navigate('PreSignUp'),
+              },
+            ],
+            { cancelable: false }
+          );
+        } else {
+          // Store payment verification
+          await AsyncStorage.setItem('hasPaid', 'true');
+          await AsyncStorage.setItem('paymentId', paymentId);
+        }
+      } catch (error) {
+        console.error('[SignUpScreen] Payment verification error:', error);
+        Alert.alert(
+          'Verification Error',
+          'Could not verify payment. Please contact support.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('PreSignUp'),
+            },
+          ],
+          { cancelable: false }
+        );
+      }
+    };
+    
+    checkPayment();
+  }, [route?.params]);
 
   // Password requirement checks (bypass for "test123")
   const isTestPassword = pass === 'test123';

@@ -113,7 +113,7 @@ export default function CreatePostScreen() {
   async function onSubmit() {
     if (!isLoggedIn) {
       // user must log in / sign up before posting
-      navigation.navigate('SignUp');
+      navigation.navigate('PreSignUp');
       return;
     }
 

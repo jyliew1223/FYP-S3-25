@@ -27,7 +27,7 @@ export default function BottomBar({ state, descriptors, navigation }) {
     // Check if user is logged in
     if (!user) {
       // Redirect to signup/login if not logged in
-      nav.navigate('SignUp');
+      nav.navigate('PreSignUp');
     } else {
       // Navigate to log climb screen if logged in
       nav.navigate('LogClimb');
@@ -37,7 +37,7 @@ export default function BottomBar({ state, descriptors, navigation }) {
   const handleRealFieldAR = () => {
     // Check if user is logged in
     if (!user) {
-      nav.navigate('SignUp');
+      nav.navigate('PreSignUp');
       return;
     }
     

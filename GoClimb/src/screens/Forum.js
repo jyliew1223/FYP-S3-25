@@ -196,7 +196,7 @@ export default function Forum({navigation}) {
   const toggleLike = async post => {
     const currentUser = auth().currentUser;
     if (!currentUser) {
-      navigation.navigate('SignUp');
+      navigation.navigate('PreSignUp');
       return;
     }
 
@@ -283,6 +283,12 @@ export default function Forum({navigation}) {
   };
 
   const handleProfilePress = (userId) => {
+    const currentUser = auth().currentUser;
+    if (!currentUser) {
+      navigation.navigate('PreSignUp');
+      return;
+    }
+    
     if (userId) {
       navigation.navigate('Profile', { userId });
     }
@@ -331,7 +337,7 @@ export default function Forum({navigation}) {
             onPress={() => {
               const currentUser = auth().currentUser;
               if (!currentUser) {
-                navigation.navigate('SignUp');
+                navigation.navigate('PreSignUp');
               } else {
                 navigation.navigate('CreatePost');
               }
@@ -363,83 +369,6 @@ export default function Forum({navigation}) {
         </View>
       ) : null}
 
-      {/* search bar */}
-      <View
-        style={[
-          styles.searchWrap,
-          {
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-          },
-        ]}>
-        <Ionicons name="search" size={18} color={colors.textDim} />
-        <TextInput
-          placeholder="Search posts"
-          placeholderTextColor={colors.textDim}
-          value={query}
-          onChangeText={setQuery}
-          style={[styles.searchInput, {color: colors.text}]}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        {query ? (
-          <TouchableOpacity onPress={() => setQuery('')}>
-            <Ionicons name="close-circle" size={18} color={colors.textDim} />
-          </TouchableOpacity>
-        ) : null}
-      </View>
-
-      {/* Sort chips - horizontal scrollable - only show when not loading */}
-      {!loading && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.sortChipsContainer}
-          contentContainerStyle={styles.sortChipsContent}
-        >
-          {/* Dynamically order chips - selected one first */}
-          {[
-            { key: 'newest', label: 'Newest First' },
-            { key: 'oldest', label: 'Oldest First' },
-            { key: 'mostLiked', label: 'Most Liked' },
-            { key: 'leastLiked', label: 'Least Liked' },
-          ]
-            .sort((a, b) => {
-              // Selected chip goes first
-              if (a.key === sortBy) return -1;
-              if (b.key === sortBy) return 1;
-              return 0;
-            })
-            .map((option) => (
-              <TouchableOpacity
-                key={option.key}
-                style={[
-                  styles.sortChip,
-                  {
-                    backgroundColor: sortBy === option.key ? '#4CAF50' : colors.surfaceAlt,
-                    borderColor: sortBy === option.key ? '#4CAF50' : colors.divider,
-                  },
-                ]}
-                onPress={() => setSortBy(option.key)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.sortChipText,
-                    {
-                      color: sortBy === option.key ? '#FFFFFF' : colors.textDim,
-                      fontWeight: sortBy === option.key ? '700' : '600',
-                    },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-        </ScrollView>
-      )}
-
       {/* list */}
       {loading ? (
         <View style={styles.center}>
@@ -450,9 +379,86 @@ export default function Forum({navigation}) {
           data={filtered}
           keyExtractor={item => item.id}
           renderItem={renderItem}
+          ListHeaderComponent={
+            <>
+              {/* search bar */}
+              <View
+                style={[
+                  styles.searchWrap,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surface,
+                  },
+                ]}>
+                <Ionicons name="search" size={18} color={colors.textDim} />
+                <TextInput
+                  placeholder="Search posts"
+                  placeholderTextColor={colors.textDim}
+                  value={query}
+                  onChangeText={setQuery}
+                  style={[styles.searchInput, {color: colors.text}]}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {query ? (
+                  <TouchableOpacity onPress={() => setQuery('')}>
+                    <Ionicons name="close-circle" size={18} color={colors.textDim} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              {/* Sort chips - horizontal scrollable */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.sortChipsContainer}
+                contentContainerStyle={styles.sortChipsContent}
+              >
+                {/* Dynamically order chips - selected one first */}
+                {[
+                  { key: 'newest', label: 'Newest First' },
+                  { key: 'oldest', label: 'Oldest First' },
+                  { key: 'mostLiked', label: 'Most Liked' },
+                  { key: 'leastLiked', label: 'Least Liked' },
+                ]
+                  .sort((a, b) => {
+                    // Selected chip goes first
+                    if (a.key === sortBy) return -1;
+                    if (b.key === sortBy) return 1;
+                    return 0;
+                  })
+                  .map((option) => (
+                    <TouchableOpacity
+                      key={option.key}
+                      style={[
+                        styles.sortChip,
+                        {
+                          backgroundColor: sortBy === option.key ? '#4CAF50' : colors.surfaceAlt,
+                          borderColor: sortBy === option.key ? '#4CAF50' : colors.divider,
+                        },
+                      ]}
+                      onPress={() => setSortBy(option.key)}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.sortChipText,
+                          {
+                            color: sortBy === option.key ? '#FFFFFF' : colors.textDim,
+                            fontWeight: sortBy === option.key ? '700' : '600',
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </>
+          }
           ItemSeparatorComponent={() => <View style={{height: 10}} />}
           contentContainerStyle={{
-            paddingTop: 8,
             paddingHorizontal: 16,
             paddingBottom: 24,
           }}
@@ -733,7 +739,6 @@ const styles = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
     marginTop: 8,
     gap: 8,
     borderWidth: StyleSheet.hairlineWidth,
@@ -747,10 +752,9 @@ const styles = StyleSheet.create({
   },
   sortChipsContainer: {
     marginTop: 8,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   sortChipsContent: {
-    paddingHorizontal: 16,
     gap: 10,
   },
   sortChip: {

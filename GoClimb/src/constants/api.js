@@ -78,5 +78,9 @@ export const API_ENDPOINTS = {
     GET_BY_MODEL_ID: 'get_by_model_id',
     DELETE: 'delete_model_route_data',
     GET_BY_USER_ID: 'get_by_user_id'
+  }),
+  PAYMENT: withBase('payment/', {
+    CREATE_PAYMENT_INTENT: 'create-payment-intent/',
+    VERIFY_PAYMENT: 'verify-payment/'
   })
 };
