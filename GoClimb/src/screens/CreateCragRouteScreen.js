@@ -170,6 +170,7 @@ export default function CreateCragRouteScreen() {
         location_lat: lat,
         location_lon: lon,
         description: cragDescription.trim(),
+        images: cragImages, // Pass the selected images
       });
 
       if (result.success) {
@@ -181,7 +182,11 @@ export default function CreateCragRouteScreen() {
         setCragDescription('');
         setCragImages([]);
         setTimeout(() => {
-          navigation.goBack();
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('MainTabs', { screen: 'Routes' });
+          }
         }, 1500);
       } else {
         showToast(result.message || 'Failed to create crag');
@@ -206,11 +211,17 @@ export default function CreateCragRouteScreen() {
 
     setSubmitting(true);
 
+    // Debug logging
+    console.log('[CreateCragRouteScreen] routeImages before API call:', routeImages);
+    console.log('[CreateCragRouteScreen] routeImages length:', routeImages.length);
+    console.log('[CreateCragRouteScreen] routeImages content:', JSON.stringify(routeImages, null, 2));
+
     try {
       const result = await createRoute({
         crag_id: selectedCrag.crag_id || selectedCrag.crag_pretty_id,
         route_name: routeName.trim(),
         route_grade: routeGrade,
+        images: routeImages, // Pass the selected images
       });
 
       if (result.success) {
@@ -221,7 +232,11 @@ export default function CreateCragRouteScreen() {
         setSelectedCrag(null);
         setRouteImages([]);
         setTimeout(() => {
-          navigation.goBack();
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('MainTabs', { screen: 'Routes' });
+          }
         }, 1500);
       } else {
         showToast(result.message || 'Failed to create route');
@@ -237,7 +252,13 @@ export default function CreateCragRouteScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          } else {
+            navigation.navigate('MainTabs', { screen: 'Routes' });
+          }
+        }} style={styles.backButton}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Create New</Text>

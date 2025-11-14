@@ -67,30 +67,6 @@ export default function ModelManagementScreen() {
     rot_offset_z: '0'
   });
 
-  // Helper function to parse normalization data from backend
-  const parseNormalizationData = useCallback((model) => {
-    if (!model.normalization_data) return model;
-
-    try {
-      // If it's a string, parse it to JSON
-      if (typeof model.normalization_data === 'string') {
-        console.log('Parsing normalization data string for model:', model.model_id);
-        model.normalization_data = JSON.parse(model.normalization_data);
-        console.log('Parsed normalization data:', model.normalization_data);
-      }
-    } catch (error) {
-      console.error('Failed to parse normalization data for model:', model.model_id, error);
-      // Set default normalization data if parsing fails
-      model.normalization_data = {
-        scale: 0.001,
-        pos_offset: { x: 0, y: 0, z: 0 },
-        rot_offset: { x: 90, y: 0, z: 0 }
-      };
-    }
-
-    return model;
-  }, []);
-
   const loadModels = async (isRefresh = false) => {
     try {
       if (isRefresh) {
@@ -102,9 +78,7 @@ export default function ModelManagementScreen() {
       const response = await fetchCragByUserId();
 
       if (response.success) {
-        // Parse normalization data for each model
-        const modelsWithParsedData = (response.data || []).map(parseNormalizationData);
-        const modelsWithAvailability = await checkLocalAvailability(modelsWithParsedData);
+        const modelsWithAvailability = await checkLocalAvailability(response.data || []);
         setModels(modelsWithAvailability);
       } else {
         Alert.alert('Error', response.message || 'Failed to load models');
@@ -637,8 +611,8 @@ export default function ModelManagementScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>My 3D Models</Text>
-        <TouchableOpacity 
+        <Text style={[styles.title, { color: colors.text }]}>My Models</Text>
+        <TouchableOpacity
           style={[styles.uploadButton, { backgroundColor: colors.accent }]}
           onPress={handleDocumentPicker}
         >

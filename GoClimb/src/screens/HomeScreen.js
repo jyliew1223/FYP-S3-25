@@ -13,7 +13,6 @@ import {
   Platform,
   Image,
   ScrollView,
-  TextInput,
   FlatList,
   ActivityIndicator,
 } from 'react-native';
@@ -25,7 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { BlurView } from '@react-native-community/blur';
 import { fetchCurrentUserFromDjango } from '../services/api/AuthApi';
-import { fetchTrendingCrags, searchRoutes } from '../services/api/CragService';
+import { fetchTrendingCrags } from '../services/api/CragService';
 import { fetchMonthlyUserRankings } from '../services/api/RankingsService';
 
 export default function HomeScreen() {
@@ -47,11 +46,7 @@ export default function HomeScreen() {
   const [monthlyRankings, setMonthlyRankings] = useState([]);
   const [loadingRankings, setLoadingRankings] = useState(true);
 
-  // Route search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
+
   const { width, height } = Dimensions.get('window');
   const MENU_W = useMemo(() => Math.min(320, width * 0.82), [width]);
 
@@ -128,40 +123,7 @@ export default function HomeScreen() {
     loadMonthlyRankings();
   }, []);
 
-  // Search routes
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    
-    if (!query.trim()) {
-      setShowSearchResults(false);
-      setSearchResults([]);
-      return;
-    }
 
-    setSearching(true);
-    setShowSearchResults(true);
-    
-    try {
-      const result = await searchRoutes(query);
-      if (result.success) {
-        setSearchResults(result.routes);
-      }
-    } catch (error) {
-      console.log('Error searching routes:', error);
-    }
-    
-    setSearching(false);
-  };
-
-  const handleRoutePress = (route) => {
-    setShowSearchResults(false);
-    setSearchQuery('');
-    navigation.navigate('RouteDetails', {
-      route_id: route.route_id,
-      previewName: route.name,
-      previewGrade: route.gradeFont,
-    });
-  };
 
   const handleCragPress = (crag) => {
     navigation.navigate('MainTabs', {
@@ -257,65 +219,6 @@ export default function HomeScreen() {
       {/* Main content (subtle scale when drawer is open, for depth) */}
       <Animated.View style={{ flex: 1, transform: [{ scale: scaleDown }] }}>
         <ScrollView style={[styles.body, { backgroundColor: colors.bg }]}>
-          {/* Search Bar */}
-          <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-            <Ionicons name="search" size={20} color={colors.textDim} />
-            <TextInput
-              placeholder="Search routes..."
-              placeholderTextColor={colors.textDim}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              style={[styles.searchInput, { color: colors.text }]}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {searchQuery ? (
-              <TouchableOpacity onPress={() => {
-                setSearchQuery('');
-                setShowSearchResults(false);
-                setSearchResults([]);
-              }}>
-                <Ionicons name="close-circle" size={20} color={colors.textDim} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {/* Search Results */}
-          {showSearchResults && (
-            <View style={[styles.searchResults, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-              {searching ? (
-                <View style={styles.searchLoading}>
-                  <ActivityIndicator size="small" color={colors.accent} />
-                  <Text style={[styles.searchLoadingText, { color: colors.textDim }]}>Searching...</Text>
-                </View>
-              ) : searchResults.length === 0 ? (
-                <View style={styles.searchEmpty}>
-                  <Ionicons name="search-outline" size={32} color={colors.textDim} />
-                  <Text style={[styles.searchEmptyText, { color: colors.textDim }]}>No routes found</Text>
-                </View>
-              ) : (
-                searchResults.map((route) => (
-                  <TouchableOpacity
-                    key={route.route_id}
-                    style={[styles.searchResultItem, { borderBottomColor: colors.divider }]}
-                    onPress={() => handleRoutePress(route)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.searchResultName, { color: colors.text }]}>
-                        {route.name}
-                      </Text>
-                      <Text style={[styles.searchResultCrag, { color: colors.textDim }]}>
-                        {route.cragData?.name || 'Unknown Crag'}
-                      </Text>
-                    </View>
-                    <Text style={[styles.searchResultGrade, { color: colors.accent }]}>
-                      {route.gradeFont}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          )}
 
           {/* Monthly Rankings Section */}
           <View style={styles.section}>
@@ -646,70 +549,6 @@ const styles = StyleSheet.create({
   appTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
   body: { flex: 1 },
-
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    paddingVertical: 0,
-  },
-  searchResults: {
-    marginHorizontal: 16,
-    marginTop: -8,
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxHeight: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  searchLoading: {
-    padding: 20,
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchLoadingText: {
-    fontSize: 14,
-  },
-  searchEmpty: {
-    padding: 32,
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchEmptyText: {
-    fontSize: 14,
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  searchResultName: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  searchResultCrag: {
-    fontSize: 12,
-  },
-  searchResultGrade: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
 
   section: {
     marginTop: 8,

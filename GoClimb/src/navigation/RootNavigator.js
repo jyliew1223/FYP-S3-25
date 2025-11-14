@@ -127,11 +127,7 @@ export default function RootNavigator({ navTheme }) {
           options={{ headerShown: false }}
         />
         
-        <Stack.Screen
-          name="Crags"
-          component={CragsScreen}
-          options={{ headerShown: false }}
-        />
+
         <Stack.Screen
           name="RouteDetails"
           component={RouteDetails}

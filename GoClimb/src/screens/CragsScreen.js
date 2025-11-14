@@ -19,6 +19,7 @@ import {
 } from '../services/api/CragService';
 import ModelPicker from '../components/ModelPicker';
 import { useAuth } from '../context/AuthContext';
+import SystemUIToggle from '../components/SystemUIToggle';
 
 export default function CragsScreen({ navigation, route }) {
   const { colors } = useTheme();
@@ -306,13 +307,20 @@ export default function CragsScreen({ navigation, route }) {
         >
           Crags & Routes
         </Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('CreateCragRoute')}
-          style={styles.addButton}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={colors.accent} style={{ marginRight: 4 }} />
-          <Text style={[styles.addButtonText, { color: colors.accent }]}>Add</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <SystemUIToggle 
+            size={20} 
+            color={colors.accent} 
+            style={{ marginRight: 8 }}
+          />
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CreateCragRoute')}
+            style={styles.addButton}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.accent} style={{ marginRight: 4 }} />
+            <Text style={[styles.addButtonText, { color: colors.accent }]}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loadingCrags ? (
@@ -392,6 +400,10 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   addButton: {
     flexDirection: 'row',

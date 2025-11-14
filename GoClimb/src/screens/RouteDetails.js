@@ -132,7 +132,8 @@ export default function RouteDetails() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate('Crags');
+      // Navigate to Routes tab instead of duplicate Crags stack
+      navigation.navigate('MainTabs', { screen: 'Routes' });
     }
   }
 
