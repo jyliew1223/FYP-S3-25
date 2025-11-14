@@ -12,15 +12,21 @@ import {
   Easing,
   Platform,
   Image,
+  ScrollView,
+  TextInput,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import auth from '@react-native-firebase/auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { BlurView } from '@react-native-community/blur';
 import { fetchCurrentUserFromDjango } from '../services/api/AuthApi';
+import { fetchTrendingCrags, searchRoutes } from '../services/api/CragService';
+import { fetchMonthlyUserRankings } from '../services/api/RankingsService';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -32,6 +38,20 @@ export default function HomeScreen() {
 
   // Drawer state
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Trending crags
+  const [trendingCrags, setTrendingCrags] = useState([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+
+  // Monthly rankings
+  const [monthlyRankings, setMonthlyRankings] = useState([]);
+  const [loadingRankings, setLoadingRankings] = useState(true);
+
+  // Route search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const { width, height } = Dimensions.get('window');
   const MENU_W = useMemo(() => Math.min(320, width * 0.82), [width]);
 
@@ -46,23 +66,111 @@ export default function HomeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [MENU_W]);
 
-  // Fetch user profile picture
-  useEffect(() => {
+  // Function to fetch profile picture
+  const fetchProfilePicture = async () => {
     if (user) {
-      (async () => {
-        try {
-          const resp = await fetchCurrentUserFromDjango();
-          if (resp.ok && resp.user?.profile_picture_url) {
-            setProfilePicture(resp.user.profile_picture_url);
-          }
-        } catch (err) {
-          console.log('Failed to fetch profile picture:', err);
+      try {
+        const resp = await fetchCurrentUserFromDjango();
+        if (resp.ok && resp.user?.profile_picture_url) {
+          setProfilePicture(resp.user.profile_picture_url);
         }
-      })();
+      } catch (err) {
+        console.log('Failed to fetch profile picture:', err);
+      }
     } else {
       setProfilePicture(null);
     }
+  };
+
+  // Fetch user profile picture on mount and when screen comes into focus
+  useEffect(() => {
+    fetchProfilePicture();
   }, [user]);
+
+  // Refresh profile picture when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProfilePicture();
+    }, [user])
+  );
+
+  // Fetch trending crags
+  const loadTrendingCrags = async () => {
+    setLoadingTrending(true);
+    try {
+      const result = await fetchTrendingCrags(5);
+      if (result.success) {
+        setTrendingCrags(result.crags);
+      }
+    } catch (error) {
+      console.log('Error loading trending crags:', error);
+    }
+    setLoadingTrending(false);
+  };
+
+  // Fetch monthly rankings
+  const loadMonthlyRankings = async () => {
+    setLoadingRankings(true);
+    try {
+      const result = await fetchMonthlyUserRankings(5);
+      console.log('[HomeScreen] Monthly rankings result:', result);
+      if (result.success && result.data) {
+        setMonthlyRankings(result.data);
+      }
+    } catch (error) {
+      console.log('Error loading monthly rankings:', error);
+    }
+    setLoadingRankings(false);
+  };
+
+  useEffect(() => {
+    loadTrendingCrags();
+    loadMonthlyRankings();
+  }, []);
+
+  // Search routes
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setShowSearchResults(false);
+      setSearchResults([]);
+      return;
+    }
+
+    setSearching(true);
+    setShowSearchResults(true);
+    
+    try {
+      const result = await searchRoutes(query);
+      if (result.success) {
+        setSearchResults(result.routes);
+      }
+    } catch (error) {
+      console.log('Error searching routes:', error);
+    }
+    
+    setSearching(false);
+  };
+
+  const handleRoutePress = (route) => {
+    setShowSearchResults(false);
+    setSearchQuery('');
+    navigation.navigate('RouteDetails', {
+      route_id: route.route_id,
+      previewName: route.name,
+      previewGrade: route.gradeFont,
+    });
+  };
+
+  const handleCragPress = (crag) => {
+    navigation.navigate('MainTabs', {
+      screen: 'Routes',
+      params: {
+        expandCragId: crag.crag_pk,
+      },
+    });
+  };
 
   useEffect(() => {
     const timing = (val, toValue, duration = 260) =>
@@ -99,13 +207,13 @@ export default function HomeScreen() {
       await auth().signOut();
       navigation.navigate('MainTabs', { screen: 'Home' });
     } else {
-      navigation.navigate('SignUp');
+      navigation.navigate('PreSignUp');
     }
   };
 
   const goToProfile = () => {
     if (user) navigation.navigate('Profile');
-    else navigation.navigate('SignUp');
+    else navigation.navigate('PreSignUp');
   };
 
   return (
@@ -148,18 +256,210 @@ export default function HomeScreen() {
 
       {/* Main content (subtle scale when drawer is open, for depth) */}
       <Animated.View style={{ flex: 1, transform: [{ scale: scaleDown }] }}>
-        <View style={[styles.body, { backgroundColor: colors.bg }]}>
-          {loading ? (
-            <Text style={[styles.bodyText, { color: colors.text }]}>Loading…</Text>
-          ) : user ? (
-            <Text style={[styles.bodyText, { color: colors.text }]}>
-              <Text style={{ color: colors.accent }}>Logged In!</Text> Welcome{' '}
-              {user.displayName || user.email}
-            </Text>
-          ) : (
-            <Text style={[styles.bodyText, { color: colors.text }]}>Guest Mode</Text>
+        <ScrollView style={[styles.body, { backgroundColor: colors.bg }]}>
+          {/* Search Bar */}
+          <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+            <Ionicons name="search" size={20} color={colors.textDim} />
+            <TextInput
+              placeholder="Search routes..."
+              placeholderTextColor={colors.textDim}
+              value={searchQuery}
+              onChangeText={handleSearch}
+              style={[styles.searchInput, { color: colors.text }]}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => {
+                setSearchQuery('');
+                setShowSearchResults(false);
+                setSearchResults([]);
+              }}>
+                <Ionicons name="close-circle" size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          {/* Search Results */}
+          {showSearchResults && (
+            <View style={[styles.searchResults, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+              {searching ? (
+                <View style={styles.searchLoading}>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                  <Text style={[styles.searchLoadingText, { color: colors.textDim }]}>Searching...</Text>
+                </View>
+              ) : searchResults.length === 0 ? (
+                <View style={styles.searchEmpty}>
+                  <Ionicons name="search-outline" size={32} color={colors.textDim} />
+                  <Text style={[styles.searchEmptyText, { color: colors.textDim }]}>No routes found</Text>
+                </View>
+              ) : (
+                searchResults.map((route) => (
+                  <TouchableOpacity
+                    key={route.route_id}
+                    style={[styles.searchResultItem, { borderBottomColor: colors.divider }]}
+                    onPress={() => handleRoutePress(route)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.searchResultName, { color: colors.text }]}>
+                        {route.name}
+                      </Text>
+                      <Text style={[styles.searchResultCrag, { color: colors.textDim }]}>
+                        {route.cragData?.name || 'Unknown Crag'}
+                      </Text>
+                    </View>
+                    <Text style={[styles.searchResultGrade, { color: colors.accent }]}>
+                      {route.gradeFont}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
           )}
-        </View>
+
+          {/* Monthly Rankings Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Monthly Top Climbers</Text>
+            
+            {loadingRankings ? (
+              <View style={styles.rankingLoading}>
+                <ActivityIndicator size="large" color={colors.accent} />
+              </View>
+            ) : monthlyRankings.length === 0 ? (
+              <View style={styles.rankingEmpty}>
+                <Ionicons name="trophy-outline" size={48} color={colors.textDim} />
+                <Text style={[styles.rankingEmptyText, { color: colors.textDim }]}>
+                  No rankings available
+                </Text>
+              </View>
+            ) : (
+              <View style={[styles.rankingCard, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                {monthlyRankings.map((item, index) => (
+                  <View
+                    key={item.user.user_id}
+                    style={[
+                      styles.rankingItem,
+                      index < monthlyRankings.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider }
+                    ]}
+                  >
+                    <View style={styles.rankingLeft}>
+                      <View style={[
+                        styles.rankBadge,
+                        {
+                          backgroundColor:
+                            index === 0 ? '#FFD700' :
+                            index === 1 ? '#C0C0C0' :
+                            index === 2 ? '#CD7F32' :
+                            colors.surfaceAlt
+                        }
+                      ]}>
+                        <Text style={[
+                          styles.rankNumber,
+                          {
+                            color: index < 3 ? '#FFFFFF' : colors.text,
+                            fontWeight: index < 3 ? '800' : '600'
+                          }
+                        ]}>
+                          {item.rank}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.rankingUsername, { color: colors.text }]} numberOfLines={1}>
+                          {item.user.username}
+                        </Text>
+                        <Text style={[styles.rankingClimbs, { color: colors.textDim }]}>
+                          {item.total_routes} {item.total_routes === 1 ? 'climb' : 'climbs'}
+                        </Text>
+                      </View>
+                    </View>
+                    {index < 3 && (
+                      <Ionicons
+                        name="trophy"
+                        size={20}
+                        color={
+                          index === 0 ? '#FFD700' :
+                          index === 1 ? '#C0C0C0' :
+                          '#CD7F32'
+                        }
+                      />
+                    )}
+                  </View>
+                ))}
+                
+                <TouchableOpacity
+                  style={styles.seeMoreButton}
+                  onPress={() => {
+                    navigation.navigate('RankingList', {
+                      type: 'monthly',
+                      category: 'climbs',
+                      title: 'Monthly Most Climbs'
+                    });
+                  }}
+                >
+                  <Text style={[styles.seeMoreText, { color: colors.accent }]}>
+                    ...tap to see more
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Trending Crags Section */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Trending Crags</Text>
+            
+            {loadingTrending ? (
+              <View style={styles.trendingLoading}>
+                <ActivityIndicator size="large" color={colors.accent} />
+              </View>
+            ) : trendingCrags.length === 0 ? (
+              <View style={styles.trendingEmpty}>
+                <Ionicons name="trending-up-outline" size={48} color={colors.textDim} />
+                <Text style={[styles.trendingEmptyText, { color: colors.textDim }]}>
+                  No trending crags available
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                horizontal
+                data={trendingCrags}
+                keyExtractor={(item) => item.crag_pretty_id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.trendingList}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[styles.trendingCard, { backgroundColor: colors.surface, borderColor: colors.divider }]}
+                    onPress={() => handleCragPress(item)}
+                  >
+                    {item.images && item.images.length > 0 ? (
+                      <Image
+                        source={{ uri: item.images[0] }}
+                        style={styles.trendingImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={[styles.trendingImagePlaceholder, { backgroundColor: colors.surfaceAlt }]}>
+                        <Ionicons name="image-outline" size={32} color={colors.textDim} />
+                      </View>
+                    )}
+                    <View style={styles.trendingInfo}>
+                      <Text style={[styles.trendingName, { color: colors.text }]} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <View style={styles.trendingStats}>
+                        <Ionicons name="trending-up" size={14} color="#4CAF50" />
+                        <Text style={[styles.trendingGrowth, { color: '#4CAF50' }]}>
+                          +{item.growth} climbs
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </ScrollView>
       </Animated.View>
 
       {/* Overlay + Drawer */}
@@ -244,41 +544,65 @@ export default function HomeScreen() {
 
             <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
-            <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} colors={colors} />
-            <DrawerItem 
-              icon="camera-outline" 
-              label="AR Experience" 
-              onPress={() => {
-                setMenuOpen(false);
-                navigation.navigate('ARCragList');
-              }} 
-              colors={colors} 
-            />
+            <View style={{ flex: 1 }}>
+              <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} colors={colors} />
+              
+              <DrawerItem 
+                icon="help-circle-outline" 
+                label="FAQ" 
+                onPress={() => {
+                  setMenuOpen(false);
+                  navigation.navigate('FAQ');
+                }} 
+                colors={colors} 
+              />
+              
+              {/* Only show these options if user is logged in */}
+              {user && (
+                <>
+                  <DrawerItem 
+                    icon="camera-outline" 
+                    label="AR Experience" 
+                    onPress={() => {
+                      setMenuOpen(false);
+                      navigation.navigate('ARCragList');
+                    }} 
+                    colors={colors} 
+                  />
 
-            <DrawerItem 
-              icon="folder-outline" 
-              label="Route Data Manager" 
-              onPress={() => {
-                setMenuOpen(false);
-                navigation.navigate('RouteDataManager');
-              }} 
-              colors={colors} 
-            />
-            <DrawerItem 
-              icon="cube-outline" 
-              label="My 3D Models" 
-              onPress={() => {
-                setMenuOpen(false);
-                navigation.navigate('ModelManagement');
-              }} 
-              colors={colors} 
-            />
-            <DrawerItem
-              icon={user ? 'log-out-outline' : 'log-in-outline'}
-              label={user ? 'Logout' : 'Login / Sign Up'}
-              onPress={handleLoginLogout}
-              colors={colors}
-            />
+                  <DrawerItem 
+                    icon="folder-outline" 
+                    label="Route Data Manager" 
+                    onPress={() => {
+                      setMenuOpen(false);
+                      navigation.navigate('RouteDataManager');
+                    }} 
+                    colors={colors} 
+                  />
+                  
+                  <DrawerItem 
+                    icon="cube-outline" 
+                    label="My 3D Models" 
+                    onPress={() => {
+                      setMenuOpen(false);
+                      navigation.navigate('ModelManagement');
+                    }} 
+                    colors={colors} 
+                  />
+                </>
+              )}
+            </View>
+
+            {/* Login/Logout at the bottom */}
+            <View style={{ paddingBottom: 20 }}>
+              <View style={[styles.divider, { backgroundColor: colors.divider, marginBottom: 12 }]} />
+              <DrawerItem
+                icon={user ? 'log-out-outline' : 'log-in-outline'}
+                label={user ? 'Logout' : 'Login / Sign Up'}
+                onPress={handleLoginLogout}
+                colors={colors}
+              />
+            </View>
           </Animated.View>
         </>
       )}
@@ -321,8 +645,203 @@ const styles = StyleSheet.create({
   },
   appTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
 
-  body: { flex: 1, padding: 16, alignItems: 'center', justifyContent: 'center' },
-  bodyText: { fontSize: 18, fontWeight: '700' },
+  body: { flex: 1 },
+
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  searchResults: {
+    marginHorizontal: 16,
+    marginTop: -8,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  searchLoading: {
+    padding: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchLoadingText: {
+    fontSize: 14,
+  },
+  searchEmpty: {
+    padding: 32,
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchEmptyText: {
+    fontSize: 14,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchResultName: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  searchResultCrag: {
+    fontSize: 12,
+  },
+  searchResultGrade: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 8,
+  },
+
+  section: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  trendingLoading: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  trendingEmpty: {
+    padding: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  trendingEmptyText: {
+    fontSize: 14,
+  },
+  trendingList: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  trendingCard: {
+    width: 160,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  trendingImage: {
+    width: '100%',
+    height: 120,
+  },
+  trendingImagePlaceholder: {
+    width: '100%',
+    height: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trendingInfo: {
+    padding: 12,
+  },
+  trendingName: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  trendingStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trendingGrowth: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  rankingLoading: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  rankingEmpty: {
+    padding: 40,
+    alignItems: 'center',
+    gap: 12,
+  },
+  rankingEmptyText: {
+    fontSize: 14,
+  },
+  rankingCard: {
+    marginHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rankingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+  },
+  rankingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  rankBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankNumber: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rankingUsername: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  rankingClimbs: {
+    fontSize: 12,
+  },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 4,
+  },
+  seeMoreText: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
 
   drawer: {
     position: 'absolute',

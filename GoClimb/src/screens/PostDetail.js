@@ -11,7 +11,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -33,6 +33,7 @@ export default function PostDetail() {
   const navigation = useNavigation();
   const route = useRoute();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const { postId } = route.params || {};
 
@@ -124,7 +125,7 @@ export default function PostDetail() {
   async function toggleLike() {
     // Check if user is logged in
     if (!isLoggedIn) {
-      navigation.navigate('SignUp');
+      navigation.navigate('PreSignUp');
       return;
     }
 
@@ -167,7 +168,7 @@ export default function PostDetail() {
   // comment submit
   async function sendComment() {
     if (!isLoggedIn) {
-      navigation.navigate('SignUp'); // adjust if your signup route is different
+      navigation.navigate('PreSignUp'); // adjust if your signup route is different
       return;
     }
 
@@ -387,6 +388,12 @@ export default function PostDetail() {
   const isOwnPost = currentUser && post.author?.id === currentUser.uid;
 
   const handleProfilePress = (userId) => {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      navigation.navigate('PreSignUp');
+      return;
+    }
+    
     if (userId) {
       navigation.navigate('Profile', { userId });
     }
@@ -589,6 +596,7 @@ export default function PostDetail() {
           {
             backgroundColor: colors.surface,
             borderTopColor: colors.divider,
+            bottom: insets.bottom,
           },
         ]}
       >

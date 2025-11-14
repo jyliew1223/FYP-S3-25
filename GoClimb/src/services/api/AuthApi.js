@@ -1,6 +1,6 @@
 // src/services/api/AuthApi.js
 
-import auth from '@react-native-firebase/auth';
+import { getAuth, getIdToken } from '@react-native-firebase/auth';
 import {
   RequestMethod,
   BaseApiPayload,
@@ -41,21 +41,36 @@ class SignUpResponse extends BaseApiResponse {
 }
 
 export async function registerUserInDjango(usernameFromClient) {
-  const currentUser = auth().currentUser;
+  console.log('[registerUserInDjango] === START ===');
+  
+  const currentUser = getAuth().currentUser;
   if (!currentUser) {
+    console.log('[registerUserInDjango] ERROR: No Firebase user logged in');
     throw new Error('No Firebase user is logged in after signup.');
   }
 
-  // Firebase ID token proves identity
-  const idToken = await currentUser.getIdToken(true);
+  console.log('[registerUserInDjango] Current user UID:', currentUser.uid);
+  console.log('[registerUserInDjango] Current user email:', currentUser.email);
+
+  // Get ID token using the pattern from InitFirebaseApps.js line 215
+  const idToken = await getIdToken(currentUser, false);
+  console.log('[registerUserInDjango] Got ID token, length:', idToken?.length);
+  
   const email = currentUser.email;
 
-  // Build payload with "username"
+  // Build payload with ONLY id_token, username, and email
+  // Backend will extract user_id from the id_token
   const payload = new SignUpPayload({
     id_token: idToken,
     username: usernameFromClient,
     email: email,
   });
+
+  console.log('[registerUserInDjango] Payload:', JSON.stringify({
+    username: usernameFromClient,
+    email: email,
+    id_token_length: idToken?.length,
+  }));
 
   const request = new CustomApiRequest(
     RequestMethod.POST,
@@ -65,8 +80,23 @@ export async function registerUserInDjango(usernameFromClient) {
     true // attach App Check token header
   );
 
+  console.log('[registerUserInDjango] Sending request to:', API_ENDPOINTS.BASE_URL + 'auth/signup/');
+  
   const httpOk = await request.sendRequest(SignUpResponse);
   const resp = request.Response;
+
+  console.log('[registerUserInDjango] Request OK:', httpOk);
+  console.log('[registerUserInDjango] Response success:', resp?.success);
+  console.log('[registerUserInDjango] Response message:', resp?.message);
+  console.log('[registerUserInDjango] Response status:', resp?.status);
+  console.log('[registerUserInDjango] Response errors:', resp?.errors);
+  
+  if (!httpOk || !resp?.success) {
+    console.log('[registerUserInDjango] FULL RESPONSE DEBUG:');
+    console.log(request.logResponse?.());
+  }
+  
+  console.log('[registerUserInDjango] === END ===');
 
   return {
     ok: httpOk && !!resp?.success,
@@ -111,13 +141,13 @@ class GetUserResponse extends BaseApiResponse {
 }
 
 export async function fetchCurrentUserFromDjango() {
-  const currentUser = auth().currentUser;
+  const currentUser = getAuth().currentUser;
   if (!currentUser) {
     throw new Error('No Firebase session found.');
   }
 
-  // fresh ID token
-  const idToken = await currentUser.getIdToken(false);
+  // Get ID token using the pattern from InitFirebaseApps.js
+  const idToken = await getIdToken(currentUser, false);
 
   const payload = new GetUserPayload({
     id_token: idToken,
@@ -151,14 +181,18 @@ class UpdateUserPayload extends BaseApiPayload {
       user_id: 'user_id',
       username: 'username',
       email: 'email',
+      profile_picture: 'profile_picture',
     };
   }
 
-  constructor({ user_id, username, email } = {}) {
+  constructor({ user_id, username, email, profile_picture } = {}) {
     super();
     this.user_id = user_id;
     this.username = username;
     this.email = email;
+    if (profile_picture !== undefined) {
+      this.profile_picture = profile_picture;
+    }
   }
 }
 
@@ -181,10 +215,10 @@ class UpdateUserResponse extends BaseApiResponse {
   }
 }
 
-export async function updateUserInDjango({ username, email }) {
+export async function updateUserInDjango({ username, email, profile_picture }) {
   console.log('[updateUserInDjango] === START ===');
   
-  const currentUser = auth().currentUser;
+  const currentUser = getAuth().currentUser;
   if (!currentUser) {
     console.log('[updateUserInDjango] ERROR: No Firebase session found');
     throw new Error('No Firebase session found.');
@@ -192,11 +226,18 @@ export async function updateUserInDjango({ username, email }) {
 
   console.log('[updateUserInDjango] Current user UID:', currentUser.uid);
 
-  const payload = new UpdateUserPayload({
+  const payloadData = {
     user_id: currentUser.uid,
     username: username,
     email: email,
-  });
+  };
+
+  // Only include profile_picture if it's provided
+  if (profile_picture !== undefined) {
+    payloadData.profile_picture = profile_picture;
+  }
+
+  const payload = new UpdateUserPayload(payloadData);
 
   console.log('[updateUserInDjango] Payload:', JSON.stringify(payload.toJson()));
 
@@ -215,6 +256,73 @@ export async function updateUserInDjango({ username, email }) {
   console.log('[updateUserInDjango] Request OK:', httpOk);
   console.log('[updateUserInDjango] Response:', resp);
   console.log('[updateUserInDjango] === END ===');
+
+  return {
+    ok: httpOk && !!resp?.success,
+    status: resp?.status,
+    message: resp?.message ?? null,
+    user: resp?.data ?? null,
+    errors: resp?.errors ?? null,
+    debugRaw: request.logResponse?.(),
+  };
+}
+
+class GetUserByIdPayload extends BaseApiPayload {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      user_id: 'user_id',
+    };
+  }
+
+  constructor({ user_id } = {}) {
+    super();
+    this.user_id = user_id;
+  }
+}
+
+class GetUserByIdResponse extends BaseApiResponse {
+  static get fieldMapping() {
+    return {
+      ...super.fieldMapping,
+      data: 'data',
+    };
+  }
+
+  constructor({ status, success, message, errors, data } = {}) {
+    super({ status, success, message, errors });
+
+    if (data instanceof UserModel) {
+      this.data = data;
+    } else {
+      this.data = UserModel.fromJson(data);
+    }
+  }
+}
+
+export async function fetchUserByIdFromDjango(userId) {
+  console.log('[fetchUserByIdFromDjango] === START ===');
+  console.log('[fetchUserByIdFromDjango] Fetching user with ID:', userId);
+
+  const payload = new GetUserByIdPayload({
+    user_id: userId,
+  });
+
+  const request = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.USER.GET_USER_BY_ID,
+    payload,
+    true // attach App Check token header
+  );
+
+  console.log('[fetchUserByIdFromDjango] Sending request...');
+  const httpOk = await request.sendRequest(GetUserByIdResponse);
+  const resp = request.Response;
+
+  console.log('[fetchUserByIdFromDjango] Request OK:', httpOk);
+  console.log('[fetchUserByIdFromDjango] Response:', resp);
+  console.log('[fetchUserByIdFromDjango] === END ===');
 
   return {
     ok: httpOk && !!resp?.success,

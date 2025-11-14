@@ -24,8 +24,9 @@ export const API_ENDPOINTS = {
   }),
   USER: withBase('user/', {
     GET_USER: 'get_user',
+    GET_USER_BY_ID: 'get_user_by_id/',
     UPDATE_USER: 'update/',
-    GET_MONTTHLY_USER_RANKING: 'get_monthly_user_ranking',
+    GET_MONTTHLY_USER_RANKING: 'get_monthly_user_ranking/',
   }),
   POST: withBase('post/', {
     CREATE_POST: 'create_post',
@@ -77,5 +78,9 @@ export const API_ENDPOINTS = {
     GET_BY_MODEL_ID: 'get_by_model_id',
     DELETE: 'delete_model_route_data',
     GET_BY_USER_ID: 'get_by_user_id'
+  }),
+  PAYMENT: withBase('payment/', {
+    CREATE_PAYMENT_INTENT: 'create-payment-intent/',
+    VERIFY_PAYMENT: 'verify-payment/'
   })
 };

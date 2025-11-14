@@ -637,8 +637,8 @@ export default function ModelManagementScreen() {
         <TouchableOpacity onPress={handleBack} style={styles.iconBtn}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>My Models</Text>
-        <TouchableOpacity
+        <Text style={[styles.title, { color: colors.text }]}>My 3D Models</Text>
+        <TouchableOpacity 
           style={[styles.uploadButton, { backgroundColor: colors.accent }]}
           onPress={handleDocumentPicker}
         >
