@@ -38,7 +38,7 @@ class Crag(models.Model):
     def location_details(self):
 
         if not self.location_lat or not self.location_lon:
-            return json.dumps({})
+            return {"city": None, "country": None, "state": None, "district": None, "postal_code": None}
 
         try:
             api_key = settings.GOOGLE_MAPS_API_KEY
@@ -50,17 +50,66 @@ class Crag(models.Model):
             data = response.json()
             if data.get("status") == "OK":
                 components = data["results"][0]["address_components"]
-                city = country = None
+                
+                # Initialize all location fields
+                location_info = {
+                    "city": None,
+                    "country": None,
+                    "state": None,
+                    "district": None,
+                    "postal_code": None,
+                    "formatted_address": data["results"][0].get("formatted_address", "")
+                }
+                
+                # Extract detailed location information
                 for comp in components:
-                    if "locality" in comp["types"]:
-                        city = comp["long_name"]
-                    if "country" in comp["types"]:
-                        country = comp["long_name"]
+                    types = comp["types"]
+                    long_name = comp["long_name"]
+                    
+                    # Country
+                    if "country" in types:
+                        location_info["country"] = long_name
+                    
+                    # State/Province/Administrative Area Level 1
+                    elif "administrative_area_level_1" in types:
+                        location_info["state"] = long_name
+                    
+                    # City/Locality or Administrative Area Level 2 (for places like Singapore)
+                    elif "locality" in types:
+                        location_info["city"] = long_name
+                    elif "administrative_area_level_2" in types and not location_info["city"]:
+                        location_info["city"] = long_name
+                    
+                    # District/Sublocality (neighborhoods, districts)
+                    elif "sublocality" in types or "sublocality_level_1" in types:
+                        location_info["district"] = long_name
+                    elif "administrative_area_level_3" in types and not location_info["district"]:
+                        location_info["district"] = long_name
+                    
+                    # Postal Code
+                    elif "postal_code" in types:
+                        location_info["postal_code"] = long_name
+                
+                # Special handling for Singapore - use more specific areas
+                if location_info["country"] == "Singapore":
+                    # For Singapore, if we don't have a district, try to get it from other components
+                    if not location_info["district"]:
+                        for comp in components:
+                            types = comp["types"]
+                            if "neighborhood" in types or "sublocality_level_2" in types:
+                                location_info["district"] = comp["long_name"]
+                                break
+                    
+                    # Set city to Singapore if not already set
+                    if not location_info["city"]:
+                        location_info["city"] = "Singapore"
 
-                return {"city": city, "country": country}
+                return location_info
+                
         except Exception as e:
             print(f"Warning: could not fetch location details: {e}")
-        return {"city": None, "country": None}
+        
+        return {"city": None, "country": None, "state": None, "district": None, "postal_code": None}
 
     @property
     def formatted_id(self) -> str:
