@@ -1,7 +1,7 @@
 // src/screens/MapScreen.js
 
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View, PermissionsAndroid, Platform, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, PermissionsAndroid, Platform, ActivityIndicator, Text, TouchableOpacity, Image, ScrollView, Dimensions } from 'react-native';
 import { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapView from 'react-native-map-clustering';
 import { useNavigation } from '@react-navigation/native';
@@ -10,6 +10,8 @@ import { fetchAllCragsBootstrap, fetchRoutesByCragIdGET } from '../services/api/
 import { convertNumericGradeToFont } from '../utils/gradeConverter';
 import { useTheme } from '../context/ThemeContext';
 import { fetchCurrentWeather, formatTemp, formatWind } from '../services/api/WeatherService';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MapScreen() {
     const navigation = useNavigation();
@@ -145,6 +147,24 @@ export default function MapScreen() {
 
     return (
         <View style={styles.container}>
+            {/* Refresh Button */}
+            <TouchableOpacity
+                style={[styles.refreshButton, { backgroundColor: colors.surface, borderColor: colors.divider }]}
+                onPress={async () => {
+                    setLoading(true);
+                    try {
+                        const cragsList = await fetchAllCragsBootstrap();
+                        setCrags(cragsList);
+                    } catch (error) {
+                        console.log('[MapScreen] Error refreshing crags:', error);
+                    }
+                    setLoading(false);
+                }}
+                activeOpacity={0.7}
+            >
+                <Ionicons name="refresh" size={24} color={colors.accent} />
+            </TouchableOpacity>
+
             <MapView
                 style={StyleSheet.absoluteFill}
                 provider={PROVIDER_GOOGLE}
@@ -220,6 +240,35 @@ export default function MapScreen() {
                             <Ionicons name="close" size={24} color={colors.text} />
                         </TouchableOpacity>
                     </View>
+
+                    {/* Crag Images */}
+                    {selectedCrag.images && selectedCrag.images.length > 0 && (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            style={styles.imagesScrollView}
+                            contentContainerStyle={styles.imagesScrollContent}
+                        >
+                            {selectedCrag.images.map((imageUrl, index) => (
+                                <View
+                                    key={index}
+                                    style={[
+                                        styles.cragImageContainer,
+                                        { backgroundColor: colors.bg, borderColor: colors.divider }
+                                    ]}
+                                >
+                                    <Image
+                                        source={{ uri: imageUrl }}
+                                        style={styles.cragImage}
+                                        resizeMode="cover"
+                                        onError={(error) => {
+                                            console.log('[MapScreen] Image load error:', error.nativeEvent.error);
+                                        }}
+                                    />
+                                </View>
+                            ))}
+                        </ScrollView>
+                    )}
 
                     {loadingRoutes || loadingWeather ? (
                         <View style={styles.cragInfoLoading}>
@@ -537,5 +586,42 @@ const styles = StyleSheet.create({
     weatherDetailText: {
         fontSize: 12,
         fontWeight: '600',
+    },
+    // Crag images
+    imagesScrollView: {
+        marginBottom: 16,
+        marginHorizontal: -16,
+    },
+    imagesScrollContent: {
+        paddingHorizontal: 16,
+        gap: 8,
+    },
+    cragImageContainer: {
+        width: SCREEN_WIDTH * 0.6,
+        height: 120,
+        borderRadius: 12,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    cragImage: {
+        width: '100%',
+        height: '100%',
+    },
+    refreshButton: {
+        position: 'absolute',
+        top: 60,
+        right: 16,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
     },
 });

@@ -293,9 +293,8 @@ export default function HomeScreen() {
                   style={styles.seeMoreButton}
                   onPress={() => {
                     navigation.navigate('RankingList', {
-                      type: 'monthly',
-                      category: 'climbs',
-                      title: 'Monthly Most Climbs'
+                      type: 'mostClimbs',
+                      timeframe: 'monthly'
                     });
                   }}
                 >
