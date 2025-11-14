@@ -319,19 +319,7 @@ export default function PaymentScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Test Card Info */}
-        {paymentMethod === 'card' && (
-          <View style={[styles.testCardInfo, { backgroundColor: colors.surfaceAlt, borderColor: colors.divider }]}>
-            <Text style={[styles.testCardTitle, { color: colors.textDim }]}>
-              <Ionicons name="information-circle" size={14} color={colors.textDim} /> Test Card
-            </Text>
-            <Text style={[styles.testCardText, { color: colors.textDim }]}>
-              Card: 4242 4242 4242 4242{'\n'}
-              Expiry: Any future date (e.g., 12/25){'\n'}
-              CVC: Any 3 digits (e.g., 123)
-            </Text>
-          </View>
-        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -444,19 +432,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
-  testCardInfo: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  testCardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  testCardText: {
-    fontSize: 11,
-  },
+
   methodSection: {
     marginBottom: 24,
   },
