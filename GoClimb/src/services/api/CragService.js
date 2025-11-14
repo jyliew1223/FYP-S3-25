@@ -1,6 +1,6 @@
 // src/services/api/CragService.js
 
-import { CustomApiRequest, RequestMethod, BaseApiResponse } from './ApiHelper';
+import { CustomApiRequest, RequestMethod } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
 
 const GRADE_TABLE = {
@@ -88,22 +88,11 @@ function normalizeRoute(raw) {
   };
 }
 
-class GenericGetResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return {
-      ...super.fieldMapping,
-      data: 'data',
-    };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    this.data = data ?? null;
-  }
-}
+// Removed GenericGetResponse class - using direct JSON parsing instead
 
-async function fetchCragInfoGET(numericPkCragId) {
+export async function fetchCragInfoGET(cragId) {
 
-  const query = `?crag_id=${encodeURIComponent(numericPkCragId)}`;
+  const query = `?crag_id=${encodeURIComponent(cragId)}`;
 
   const req = new CustomApiRequest(
     RequestMethod.GET,
@@ -113,13 +102,13 @@ async function fetchCragInfoGET(numericPkCragId) {
     true,
   );
 
-  const ok = await req.sendRequest(GenericGetResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[fetchCragInfoGET] req', numericPkCragId);
-  console.log('[fetchCragInfoGET] res', res);
+  console.log('[fetchCragInfoGET] req', cragId);
+  console.log('[fetchCragInfoGET] response', response);
 
-  if (!ok || !res?.success) {
+  if (!response?.success) {
     return {
       success: false,
       crag: null,
@@ -128,7 +117,7 @@ async function fetchCragInfoGET(numericPkCragId) {
 
   return {
     success: true,
-    crag: normalizeCrag(res.data, numericPkCragId),
+    crag: normalizeCrag(response.data, null),
   };
 }
 
@@ -152,20 +141,20 @@ export async function fetchRoutesByCragIdGET(cragIdParam) {
     true,
   );
 
-  const ok = await req.sendRequest(GenericGetResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
   console.log('[fetchRoutesByCragIdGET] cragIdParam:', cragIdParam);
-  console.log('[fetchRoutesByCragIdGET] response:', res);
+  console.log('[fetchRoutesByCragIdGET] response:', response);
 
-  if (!ok || !res?.success) {
+  if (!response?.success) {
     return {
       success: false,
       routes: [],
     };
   }
 
-  const arr = Array.isArray(res.data) ? res.data : [];
+  const arr = Array.isArray(response.data) ? response.data : [];
   return {
     success: true,
     routes: arr.map(normalizeRoute),
@@ -183,13 +172,13 @@ export async function fetchRouteByIdGET(routeId) {
     true,
   );
 
-  const ok = await req.sendRequest(GenericGetResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
   console.log('[fetchRouteByIdGET] req', routeId);
-  console.log('[fetchRouteByIdGET] res', res);
+  console.log('[fetchRouteByIdGET] response', response);
 
-  if (!ok || !res?.success) {
+  if (!response?.success) {
     return {
       success: false,
       route: null,
@@ -198,7 +187,7 @@ export async function fetchRouteByIdGET(routeId) {
 
   return {
     success: true,
-    route: normalizeRoute(res.data),
+    route: normalizeRoute(response.data),
   };
 }
 
@@ -217,20 +206,20 @@ export async function fetchRandomCrags(count = 10, blacklist = []) {
     true,
   );
 
-  const ok = await req.sendRequest(GenericGetResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
   console.log('[fetchRandomCrags] req', payload);
-  console.log('[fetchRandomCrags] res', res);
+  console.log('[fetchRandomCrags] response', response);
 
-  if (!ok || !res?.success) {
+  if (!response?.success) {
     return {
       success: false,
       crags: [],
     };
   }
 
-  const arr = Array.isArray(res.data) ? res.data : [];
+  const arr = Array.isArray(response.data) ? response.data : [];
   return {
     success: true,
     crags: arr.map(raw => normalizeCrag(raw, null)),
@@ -314,19 +303,19 @@ export async function fetchTrendingCrags(count = 5) {
     true
   );
 
-  const ok = await req.sendRequest(GenericGetResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[fetchTrendingCrags] response:', res);
+  console.log('[fetchTrendingCrags] response:', response);
 
-  if (!ok || !res?.success) {
+  if (!response?.success) {
     return {
       success: false,
       crags: [],
     };
   }
 
-  const arr = Array.isArray(res.data) ? res.data : [];
+  const arr = Array.isArray(response.data) ? response.data : [];
   return {
     success: true,
     crags: arr.map(item => ({
@@ -378,29 +367,62 @@ export async function searchRoutes(query) {
 export async function createCrag(cragData) {
   let payload;
 
+  console.log('[createCrag] === DEBUGGING IMAGE UPLOAD ===');
+  console.log('[createCrag] cragData received:', cragData);
+  console.log('[createCrag] cragData.images:', cragData.images);
+  console.log('[createCrag] images array length:', cragData.images ? cragData.images.length : 'undefined');
+
   // If images are provided, use FormData for multipart upload
   if (cragData.images && cragData.images.length > 0) {
+    console.log('[createCrag] ✅ Images detected, using FormData');
+    
     const formData = new FormData();
     formData.append('name', cragData.name);
     formData.append('location_lat', String(cragData.location_lat));
     formData.append('location_lon', String(cragData.location_lon));
     formData.append('description', cragData.description || '');
+    if (cragData.user_id) {
+      formData.append('user_id', cragData.user_id);
+    }
+
+    console.log('[createCrag] FormData text fields added');
 
     // Append each image
     cragData.images.forEach((image, index) => {
+      console.log(`[createCrag] Processing image ${index}:`, image);
+      
       const fileUri = image.fileCopyUri || image.uri;
       const fileName = image.name || `image_${index}.jpg`;
       const fileType = image.type || 'image/jpeg';
+
+      console.log(`[createCrag] Image ${index} details:`, {
+        fileUri,
+        fileName,
+        fileType,
+        originalImage: image
+      });
 
       formData.append('images', {
         uri: fileUri,
         type: fileType,
         name: fileName,
       });
+
+      console.log(`[createCrag] ✅ Image ${index} appended to FormData`);
     });
+
+    // Log FormData contents (if possible)
+    console.log('[createCrag] FormData created with parts:', formData._parts ? formData._parts.length : 'unknown');
+    if (formData._parts) {
+      formData._parts.forEach(([key, value], index) => {
+        console.log(`[createCrag] FormData part ${index}: ${key} =`, 
+          typeof value === 'object' && value.name ? `File: ${value.name}` : value);
+      });
+    }
 
     payload = formData;
   } else {
+    console.log('[createCrag] ❌ No images detected, using JSON payload');
     // No images, use regular JSON payload
     payload = {
       name: cragData.name,
@@ -408,95 +430,258 @@ export async function createCrag(cragData) {
       location_lon: cragData.location_lon,
       description: cragData.description || '',
     };
+    
+    if (cragData.user_id) {
+      payload.user_id = cragData.user_id;
+    }
   }
 
-    const req = new CustomApiRequest(
-      RequestMethod.POST,
-      API_ENDPOINTS.BASE_URL,
-      '/crag/create_crag/',
-      payload,
-      true
-    );
+  console.log('[createCrag] Final payload type:', payload instanceof FormData ? 'FormData' : 'JSON');
+  console.log('[createCrag] === END DEBUGGING ===');
 
-    const ok = await req.sendRequest(GenericGetResponse);
-    const res = req.Response;
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    '/crag/create_crag/',
+    payload,
+    true
+  );
 
-    console.log('[createCrag] response without images:', res);
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-    if (!ok || !res?.success) {
-      return {
-        success: false,
-        message: res?.message || 'Failed to create crag',
-        crag: null,
-      };
-    }
+  console.log('[createCrag] response without images:', response);
 
+  if (!response?.success) {
     return {
-      success: true,
-      message: res.message,
-      crag: normalizeCrag(res.data, null),
+      success: false,
+      message: response?.message || 'Failed to create crag',
+      crag: null,
     };
   }
+
+  return {
+    success: true,
+    message: response.message,
+    crag: normalizeCrag(response.data, null),
+  };
+}
+
+export async function fetchUserCrags(userId) {
+  const payload = { user_id: userId };
+
+  const req = new CustomApiRequest(
+    RequestMethod.GET,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.CRAG.GET_BY_USER_ID,
+    payload,
+    true
+  );
+
+  await req.sendRequest();
+  const response = req.JsonObject;
+
+  console.log('[fetchUserCrags] response:', response);
+
+  if (!response?.success) {
+    return {
+      success: false,
+      crags: [],
+    };
+  }
+
+  const arr = Array.isArray(response.data) ? response.data : [];
+  return {
+    success: true,
+    crags: arr.map(raw => normalizeCrag(raw, null)),
+  };
+}
+
+export async function fetchUserRoutes(userId) {
+  const payload = { user_id: userId };
+
+  const req = new CustomApiRequest(
+    RequestMethod.GET,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.ROUTE.GET_BY_USER_ID,
+    payload,
+    true
+  );
+
+  await req.sendRequest();
+  const response = req.JsonObject;
+
+  console.log('[fetchUserRoutes] response:', response);
+
+  if (!response?.success) {
+    return {
+      success: false,
+      routes: [],
+    };
+  }
+
+  const arr = Array.isArray(response.data) ? response.data : [];
+  return {
+    success: true,
+    routes: arr.map(normalizeRoute),
+  };
+}
+
+export async function deleteCrag(cragId) {
+  const payload = { crag_id: cragId };
+
+  const req = new CustomApiRequest(
+    RequestMethod.DELETE,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.CRAG.DELETE_CRAG,
+    payload,
+    true
+  );
+
+  await req.sendRequest();
+  const response = req.JsonObject;
+
+  console.log('[deleteCrag] response:', response);
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to delete crag',
+    };
+  }
+
+  return {
+    success: true,
+    message: response.message || 'Crag deleted successfully',
+  };
+}
+
+export async function deleteRoute(routeId) {
+  const payload = { route_id: routeId };
+
+  const req = new CustomApiRequest(
+    RequestMethod.DELETE,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.ROUTE.DELETE_ROUTE,
+    payload,
+    true
+  );
+
+  await req.sendRequest();
+  const response = req.JsonObject;
+
+  console.log('[deleteRoute] response:', response);
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to delete route',
+    };
+  }
+
+  return {
+    success: true,
+    message: response.message || 'Route deleted successfully',
+  };
 }
 
 export async function createRoute(routeData) {
   let payload;
 
+  console.log('[createRoute] === DEBUGGING IMAGE UPLOAD ===');
+  console.log('[createRoute] routeData received:', routeData);
+  console.log('[createRoute] routeData.images:', routeData.images);
+  console.log('[createRoute] images array length:', routeData.images ? routeData.images.length : 'undefined');
+
   // If images are provided, use FormData for multipart upload
   if (routeData.images && routeData.images.length > 0) {
+    console.log('[createRoute] ✅ Images detected, using FormData');
+    
     const formData = new FormData();
     formData.append('crag_id', routeData.crag_id);
     formData.append('route_name', routeData.route_name);
     formData.append('route_grade', String(routeData.route_grade));
+    if (routeData.user_id) {
+      formData.append('user_id', routeData.user_id);
+    }
+
+    console.log('[createRoute] FormData text fields added');
 
     // Append each image
     routeData.images.forEach((image, index) => {
+      console.log(`[createRoute] Processing image ${index}:`, image);
+      
       const fileUri = image.fileCopyUri || image.uri;
       const fileName = image.name || `image_${index}.jpg`;
       const fileType = image.type || 'image/jpeg';
+
+      console.log(`[createRoute] Image ${index} details:`, {
+        fileUri,
+        fileName,
+        fileType,
+        originalImage: image
+      });
 
       formData.append('images', {
         uri: fileUri,
         type: fileType,
         name: fileName,
       });
+
+      console.log(`[createRoute] ✅ Image ${index} appended to FormData`);
     });
+
+    // Log FormData contents (if possible)
+    console.log('[createRoute] FormData created with parts:', formData._parts ? formData._parts.length : 'unknown');
+    if (formData._parts) {
+      formData._parts.forEach(([key, value], index) => {
+        console.log(`[createRoute] FormData part ${index}: ${key} =`, 
+          typeof value === 'object' && value.name ? `File: ${value.name}` : value);
+      });
+    }
 
     payload = formData;
   } else {
+    console.log('[createRoute] ❌ No images detected, using JSON payload');
     // No images, use regular JSON payload
     payload = {
       crag_id: routeData.crag_id,
       route_name: routeData.route_name,
       route_grade: routeData.route_grade,
     };
+    
+    if (routeData.user_id) {
+      payload.user_id = routeData.user_id;
+    }
   }
 
-    const req = new CustomApiRequest(
-      RequestMethod.POST,
-      API_ENDPOINTS.BASE_URL,
-      '/route/create_route/',
-      payload,
-      true
-    );
+  console.log('[createRoute] Final payload type:', payload instanceof FormData ? 'FormData' : 'JSON');
+  console.log('[createRoute] === END DEBUGGING ===');
 
-    const ok = await req.sendRequest(GenericGetResponse);
-    const res = req.Response;
+  const req = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    '/route/create_route/',
+    payload,
+    true
+  );
 
-    console.log('[createRoute] response without images:', res);
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-    if (!ok || !res?.success) {
-      return {
-        success: false,
-        message: res?.message || 'Failed to create route',
-        route: null,
-      };
-    }
+  console.log('[createRoute] response without images:', response);
 
+  if (!response?.success) {
     return {
-      success: true,
-      message: res.message,
-      route: normalizeRoute(res.data),
+      success: false,
+      message: response?.message || 'Failed to create route',
+      route: null,
     };
   }
+
+  return {
+    success: true,
+    message: response.message,
+    route: normalizeRoute(response.data),
+  };
 }

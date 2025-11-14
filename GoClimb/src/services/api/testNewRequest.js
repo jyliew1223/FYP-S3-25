@@ -2,8 +2,6 @@
 import {
   CustomApiRequest,
   RequestMethod,
-  BaseApiPayload,
-  BaseApiResponse,
 } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
 import InitFirebaseApps from '../firebase/InitFirebaseApps';

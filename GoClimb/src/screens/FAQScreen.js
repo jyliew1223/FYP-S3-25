@@ -191,7 +191,7 @@ export default function FAQScreen() {
             Still have questions?
           </Text>
           <Text style={[styles.contactText, { color: colors.textDim }]}>
-            email us: goclimb.sim.fyp.s3.2025@gmail.com
+            Email us: goclimb.sim.fyp.s3.2025@gmail.com
           </Text>
         </View>
 

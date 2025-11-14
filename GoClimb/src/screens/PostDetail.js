@@ -62,55 +62,56 @@ export default function PostDetail() {
     return sub;
   }, []);
 
+  // Load post data function
+  const loadPostData = async () => {
+    setLoading(true);
+
+    // fetch all data in parallel for better performance
+    const [pRes, cRes, likeCountRes, userLikedRes] = await Promise.all([
+      fetchPostById(postId),
+      fetchCommentsByPostId(postId),
+      getLikeCount(postId),
+      checkIfUserLikedPost(postId)
+    ]);
+
+    const pData = pRes?.success ? pRes.data : null;
+    const cData = cRes?.success ? cRes.data : [];
+
+    console.log('[DEBUG PostDetail post mapped]', pData);
+    console.log('[DEBUG PostDetail comments count]', cData.length);
+
+    if (pData) {
+      const currentLikes = likeCountRes.success ? likeCountRes.count : pData.likes || 0;
+      
+      const updatedPost = {
+        ...pData,
+        likes: currentLikes,
+      };
+
+      setPost(updatedPost);
+      setLiked(userLikedRes);
+    } else {
+      setPost(null);
+      setLiked(false);
+    }
+
+    // Sort comments chronologically: oldest first (ascending order)
+    const sortedComments = cData.sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      return timeA - timeB; // Ascending order (oldest first)
+    });
+    setComments(sortedComments);
+    setLoading(false);
+  };
+
   // initial load
   useEffect(() => {
     let alive = true;
     (async () => {
-      setLoading(true);
-
-      // fetch post + comments + like status + like count
-      const [pRes, cRes] = await Promise.all([
-        fetchPostById(postId),
-        fetchCommentsByPostId(postId)
-      ]);
-
-      const pData = pRes?.success ? pRes.data : null;
-      const cData = cRes?.success ? cRes.data : [];
-
-      console.log('[DEBUG PostDetail post mapped]', pData);
-      console.log('[DEBUG PostDetail comments count]', cData.length);
-
-      if (!alive) return;
-
-      if (pData) {
-        // Get current like count and user like status
-        const [likeCountRes, userLikedRes] = await Promise.all([
-          getLikeCount(pData.id),
-          checkIfUserLikedPost(pData.id)
-        ]);
-
-        const currentLikes = likeCountRes.success ? likeCountRes.count : pData.likes || 0;
-        
-        const updatedPost = {
-          ...pData,
-          likes: currentLikes,
-        };
-
-        setPost(updatedPost);
-        setLiked(userLikedRes);
-      } else {
-        setPost(null);
-        setLiked(false);
+      if (alive) {
+        await loadPostData();
       }
-
-      // Sort comments chronologically: oldest first (ascending order)
-      const sortedComments = cData.sort((a, b) => {
-        const timeA = a.createdAt || 0;
-        const timeB = b.createdAt || 0;
-        return timeA - timeB; // Ascending order (oldest first)
-      });
-      setComments(sortedComments);
-      setLoading(false);
     })();
 
     return () => {
@@ -369,7 +370,7 @@ export default function PostDetail() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         edges={['top', 'bottom']}
       >
-        <TopBar colors={colors} onBack={goBack} />
+        <TopBar colors={colors} onBack={goBack} onRefresh={loadPostData} />
         {toast ? <ToastBanner colors={colors} text={toast} /> : null}
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.accent} />
@@ -384,7 +385,7 @@ export default function PostDetail() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         edges={['top', 'bottom']}
       >
-        <TopBar colors={colors} onBack={goBack} />
+        <TopBar colors={colors} onBack={goBack} onRefresh={loadPostData} />
         {toast ? <ToastBanner colors={colors} text={toast} /> : null}
         <View style={styles.center}>
           <Text style={{ color: colors.textDim }}>Post not found.</Text>
@@ -558,12 +559,6 @@ export default function PostDetail() {
           colors={colors}
           onPress={() => { }}
         />
-        <RowAction
-          icon="share-social-outline"
-          text="Share"
-          colors={colors}
-          onPress={() => showToast('Feature under construction')}
-        />
       </View>
 
       <Text
@@ -585,7 +580,7 @@ export default function PostDetail() {
       style={{ flex: 1, backgroundColor: colors.bg }}
       edges={['top', 'left', 'right']}
     >
-      <TopBar colors={colors} onBack={goBack} />
+      <TopBar colors={colors} onBack={goBack} onRefresh={loadPostData} />
       {toast ? <ToastBanner colors={colors} text={toast} /> : null}
 
       <KeyboardAvoidingView
@@ -721,7 +716,7 @@ function RowAction({ icon, text, colors, onPress, active }) {
   );
 }
 
-function TopBar({ colors, onBack }) {
+function TopBar({ colors, onBack, onRefresh }) {
   return (
     <View
       style={[
@@ -744,7 +739,13 @@ function TopBar({ colors, onBack }) {
         Post
       </Text>
 
-      <View style={{ width: 22 }} />
+      <TouchableOpacity onPress={onRefresh} style={{ paddingLeft: 8 }}>
+        <Ionicons
+          name="refresh"
+          size={20}
+          color={colors.text}
+        />
+      </TouchableOpacity>
     </View>
   );
 }

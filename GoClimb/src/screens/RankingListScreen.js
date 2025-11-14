@@ -19,6 +19,7 @@ export default function RankingListScreen({ route, navigation }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadRankings();
@@ -96,6 +97,12 @@ export default function RankingListScreen({ route, navigation }) {
     if (userId) {
       navigation.navigate('Profile', { userId });
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadRankings();
+    setRefreshing(false);
   };
 
   const renderItem = ({ item }) => (
@@ -209,6 +216,8 @@ export default function RankingListScreen({ route, navigation }) {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
         />
       )}
     </SafeAreaView>

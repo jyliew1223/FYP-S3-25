@@ -1,43 +1,17 @@
 // GoClimb/src/services/api/RankingsService.js
 
-import { getAuth } from '@react-native-firebase/auth';
+// Removed getAuth import - not used in this service
 import {
   CustomApiRequest,
   RequestMethod,
-  BaseApiPayload,
-  BaseApiResponse,
 } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
 
 /* ==================== PAYLOADS ==================== */
 
-class GetMonthlyUserRankingPayload extends BaseApiPayload {
-  static get fieldMapping() {
-    return {
-      ...super.fieldMapping,
-      count: 'count',
-    };
-  }
+// Removed GetMonthlyUserRankingPayload class - using plain object instead
 
-  constructor({ count } = {}) {
-    super();
-    this.count = count;
-  }
-}
-
-class GetMonthlyUserRankingResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return {
-      ...super.fieldMapping,
-      data: 'data',
-    };
-  }
-
-  constructor({ status, success, message, errors, data } = {}) {
-    super({ status, success, message, errors });
-    this.data = data || [];
-  }
-}
+// Removed GetMonthlyUserRankingResponse class - using direct JSON parsing instead
 
 /* ==================== API CALLS ==================== */
 
@@ -59,20 +33,28 @@ export async function fetchWeeklyUserRankings(count = 50) {
     true
   );
 
-  const httpOk = await request.sendRequest(GetMonthlyUserRankingResponse);
-  const resp = request.Response;
+  await request.sendRequest();
+  const response = request.JsonObject;
 
   console.log('[RankingsService] Weekly user rankings response:', {
-    success: resp?.success,
-    dataCount: resp?.data?.length,
+    success: response?.success,
+    dataCount: response?.data?.length,
   });
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch weekly rankings',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
+
   return {
-    success: httpOk && !!resp?.success,
-    status: resp?.status,
-    message: resp?.message ?? null,
-    data: resp?.data ?? [],
-    errors: resp?.errors ?? null,
+    success: true,
+    message: response.message || 'Weekly rankings loaded successfully',
+    data: response.data || [],
+    errors: null
   };
 }
 
@@ -94,20 +76,28 @@ export async function fetchMonthlyUserRankings(count = 50) {
     true
   );
 
-  const httpOk = await request.sendRequest(GetMonthlyUserRankingResponse);
-  const resp = request.Response;
+  await request.sendRequest();
+  const response = request.JsonObject;
 
   console.log('[RankingsService] Monthly user rankings response:', {
-    success: resp?.success,
-    dataCount: resp?.data?.length,
+    success: response?.success,
+    dataCount: response?.data?.length,
   });
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch monthly rankings',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
+
   return {
-    success: httpOk && !!resp?.success,
-    status: resp?.status,
-    message: resp?.message ?? null,
-    data: resp?.data ?? [],
-    errors: resp?.errors ?? null,
+    success: true,
+    message: response.message || 'Monthly rankings loaded successfully',
+    data: response.data || [],
+    errors: null
   };
 }
 
@@ -129,20 +119,28 @@ export async function fetchAllTimeUserRankings(count = 50) {
     true
   );
 
-  const httpOk = await request.sendRequest(GetMonthlyUserRankingResponse);
-  const resp = request.Response;
+  await request.sendRequest();
+  const response = request.JsonObject;
 
   console.log('[RankingsService] All-time user rankings response:', {
-    success: resp?.success,
-    dataCount: resp?.data?.length,
+    success: response?.success,
+    dataCount: response?.data?.length,
   });
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch all-time rankings',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
+
   return {
-    success: httpOk && !!resp?.success,
-    status: resp?.status,
-    message: resp?.message ?? null,
-    data: resp?.data ?? [],
-    errors: resp?.errors ?? null,
+    success: true,
+    message: response.message || 'All-time rankings loaded successfully',
+    data: response.data || [],
+    errors: null
   };
 }
 
@@ -168,20 +166,28 @@ export async function fetchAverageGradeRankings(count = 50, timeframe = 'weekly'
     true
   );
 
-  const httpOk = await request.sendRequest(GetMonthlyUserRankingResponse);
-  const resp = request.Response;
+  await request.sendRequest();
+  const response = request.JsonObject;
 
   console.log('[RankingsService] Average grade rankings response:', {
-    success: resp?.success,
-    dataCount: resp?.data?.length,
+    success: response?.success,
+    dataCount: response?.data?.length,
   });
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch average grade rankings',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
+
   return {
-    success: httpOk && !!resp?.success,
-    status: resp?.status,
-    message: resp?.message ?? null,
-    data: resp?.data ?? [],
-    errors: resp?.errors ?? null,
+    success: true,
+    message: response.message || 'Average grade rankings loaded successfully',
+    data: response.data || [],
+    errors: null
   };
 }
 
@@ -207,20 +213,28 @@ export async function fetchTopClimbers(count = 50, timeframe = 'weekly') {
     true
   );
 
-  const httpOk = await request.sendRequest(GetMonthlyUserRankingResponse);
-  const resp = request.Response;
+  await request.sendRequest();
+  const response = request.JsonObject;
 
   console.log('[RankingsService] Top climbers response:', {
-    success: resp?.success,
-    dataCount: resp?.data?.length,
+    success: response?.success,
+    dataCount: response?.data?.length,
   });
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch top climbers',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
+
   return {
-    success: httpOk && !!resp?.success,
-    status: resp?.status,
-    message: resp?.message ?? null,
-    data: resp?.data ?? [],
-    errors: resp?.errors ?? null,
+    success: true,
+    message: response.message || 'Top climbers loaded successfully',
+    data: response.data || [],
+    errors: null
   };
 }
 

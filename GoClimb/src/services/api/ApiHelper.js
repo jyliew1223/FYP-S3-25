@@ -11,8 +11,9 @@ class BaseApiPayload {
    * Field mapping configuration for JSON deserialization
    * Override this in subclasses to change JSON key mappings
    */
-  static get fieldMapping() { }
-  static get fieldMapping() { }
+  static get fieldMapping() {
+    return {};
+  }
 
   /**
    * Converts this instance to JSON using field mapping
@@ -200,7 +201,7 @@ class CustomApiRequest {
       '',
     )}`;
     // Add trailing slash for all methods except DELETE (Django convention)
-    if (!url.endsWith('/')) {
+    if (!url.endsWith('/') && this.#method != RequestMethod.GET) {
       url += '/';
     }
 
@@ -301,8 +302,8 @@ class CustomApiRequest {
           // Try to log FormData contents if possible
           if (this.#payload._parts) {
             this.#payload._parts.forEach(([key, value], index) => {
-              const valueStr = typeof value === 'object' && value.name ? 
-                `File: ${value.name} (${value.type || 'unknown type'})` : 
+              const valueStr = typeof value === 'object' && value.name ?
+                `File: ${value.name} (${value.type || 'unknown type'})` :
                 String(value);
               log += `                 [${index}] ${key}: ${valueStr}\n`;
             });
@@ -399,8 +400,8 @@ class CustomApiRequest {
           // Try to log FormData contents if possible
           if (this.#payload._parts) {
             this.#payload._parts.forEach(([key, value], index) => {
-              const valueStr = typeof value === 'object' && value.name ? 
-                `File: ${value.name} (${value.type || 'unknown type'})` : 
+              const valueStr = typeof value === 'object' && value.name ?
+                `File: ${value.name} (${value.type || 'unknown type'})` :
                 String(value);
               log += `                 [${index}] ${key}: ${valueStr}\n`;
             });

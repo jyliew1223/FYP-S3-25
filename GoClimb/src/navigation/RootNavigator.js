@@ -16,6 +16,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import MapScreen from '../screens/MapScreen';
 import BottomBar from '../components/BottomBar';
 import CragsScreen from '../screens/CragsScreen';
+import MyCragsRoutesScreen from '../screens/MyCragsRoutesScreen';
 import RouteDetails from '../screens/RouteDetails';
 import ARCragList from '../screens/ARCragList';
 import UnityARScreen from '../screens/UnityARScreen';
@@ -31,6 +32,7 @@ import ModelManagementScreen from '../screens/ModelManagementScreen';
 import LogClimbScreen from '../screens/LogClimbScreen';
 import FAQScreen from '../screens/FAQScreen';
 import CreateCragRouteScreen from '../screens/CreateCragRouteScreen';
+import CragDetailScreen from '../screens/CragDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -151,6 +153,21 @@ export default function RootNavigator({ navTheme }) {
         <Stack.Screen
           name="CreateCragRoute"
           component={CreateCragRouteScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AllCrags"
+          component={CragsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyCragsRoutes"
+          component={MyCragsRoutesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CragDetail"
+          component={CragDetailScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

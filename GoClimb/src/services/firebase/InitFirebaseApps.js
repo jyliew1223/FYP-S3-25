@@ -74,7 +74,6 @@ import {
 } from '@react-native-firebase/app-check';
 import {
   RequestMethod,
-  BaseApiResponse,
   CustomApiRequest,
 } from '../api/ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
@@ -151,8 +150,10 @@ const InitFirebaseApps = async () => {
       true,
     );
 
-    const result = await request.sendRequest(BaseApiResponse);
-    if (result) {
+    await request.sendRequest();
+    const response = request.JsonObject;
+    
+    if (response?.success) {
       console.log(`${TAG}: Backend AppCheck verification passed.`);
     } else {
       console.log(

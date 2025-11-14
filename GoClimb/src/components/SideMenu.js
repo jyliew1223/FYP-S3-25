@@ -2,9 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, Pressable, View, Text, TouchableOpacity } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import auth from '@react-native-firebase/auth';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
-import { colors } from '../theme/colors';
+import { useTheme } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 const MENU_W = Math.min(300, width * 0.8);
@@ -13,6 +13,7 @@ export default function SideMenu({ open, onClose }) {
   const x = useRef(new Animated.Value(-MENU_W)).current;
   const fade = useRef(new Animated.Value(0)).current;
   const { user } = useAuth();
+  const { colors } = useTheme();
   const nav = useNavigation();
 
   useEffect(() => {
@@ -68,14 +69,14 @@ export default function SideMenu({ open, onClose }) {
           {user ? `Hello, ${user.displayName || user.email}` : 'Guest'}
         </Text>
 
-        <MenuItem icon="settings-outline" label="Settings" onPress={goSettings} />
-        <MenuItem icon={user ? 'log-out-outline' : 'log-in-outline'} label={user ? 'Logout' : 'Login / Sign Up'} onPress={onLoginLogout} />
+        <MenuItem icon="settings-outline" label="Settings" onPress={goSettings} colors={colors} />
+        <MenuItem icon={user ? 'log-out-outline' : 'log-in-outline'} label={user ? 'Logout' : 'Login / Sign Up'} onPress={onLoginLogout} colors={colors} />
       </Animated.View>
     </>
   );
 }
 
-function MenuItem({ icon, label, onPress }) {
+function MenuItem({ icon, label, onPress, colors }) {
   return (
     <TouchableOpacity
       onPress={onPress}

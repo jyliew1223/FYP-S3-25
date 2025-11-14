@@ -10,6 +10,7 @@ import {
   ScrollView,
   Image,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -33,6 +34,7 @@ export default function RouteDetails() {
   const [routeData, setRouteData] = useState(null);
   const [weather, setWeather] = useState(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [toast, setToast] = useState('');
   const toastRef = useRef(null);
@@ -118,6 +120,48 @@ export default function RouteDetails() {
     };
   }, [route_id, previewName, previewGrade]);
 
+  // Refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    
+    if (!route_id) {
+      setRefreshing(false);
+      return;
+    }
+
+    try {
+      const { success, route } = await fetchRouteByIdGET(route_id);
+      
+      if (success && route) {
+        setRouteData({
+          name: route.name,
+          gradeFont: route.gradeFont,
+          images: route.images || [],
+          cragData: route.cragData,
+        });
+
+        // Refresh weather if we have location data
+        if (route.cragData?.location_lat && route.cragData?.location_lon) {
+          try {
+            const weatherData = await fetchCurrentWeather(route.cragData.location_lat, route.cragData.location_lon);
+            if (weatherData) {
+              setWeather(weatherData);
+            }
+          } catch (error) {
+            console.log('[RouteDetails] Error refreshing weather:', error);
+          }
+        }
+      } else {
+        showToast('Failed to refresh route data');
+      }
+    } catch (error) {
+      console.log('[RouteDetails] Error refreshing:', error);
+      showToast('Failed to refresh route data');
+    }
+    
+    setRefreshing(false);
+  };
+
   // Also load weather from navigation params if provided (fallback)
   useEffect(() => {
     if (cragLat && cragLon && !weather && !loadingWeather) {
@@ -183,7 +227,16 @@ export default function RouteDetails() {
         >
           {displayName}
         </Text>
-        <View style={{ width: 26 }} />
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={handleRefresh}
+        >
+          <Ionicons
+            name="refresh"
+            size={20}
+            color={colors.text}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* toast */}
@@ -217,6 +270,14 @@ export default function RouteDetails() {
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.accent]}
+              tintColor={colors.accent}
+            />
+          }
         >
           {/* route name + grade */}
           <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>

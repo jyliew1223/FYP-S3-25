@@ -60,7 +60,19 @@
 import RNFS from 'react-native-fs';
 import { getStorage, ref, uploadBytes } from 'firebase/storage';
 
-storage = getStorage();
+let storage = null;
+
+const getStorageInstance = () => {
+  if (!storage) {
+    try {
+      storage = getStorage();
+    } catch (error) {
+      console.warn('Firebase not initialized yet:', error.message);
+      return null;
+    }
+  }
+  return storage;
+};
 
 /**
  * Upload a local file to Firebase Storage
@@ -80,7 +92,12 @@ export const uploadFileToFirebase = async (
   const bucketPath = `${safeDir}/${bucketFilename}`;
 
   try {
-    const fileRef = ref(storage, bucketPath);
+    const storageInstance = getStorageInstance();
+    if (!storageInstance) {
+      console.error('Firebase storage not available');
+      return;
+    }
+    const fileRef = ref(storageInstance, bucketPath);
 
     let fileBlob;
     if (typeof filePath === 'string') {
@@ -104,7 +121,11 @@ export const uploadFileToFirebase = async (
  * @param {string} bucketBaseDir - Firebase folder to mirror locally, e.g. "crags/CRAG-000003"
  */
 const uploadFolderToFirebase = async (bucketBaseDir, localFolderPath) => {
-  const storage = getStorage();
+  const storageInstance = getStorageInstance();
+  if (!storageInstance) {
+    console.error('Firebase storage not available');
+    return;
+  }
 
   // Recursively get all files
   const getFilesRecursively = async folder => {
@@ -131,7 +152,7 @@ const uploadFolderToFirebase = async (bucketBaseDir, localFolderPath) => {
       const safeBucketBaseDir = bucketBaseDir.replace(/^\/+|\/+$/g, ''); // remove leading/trailing slash
       const bucketPath = `${safeBucketBaseDir}/${relativePath}`;
 
-      const fileRef = ref(storage, bucketPath);
+      const fileRef = ref(storageInstance, bucketPath);
 
       // Convert local file to Blob
       const response = await fetch(`file://${filePath}`);

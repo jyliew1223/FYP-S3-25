@@ -75,8 +75,6 @@ export default function App() {
       <StripeProvider publishableKey={STRIPE_CONFIG.PUBLISHABLE_KEY}>
         <ThemeProvider>
           <AuthProvider>
-            {/* <UnityViewer showTestButton={true} />
-            <ModelPicker cragId={someCragId} /> */}
             <AppInner />
           </AuthProvider>
         </ThemeProvider>

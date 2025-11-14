@@ -22,18 +22,7 @@ import { getAuth } from '@react-native-firebase/auth';
 import { CustomApiRequest, RequestMethod } from '../services/api/ApiHelper';
 import { API_ENDPOINTS } from '../constants/api';
 
-// Import response class for type handling
-class UpdateUserResponse {
-  static fromJson(json) {
-    return {
-      success: json.success,
-      message: json.message,
-      status: json.status,
-      errors: json.errors,
-      data: json.data,
-    };
-  }
-}
+// Removed UpdateUserResponse class - using direct JSON parsing instead
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
@@ -171,16 +160,16 @@ export default function EditProfileScreen() {
         true // attach App Check token
       );
 
-      const httpOk = await request.sendRequest(UpdateUserResponse);
-      const resp = request.Response;
+      await request.sendRequest();
+      const response = request.JsonObject;
 
-      if (httpOk && resp?.success) {
+      if (response?.success) {
         showToast('Profile updated successfully!', 'success');
         setTimeout(() => {
           navigation.goBack();
         }, 1500);
       } else {
-        showToast(resp?.message || 'Failed to update profile', 'error');
+        showToast(response?.message || 'Failed to update profile', 'error');
       }
     } catch (error) {
       console.log('[EditProfileScreen] Error:', error);

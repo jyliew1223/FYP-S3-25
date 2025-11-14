@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -19,7 +20,17 @@ import { useAuth } from '../context/AuthContext';
 import { fetchCurrentUserFromDjango, fetchUserByIdFromDjango } from '../services/api/AuthApi';
 import { fetchUserClimbStatsMock } from '../services/api/MockProfile';
 import { getUserClimbLogs, deleteClimbLog } from '../services/api/ClimbLogService';
+import { 
+  fetchPostsByUserId, 
+  deletePost, 
+  likePost, 
+  unlikePost, 
+  checkIfUserLikedPost, 
+  getLikeCount,
+  fetchCommentCountForPost 
+} from '../services/api/PostsService';
 import { convertNumericGradeToFont } from '../utils/gradeConverter';
+import { getAuth } from '@react-native-firebase/auth';
 
 // Default/fallback stats
 const defaultStats = {
@@ -50,10 +61,19 @@ export default function ProfileScreen({ route }) {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
   const [loadingLogs, setLoadingLogs] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // activity tab state
+  const [activeActivityTab, setActiveActivityTab] = useState('logs'); // 'logs' or 'posts'
 
   // climb logs
   const [climbLogs, setClimbLogs] = useState([]);
   const [menuVisible, setMenuVisible] = useState(null);
+
+  // user posts
+  const [userPosts, setUserPosts] = useState([]);
+  const [likedPosts, setLikedPosts] = useState(new Set());
 
   // Calculate stats from climb logs
   const calculateStatsFromLogs = (logs) => {
@@ -152,56 +172,129 @@ export default function ProfileScreen({ route }) {
     }
   };
 
+  // Function to load user posts
+  const loadUserPosts = async () => {
+    try {
+      setLoadingPosts(true);
+      const userId = viewingUserId || user?.uid;
+      if (userId) {
+        const result = await fetchPostsByUserId(userId);
+        if (result.success) {
+          const posts = result.data || [];
+          
+          // Load engagement data for posts
+          const currentUser = getAuth().currentUser;
+          const likedSet = new Set();
+          
+          // Fetch like counts, comment counts, and like status in parallel
+          const postsWithData = await Promise.all(
+            posts.map(async (post) => {
+              try {
+                const [likeCountRes, commentCount, isLiked] = await Promise.all([
+                  getLikeCount(post.id),
+                  fetchCommentCountForPost(post.id),
+                  currentUser ? checkIfUserLikedPost(post.id) : Promise.resolve(false)
+                ]);
+                
+                const likes = likeCountRes.success ? likeCountRes.count : (post.likes || 0);
+                const comments = typeof commentCount === 'number' ? commentCount : (post.comments || 0);
+                
+                if (isLiked) {
+                  likedSet.add(post.id);
+                }
+
+                return {
+                  ...post,
+                  likes,
+                  comments,
+                };
+              } catch (error) {
+                console.log(`[ProfileScreen] Error processing post ${post.id}:`, error);
+                return post;
+              }
+            })
+          );
+
+          setUserPosts(postsWithData);
+          setLikedPosts(likedSet);
+        } else {
+          setUserPosts([]);
+        }
+      }
+    } catch (e) {
+      console.log('[ProfileScreen] Error loading user posts:', e);
+      setUserPosts([]);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
+  // Function to load all data
+  const loadAllData = async () => {
+    await Promise.all([
+      loadProfileData(),
+      loadStats(),
+      loadClimbLogs(),
+      loadUserPosts()
+    ]);
+  };
+
+  // Function to load stats
+  const loadStats = async () => {
+    try {
+      setLoadingStats(true);
+      const result = await fetchUserClimbStatsMock();
+      if (result.success) {
+        setStats(result.data);
+      } else {
+        setStats(null);
+      }
+    } catch (e) {
+      setStats(null);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  // Function to load climb logs
+  const loadClimbLogs = async () => {
+    try {
+      setLoadingLogs(true);
+      const userId = viewingUserId || user?.uid;
+      if (userId) {
+        const result = await getUserClimbLogs(userId);
+        if (result.success) {
+          setClimbLogs(result.data || []);
+        } else {
+          setClimbLogs([]);
+        }
+      }
+    } catch (e) {
+      console.log('[ProfileScreen] Error loading climb logs:', e);
+      setClimbLogs([]);
+      } finally {
+        setLoadingLogs(false);
+      }
+    };
+
   // Refresh profile when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      loadProfileData();
+      loadAllData();
     }, [viewingUserId, user?.uid])
   );
 
   useEffect(() => {
     // Initial load
-    loadProfileData();
-
-    // load climb stats (for all profiles)
-    // TODO: When backend supports fetching other users' stats, pass viewingUserId
-    (async () => {
-      try {
-        setLoadingStats(true);
-        const result = await fetchUserClimbStatsMock();
-        if (result.success) {
-          setStats(result.data);
-        } else {
-          setStats(null);
-        }
-      } catch (e) {
-        setStats(null);
-      } finally {
-        setLoadingStats(false);
-      }
-    })();
-
-    // load climb logs
-    (async () => {
-      try {
-        setLoadingLogs(true);
-        const userId = viewingUserId || user?.uid;
-        if (userId) {
-          const result = await getUserClimbLogs(userId);
-          if (result.success) {
-            setClimbLogs(result.data || []);
-          } else {
-            setClimbLogs([]);
-          }
-        }
-      } catch (e) {
-        console.log('[ProfileScreen] Error loading climb logs:', e);
-        setClimbLogs([]);
-      } finally {
-        setLoadingLogs(false);
-      }
-    })();
+    loadAllData();
   }, [viewingUserId, user?.uid]);
+
+  // Refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadAllData();
+    setRefreshing(false);
+  };
 
   // prefer username from Django, fallback to Firebase
   const usernameFromDjango = profileInfo?.username;
@@ -217,6 +310,68 @@ export default function ProfileScreen({ route }) {
   
   // merge stats (calculated stats override mock stats)
   const merged = { ...defaultStats, ...(stats || {}), ...calculatedStats };
+
+  // Toggle like function
+  const toggleLike = async (post) => {
+    const currentUser = getAuth().currentUser;
+    if (!currentUser) {
+      navigation.navigate('PreSignUp');
+      return;
+    }
+
+    const wasLiked = likedPosts.has(post.id);
+
+    // Optimistic UI update
+    setLikedPosts(prev => {
+      const next = new Set(prev);
+      if (wasLiked) {
+        next.delete(post.id);
+      } else {
+        next.add(post.id);
+      }
+      return next;
+    });
+
+    setUserPosts(prev =>
+      prev.map(p =>
+        p.id === post.id
+          ? {
+              ...p,
+              likes: Math.max(0, (p.likes || 0) + (wasLiked ? -1 : 1)),
+            }
+          : p,
+      ),
+    );
+
+    // Call API
+    const res = wasLiked ? await unlikePost(post.id) : await likePost(post.id);
+
+    if (!res?.success) {
+      // Revert on failure
+      setLikedPosts(prev => {
+        const next = new Set(prev);
+        if (wasLiked) {
+          next.add(post.id);
+        } else {
+          next.delete(post.id);
+        }
+        return next;
+      });
+
+      setUserPosts(prev =>
+        prev.map(p =>
+          p.id === post.id
+            ? {
+                ...p,
+                likes: Math.max(0, (p.likes || 0) + (wasLiked ? 1 : -1)),
+              }
+            : p,
+        ),
+      );
+
+      Alert.alert('Error', res?.message || 'Could not update like');
+    }
+  };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -248,12 +403,19 @@ export default function ProfileScreen({ route }) {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <View style={{ flex: 1 }} />
-        <View style={{ width: 26 }} />
       </View>
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.accent]}
+            tintColor={colors.accent}
+          />
+        }
       >
         {/* If profile data is still loading, show a loader card */}
         {profileStillLoading ? (
@@ -368,32 +530,7 @@ export default function ProfileScreen({ route }) {
           </View>
         )}
 
-        {/* Model Management Menu Item - Only show for own profile */}
-        {isOwnProfile && (
-          <TouchableOpacity
-            style={[
-              styles.menuCard,
-              { backgroundColor: colors.surface, borderColor: colors.divider },
-            ]}
-            onPress={() => navigation.navigate('ModelManagement')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuRow}>
-              <View style={[styles.menuIcon, { backgroundColor: colors.bg }]}>
-                <Ionicons name="cube-outline" size={24} color={colors.accent} />
-              </View>
-              <View style={styles.menuContent}>
-                <Text style={[styles.menuTitle, { color: colors.text }]}>
-                  My 3D Models
-                </Text>
-                <Text style={[styles.menuSubtitle, { color: colors.textDim }]}>
-                  Manage your uploaded models
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
-            </View>
-          </TouchableOpacity>
-        )}
+
 
         {/* Bouldering stats card */}
         <View
@@ -417,53 +554,127 @@ export default function ProfileScreen({ route }) {
           </View>
         </View>
 
-        {/* Climb Logs */}
+        {/* Activity Section with Tabs */}
         <View
           style={[
             styles.card,
             { backgroundColor: colors.surface, borderColor: colors.divider },
           ]}
         >
-          <SectionTitle title="Climb Logs" colors={colors} />
-          {loadingLogs ? (
-            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-              <ActivityIndicator color={colors.accent} />
-            </View>
-          ) : climbLogs.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-              <Ionicons name="clipboard-outline" size={36} color={colors.textDim} />
-              <Text style={{ color: colors.textDim, marginTop: 8, fontSize: 14 }}>
-                No climb logs yet
+          <SectionTitle title="Activity" colors={colors} />
+          
+          {/* Activity Tabs */}
+          <View style={[styles.activityTabs, { borderBottomColor: colors.divider }]}>
+            <TouchableOpacity
+              style={[styles.activityTab, activeActivityTab === 'logs' && styles.activeActivityTab]}
+              onPress={() => setActiveActivityTab('logs')}
+            >
+              <Text style={[styles.activityTabText, { color: activeActivityTab === 'logs' ? colors.accent : colors.textDim }]}>
+                Climb Logs
               </Text>
-            </View>
-          ) : (
-            <View style={{ gap: 12 }}>
-              {climbLogs.map((log) => (
-                <ClimbLogItem
-                  key={log.id}
-                  log={log}
-                  colors={colors}
-                  isOwnProfile={isOwnProfile}
-                  menuVisible={menuVisible}
-                  setMenuVisible={setMenuVisible}
-                  allLogs={climbLogs}
-                  onDelete={async (logId) => {
-                    try {
-                      const res = await deleteClimbLog(logId);
-                      if (res?.success) {
-                        setClimbLogs(prev => prev.filter(l => l.id !== logId));
-                      } else {
-                        Alert.alert('Error', res?.message || 'Failed to delete log');
-                      }
-                    } catch (error) {
-                      console.log('[ProfileScreen] Delete error:', error);
-                      Alert.alert('Error', 'Failed to delete log');
-                    }
-                  }}
-                />
-              ))}
-            </View>
-          )}
+              {activeActivityTab === 'logs' && <View style={[styles.activityTabIndicator, { backgroundColor: colors.accent }]} />}
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.activityTab, activeActivityTab === 'posts' && styles.activeActivityTab]}
+              onPress={() => setActiveActivityTab('posts')}
+            >
+              <Text style={[styles.activityTabText, { color: activeActivityTab === 'posts' ? colors.accent : colors.textDim }]}>
+                Posts
+              </Text>
+              {activeActivityTab === 'posts' && <View style={[styles.activityTabIndicator, { backgroundColor: colors.accent }]} />}
+            </TouchableOpacity>
+          </View>
+
+          {/* Activity Content */}
+          <View style={styles.activityContent}>
+            {activeActivityTab === 'logs' ? (
+              // Climb Logs Content
+              loadingLogs ? (
+                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                  <ActivityIndicator color={colors.accent} />
+                </View>
+              ) : climbLogs.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                  <Ionicons name="clipboard-outline" size={36} color={colors.textDim} />
+                  <Text style={{ color: colors.textDim, marginTop: 8, fontSize: 14 }}>
+                    No climb logs yet
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  {climbLogs.map((log) => (
+                    <ClimbLogItem
+                      key={log.id}
+                      log={log}
+                      colors={colors}
+                      isOwnProfile={isOwnProfile}
+                      menuVisible={menuVisible}
+                      setMenuVisible={setMenuVisible}
+                      allLogs={climbLogs}
+                      onDelete={async (logId) => {
+                        try {
+                          const res = await deleteClimbLog(logId);
+                          if (res?.success) {
+                            setClimbLogs(prev => prev.filter(l => l.id !== logId));
+                          } else {
+                            Alert.alert('Error', res?.message || 'Failed to delete log');
+                          }
+                        } catch (error) {
+                          console.log('[ProfileScreen] Delete error:', error);
+                          Alert.alert('Error', 'Failed to delete log');
+                        }
+                      }}
+                    />
+                  ))}
+                </View>
+              )
+            ) : (
+              // Posts Content
+              loadingPosts ? (
+                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                  <ActivityIndicator color={colors.accent} />
+                </View>
+              ) : userPosts.length === 0 ? (
+                <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                  <Ionicons name="document-text-outline" size={36} color={colors.textDim} />
+                  <Text style={{ color: colors.textDim, marginTop: 8, fontSize: 14 }}>
+                    No posts yet
+                  </Text>
+                </View>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  {userPosts.map((post) => (
+                    <PostItem
+                      key={post.id}
+                      post={post}
+                      colors={colors}
+                      isOwnProfile={isOwnProfile}
+                      menuVisible={menuVisible}
+                      setMenuVisible={setMenuVisible}
+                      navigation={navigation}
+                      liked={likedPosts.has(post.id)}
+                      onLike={() => toggleLike(post)}
+                      onComment={() => navigation.navigate('PostDetail', { postId: post.id })}
+                      onDelete={async (postId) => {
+                        try {
+                          const res = await deletePost(postId);
+                          if (res?.success) {
+                            setUserPosts(prev => prev.filter(p => p.id !== postId));
+                          } else {
+                            Alert.alert('Error', res?.message || 'Failed to delete post');
+                          }
+                        } catch (error) {
+                          console.log('[ProfileScreen] Delete post error:', error);
+                          Alert.alert('Error', 'Failed to delete post');
+                        }
+                      }}
+                    />
+                  ))}
+                </View>
+              )
+            )}
+          </View>
         </View>
 
         <View style={{ height: 24 }} />
@@ -546,6 +757,189 @@ function StatChip({ label, value, colors }) {
         {String(value)}
       </Text>
     </View>
+  );
+}
+
+// Post item component - matches Forum PostCard design
+function PostItem({ post, colors, isOwnProfile, menuVisible, setMenuVisible, navigation, onDelete, liked, onLike, onComment }) {
+  const isMenuOpen = menuVisible === post.id;
+
+  const timeAgo = (ts) => {
+    const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
+  };
+
+  const handlePostPress = () => {
+    navigation.navigate('PostDetail', { postId: post.id });
+  };
+
+  const displayTitle = (post.title && post.title.trim()) || 
+                      (post.body || '').slice(0, 70) || 
+                      'Untitled';
+
+  return (
+    <TouchableOpacity
+      onPress={handlePostPress}
+      activeOpacity={0.85}
+      style={[
+        styles.postCard,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.divider,
+        },
+      ]}
+    >
+      {/* header */}
+      <View style={styles.postCardHeader}>
+        <View style={[styles.postAvatar, { backgroundColor: colors.surfaceAlt, borderColor: colors.divider }]}>
+          <Text style={{ color: colors.textDim, fontWeight: '800', fontSize: 12 }}>
+            {((post.author?.name || 'U').charAt(0) || 'U').toUpperCase()}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={1} style={[styles.postAuthor, { color: colors.text }]}>
+            {post.author?.name || 'User'}
+          </Text>
+          <Text style={[styles.postMeta, { color: colors.textDim }]}>
+            {timeAgo(post.createdAt)}
+          </Text>
+        </View>
+
+        {isOwnProfile && (
+          <View>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                setMenuVisible(isMenuOpen ? null : post.id);
+              }}
+              style={styles.postMenuBtn}
+            >
+              <Ionicons name="ellipsis-horizontal" color={colors.textDim} size={18} />
+            </TouchableOpacity>
+            {isMenuOpen && (
+              <View style={[styles.postMenu, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    setMenuVisible(null);
+                    onDelete(post.id);
+                  }}
+                  style={styles.postMenuItem}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#FF6B6B" />
+                  <Text style={[styles.postMenuText, { color: '#FF6B6B' }]}>Delete Post</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* title */}
+      <Text style={[styles.postTitle, { color: colors.text }]}>{displayTitle}</Text>
+
+      {/* body snippet */}
+      {!!post.body && (
+        <Text
+          style={[styles.postBody, { color: colors.textDim }]}
+          numberOfLines={4}
+        >
+          {post.body}
+        </Text>
+      )}
+
+      {/* images */}
+      {post.images && post.images.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.postImagesContainer}
+          contentContainerStyle={styles.postImagesContent}
+          nestedScrollEnabled={true}
+          scrollEnabled={post.images.length > 1}
+        >
+          {post.images.map((imgUrl, index) => (
+            <Image
+              key={index}
+              source={{ uri: imgUrl }}
+              style={[
+                styles.postImagePlaceholder,
+                index < post.images.length - 1 && { marginRight: 8 },
+              ]}
+              resizeMode="cover"
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      {/* tags */}
+      {!!post.tags?.length && (
+        <View style={styles.postTagsRow}>
+          {post.tags.map(t => (
+            <View
+              key={t}
+              style={[
+                styles.postTag,
+                {
+                  backgroundColor: colors.surfaceAlt,
+                  borderColor: colors.divider,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: colors.textDim,
+                  fontSize: 11,
+                  fontWeight: '700',
+                }}
+              >
+                #{t}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* actions row */}
+      <View style={[styles.postActionsRow, { borderTopColor: colors.divider }]}>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            onLike();
+          }}
+          style={styles.postRowAction}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name={liked ? 'heart' : 'heart-outline'}
+            size={16}
+            color={liked ? colors.accent : colors.textDim}
+          />
+          <Text style={[styles.postRowActionText, { color: liked ? colors.accent : colors.textDim }]}>
+            {String(post.likes ?? 0)}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation();
+            onComment();
+          }}
+          style={styles.postRowAction}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={16} color={colors.textDim} />
+          <Text style={[styles.postRowActionText, { color: colors.textDim }]}>
+            {String(post.comments ?? 0)}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -697,35 +1091,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  menuCard: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-  },
-  menuRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  menuContent: {
-    flex: 1,
-  },
-  menuTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  menuSubtitle: {
-    fontSize: 12,
-  },
+
 
   headerRow: {
     flexDirection: 'row',
@@ -806,6 +1172,141 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     gap: 2,
+  },
+
+  // Activity tabs styles
+  activityTabs: {
+    flexDirection: 'row',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 16,
+  },
+  activityTab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  activeActivityTab: {},
+  activityTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  activityTabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+  },
+  activityContent: {
+    minHeight: 100,
+  },
+
+  // Post card styles (matching Forum design)
+  postCard: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  postCardHeader: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  postAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postAuthor: {
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  postMeta: {
+    fontSize: 11,
+  },
+  postTitle: {
+    marginTop: 6,
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  postBody: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  postImagesContainer: {
+    marginTop: 10,
+  },
+  postImagesContent: {
+    paddingRight: 0,
+  },
+  postImagePlaceholder: {
+    width: 280,
+    height: 160,
+    borderRadius: 10,
+  },
+  postTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  postTag: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  postActionsRow: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  postRowAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  postRowActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  postMenuBtn: {
+    padding: 4,
+  },
+  postMenu: {
+    position: 'absolute',
+    top: 30,
+    right: 0,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    minWidth: 140,
+    zIndex: 1000,
+  },
+  postMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 8,
+  },
+  postMenuText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   // Climb log styles

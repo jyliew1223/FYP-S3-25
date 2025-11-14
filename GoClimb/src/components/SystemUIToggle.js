@@ -11,7 +11,7 @@ const SystemUIToggle = ({
   onPress = null 
 }) => {
   const handlePress = () => {
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' && SystemUIManager) {
       SystemUIManager.toggleSystemUI();
     }
     
@@ -40,7 +40,7 @@ const SystemUIToggle = ({
       activeOpacity={0.7}
     >
       <Ionicons 
-        name={SystemUIManager.isHidden ? "expand" : "contract"} 
+        name={SystemUIManager?.isHidden ? "expand" : "contract"} 
         size={size} 
         color={color} 
       />
