@@ -376,12 +376,39 @@ export async function searchRoutes(query) {
 }
 
 export async function createCrag(cragData) {
-  const payload = {
-    name: cragData.name,
-    location_lat: cragData.location_lat,
-    location_lon: cragData.location_lon,
-    description: cragData.description || '',
-  };
+  let payload;
+
+  // If images are provided, use FormData for multipart upload
+  if (cragData.images && cragData.images.length > 0) {
+    const formData = new FormData();
+    formData.append('name', cragData.name);
+    formData.append('location_lat', String(cragData.location_lat));
+    formData.append('location_lon', String(cragData.location_lon));
+    formData.append('description', cragData.description || '');
+
+    // Append each image
+    cragData.images.forEach((image, index) => {
+      const fileUri = image.fileCopyUri || image.uri;
+      const fileName = image.name || `image_${index}.jpg`;
+      const fileType = image.type || 'image/jpeg';
+
+      formData.append('images', {
+        uri: fileUri,
+        type: fileType,
+        name: fileName,
+      });
+    });
+
+    payload = formData;
+  } else {
+    // No images, use regular JSON payload
+    payload = {
+      name: cragData.name,
+      location_lat: cragData.location_lat,
+      location_lon: cragData.location_lon,
+      description: cragData.description || '',
+    };
+  }
 
   const req = new CustomApiRequest(
     RequestMethod.POST,
@@ -412,11 +439,37 @@ export async function createCrag(cragData) {
 }
 
 export async function createRoute(routeData) {
-  const payload = {
-    crag_id: routeData.crag_id,
-    route_name: routeData.route_name,
-    route_grade: routeData.route_grade,
-  };
+  let payload;
+
+  // If images are provided, use FormData for multipart upload
+  if (routeData.images && routeData.images.length > 0) {
+    const formData = new FormData();
+    formData.append('crag_id', routeData.crag_id);
+    formData.append('route_name', routeData.route_name);
+    formData.append('route_grade', String(routeData.route_grade));
+
+    // Append each image
+    routeData.images.forEach((image, index) => {
+      const fileUri = image.fileCopyUri || image.uri;
+      const fileName = image.name || `image_${index}.jpg`;
+      const fileType = image.type || 'image/jpeg';
+
+      formData.append('images', {
+        uri: fileUri,
+        type: fileType,
+        name: fileName,
+      });
+    });
+
+    payload = formData;
+  } else {
+    // No images, use regular JSON payload
+    payload = {
+      crag_id: routeData.crag_id,
+      route_name: routeData.route_name,
+      route_grade: routeData.route_grade,
+    };
+  }
 
   const req = new CustomApiRequest(
     RequestMethod.POST,

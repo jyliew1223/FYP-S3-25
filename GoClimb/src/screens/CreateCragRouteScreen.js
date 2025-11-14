@@ -170,6 +170,7 @@ export default function CreateCragRouteScreen() {
         location_lat: lat,
         location_lon: lon,
         description: cragDescription.trim(),
+        images: cragImages, // Pass images
       });
 
       if (result.success) {
@@ -181,7 +182,11 @@ export default function CreateCragRouteScreen() {
         setCragDescription('');
         setCragImages([]);
         setTimeout(() => {
-          navigation.goBack();
+          // Navigate to MainTabs -> Routes (which is CragsScreen) with refresh
+          navigation.navigate('MainTabs', {
+            screen: 'Routes',
+            params: { refresh: true, expandCragId: result.crag?.crag_pk }
+          });
         }, 1500);
       } else {
         showToast(result.message || 'Failed to create crag');
@@ -211,17 +216,23 @@ export default function CreateCragRouteScreen() {
         crag_id: selectedCrag.crag_id || selectedCrag.crag_pretty_id,
         route_name: routeName.trim(),
         route_grade: routeGrade,
+        images: routeImages, // Pass images
       });
 
       if (result.success) {
         showToast('Route created successfully!', 1500);
+        const cragPk = selectedCrag?.crag_pk;
         // Reset form
         setRouteName('');
         setRouteGrade(6);
         setSelectedCrag(null);
         setRouteImages([]);
         setTimeout(() => {
-          navigation.goBack();
+          // Navigate to MainTabs -> Routes (which is CragsScreen) with refresh
+          navigation.navigate('MainTabs', {
+            screen: 'Routes',
+            params: { refresh: true, expandCragId: cragPk }
+          });
         }, 1500);
       } else {
         showToast(result.message || 'Failed to create route');

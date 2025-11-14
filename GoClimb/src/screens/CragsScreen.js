@@ -72,16 +72,29 @@ export default function CragsScreen({ navigation, route }) {
     loadCrags();
   }, []);
 
-  // Handle auto-expand from navigation params
+  // Handle refresh and auto-expand from navigation params
   useEffect(() => {
+    const shouldRefresh = route?.params?.refresh;
     const expandCragId = route?.params?.expandCragId;
+    
+    if (shouldRefresh) {
+      // Clear the refresh param to prevent infinite loops
+      navigation.setParams({ refresh: false });
+      
+      // Reload crags
+      loadCrags();
+      
+      // Clear route cache to force refetch
+      routesCacheRef.current.clear();
+    }
+    
     if (expandCragId && crags.length > 0) {
       const cragToExpand = crags.find(c => c.crag_pk === expandCragId);
       if (cragToExpand) {
         onToggleCrag(cragToExpand);
       }
     }
-  }, [route?.params?.expandCragId, crags]);
+  }, [route?.params?.refresh, route?.params?.expandCragId, crags]);
 
   async function onToggleCrag(crag) {
     const pk = crag.crag_pk;

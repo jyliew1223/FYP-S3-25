@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -15,6 +17,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
 import { fetchRouteByIdGET } from '../services/api/CragService';
 import { fetchCurrentWeather, formatTemp, formatWind } from '../services/api/WeatherService';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function RouteDetails() {
   const navigation = useNavigation();
@@ -70,6 +74,11 @@ export default function RouteDetails() {
       }
 
       // route = { route_id, name, gradeRaw, gradeFont, images: [], cragData: {...} }
+      console.log('[RouteDetails] Full route data:', route);
+      console.log('[RouteDetails] Route images:', route.images);
+      console.log('[RouteDetails] Images count:', route.images?.length || 0);
+      console.log('[RouteDetails] Images URLs:', JSON.stringify(route.images));
+      
       setRouteData({
         name: route.name,
         gradeFont: route.gradeFont,
@@ -229,36 +238,58 @@ export default function RouteDetails() {
             </Text>
           </View>
 
-          {/* image block (placeholder) */}
-          <View
-            style={[
-              styles.imageBox,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            {routeData?.images?.length ? (
-              <Text
-                style={{
-                  color: colors.text,
-                  fontWeight: '700',
-                }}
-              >
-                {`Images: ${routeData.images.length} (not rendered yet)`}
-              </Text>
-            ) : (
+          {/* Images */}
+          {routeData?.images?.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.imagesScrollView}
+              contentContainerStyle={styles.imagesScrollContent}
+            >
+              {routeData.images.map((imageUrl, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.imageContainer,
+                    {
+                      backgroundColor: colors.surface,
+                      borderColor: colors.divider,
+                    },
+                  ]}
+                >
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.routeImage}
+                    resizeMode="cover"
+                    onError={(error) => {
+                      console.log('[RouteDetails] Image load error:', error.nativeEvent.error);
+                    }}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View
+              style={[
+                styles.noImagesBox,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.divider,
+                },
+              ]}
+            >
+              <Ionicons name="image-outline" size={48} color={colors.textDim} />
               <Text
                 style={{
                   color: colors.textDim,
-                  fontWeight: '700',
+                  fontWeight: '600',
+                  marginTop: 8,
                 }}
               >
                 No images yet
               </Text>
-            )}
-          </View>
+            </View>
+          )}
 
           {/* Weather Information */}
           <View style={{ paddingHorizontal: 16 }}>
@@ -464,7 +495,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  imageBox: {
+  imagesScrollView: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  imagesScrollContent: {
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  imageContainer: {
+    width: SCREEN_WIDTH * 0.8,
+    height: 220,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  routeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  noImagesBox: {
     height: 220,
     borderWidth: 1,
     borderRadius: 12,
