@@ -134,6 +134,38 @@ def get_user_by_id(user_id: str) -> Optional[User]:
     return User.objects.filter(user_id=user_id).first()
 
 
+def search_users(query: str, limit: int = 20):
+    """
+    Controller: Search users by username or email.
+    
+    Args:
+        query: Search query string
+        limit: Maximum number of results to return
+        
+    Returns:
+        QuerySet of User objects matching the search
+        
+    Raises:
+        ValueError: If query is empty or limit is invalid
+    """
+    if not query or not query.strip():
+        raise ValueError("Search query is required")
+    
+    if limit <= 0:
+        raise ValueError("Limit must be a positive integer")
+    
+    query = query.strip()
+    
+    # Search by username or email (case-insensitive)
+    from django.db.models import Q
+    users = User.objects.filter(
+        Q(username__icontains=query) | Q(email__icontains=query),
+        status=True  # Only active users
+    ).order_by('username')[:limit]
+    
+    return users
+
+
 def get_monthly_user_ranking(count: int) -> list[dict[str, Any]]:
     if count <= 0:
         raise ValueError("Count must be a positive integer.")

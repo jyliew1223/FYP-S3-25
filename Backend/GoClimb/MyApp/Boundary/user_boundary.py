@@ -324,3 +324,75 @@ def update_user_view(request: Request) -> Response:
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+@api_view(["GET"])
+def search_users_view(request: Request) -> Response:
+    """
+    Boundary: Handle HTTP request to search users.
+    
+    Query Parameters:
+        query: string (required) - Search query for username or email
+        limit: number (optional, default: 20) - Maximum results to return
+    
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": [User objects],
+        "errors": dict
+    }
+    """
+    auth_result = authenticate_app_check_token(request)
+    if not auth_result.get("success"):
+        return Response(auth_result, status=status.HTTP_401_UNAUTHORIZED)
+
+    query = request.query_params.get("query", "").strip()
+    limit_str = request.query_params.get("limit", "20").strip()
+    
+    if not query:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"query": "This field is required."},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        limit = int(limit_str) if limit_str.isdigit() else 20
+        if limit <= 0:
+            limit = 20
+    except (ValueError, TypeError):
+        limit = 20
+
+    try:
+        users = user_controller.search_users(query, limit)
+        serializer = UserSerializer(users, many=True)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Users found successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    except ValueError as ve:
+        return Response(
+            {
+                "success": False,
+                "message": "Invalid input.",
+                "errors": {"validation": str(ve)},
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "message": "An error occurred while searching users.",
+                "errors": {"exception": str(e)},
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )

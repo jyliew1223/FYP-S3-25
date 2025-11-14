@@ -1902,3 +1902,103 @@ class AllEndpointsSuccessTestCase(TestCase):
         self.assertEqual(user_data["user_id"], self.test_user.user_id)
         self.assertEqual(user_data["username"], self.test_user.username)
         self.assertEqual(user_data["email"], self.test_user.email)
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_43_search_users(self, mock_verify_app_check):
+        """Test searching users"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        # Create additional test users for search
+        User.objects.create(
+            user_id="search_user_1",
+            username="climber_john",
+            email="john@climbing.com",
+            status=True,
+        )
+        User.objects.create(
+            user_id="search_user_2", 
+            username="boulder_sarah",
+            email="sarah@bouldering.net",
+            status=True,
+        )
+
+        url = reverse("search_users")
+        params = {"query": "climb", "limit": 5}
+        response = self.client.get(url, params)
+        self.print_endpoint_result("SEARCH - USERS", url, response, params)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_44_search_posts(self, mock_verify_app_check):
+        """Test searching posts"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        # Create additional test posts for search
+        Post.objects.create(
+            user=self.test_user,
+            title="Best Climbing Techniques",
+            content="Learn essential climbing techniques for beginners",
+            tags=["climbing", "techniques", "beginner"],
+            status="active",
+        )
+        Post.objects.create(
+            user=self.test_user,
+            title="Bouldering Guide",
+            content="Complete guide to bouldering for all skill levels",
+            tags=["bouldering", "guide", "training"],
+            status="active",
+        )
+
+        url = reverse("search_posts")
+        params = {"query": "climbing", "limit": 5}
+        response = self.client.get(url, params)
+        self.print_endpoint_result("SEARCH - POSTS", url, response, params)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)
+
+    @patch("firebase_admin.app_check.verify_token")
+    def test_45_search_crags(self, mock_verify_app_check):
+        """Test searching crags"""
+        
+        mock_verify_app_check.return_value = {"app_id": "test_app"}
+
+        # Create additional test crags for search
+        Crag.objects.create(
+            name="Red Rock Canyon",
+            location_lat=36.1349,
+            location_lon=-115.4194,
+            description="Famous sandstone climbing area with excellent sport routes",
+            user=self.test_user,
+        )
+        Crag.objects.create(
+            name="Joshua Tree",
+            location_lat=33.8734,
+            location_lon=-115.9010,
+            description="World-class bouldering destination in California desert",
+            user=self.test_user,
+        )
+
+        url = reverse("search_crags")
+        params = {"query": "rock", "limit": 5}
+        response = self.client.get(url, params)
+        self.print_endpoint_result("SEARCH - CRAGS", url, response, params)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.get("Content-Type"), "application/json")
+        response_data = response.json()
+        self.assertTrue(response_data.get("success"))
+        self.assertIn("data", response_data)
+        self.assertIsInstance(response_data["data"], list)

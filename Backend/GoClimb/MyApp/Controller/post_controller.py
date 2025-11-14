@@ -33,6 +33,40 @@ def get_random_post(count: int = 10, blacklist: list[str] | None = None):
     posts = Post.objects.exclude(post_id__in=blacklist_int).order_by("?")[:count]
     return posts
 
+def search_posts(query: str, limit: int = 20):
+    """
+    Controller: Search posts by title, content, or tags.
+    
+    Args:
+        query: Search query string
+        limit: Maximum number of results to return
+        
+    Returns:
+        QuerySet of Post objects matching the search
+        
+    Raises:
+        ValueError: If query is empty or limit is invalid
+    """
+    if not query or not query.strip():
+        raise ValueError("Search query is required")
+    
+    if limit <= 0:
+        raise ValueError("Limit must be a positive integer")
+    
+    query = query.strip()
+    
+    # Search by title, content, or tags (case-insensitive)
+    from django.db.models import Q
+    posts = Post.objects.filter(
+        Q(title__icontains=query) | 
+        Q(content__icontains=query) |
+        Q(tags__icontains=query),
+        status="active"  # Only active posts
+    ).order_by('-created_at')[:limit]
+    
+    return posts
+
+
 def get_post_by_user_id(
     user_id: str, count: int = 10, blacklist: list[str] | None = None
 ):

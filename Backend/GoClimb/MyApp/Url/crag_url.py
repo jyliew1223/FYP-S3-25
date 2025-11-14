@@ -9,6 +9,7 @@ from MyApp.Boundary.crag_boundary import (
     create_crag_view,  # CREATING_01
     delete_crag_view,
     get_crags_by_user_id_view,
+    search_crags_view,
 )
 
 urlpatterns = [
@@ -24,4 +25,5 @@ urlpatterns = [
     path("create_crag/", create_crag_view, name="create_crag"),  # CREATING_01
     path("delete_crag/", delete_crag_view, name="delete_crag"),
     path("get_crags_by_user_id/", get_crags_by_user_id_view, name="get_crags_by_user_id"),
+    path("search/", search_crags_view, name="search_crags"),
 ]

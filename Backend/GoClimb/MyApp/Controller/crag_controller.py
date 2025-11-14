@@ -308,6 +308,37 @@ def get_all_crag_ids():
     return crag_list
 
 
+def search_crags(query: str, limit: int = 20):
+    """
+    Controller: Search crags by name or description.
+    
+    Args:
+        query: Search query string
+        limit: Maximum number of results to return
+        
+    Returns:
+        QuerySet of Crag objects matching the search
+        
+    Raises:
+        ValueError: If query is empty or limit is invalid
+    """
+    if not query or not query.strip():
+        raise ValueError("Search query is required")
+    
+    if limit <= 0:
+        raise ValueError("Limit must be a positive integer")
+    
+    query = query.strip()
+    
+    # Search by name or description (case-insensitive)
+    from django.db.models import Q
+    crags = Crag.objects.filter(
+        Q(name__icontains=query) | Q(description__icontains=query)
+    ).order_by('name')[:limit]
+    
+    return crags
+
+
 def get_crags_by_user_id(user_id: str):
     """
     Controller: Get all crags created by a specific user.
