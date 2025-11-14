@@ -170,6 +170,91 @@ def create_crag(*, name, location_lat, location_lon, description=""):
     )
     return crag
 
+
+def create_crag_with_images(*, name, location_lat, location_lon, description="", user_id, images=None):
+    """
+    Create a crag with image uploads.
+    
+    Args:
+        name: Crag name
+        location_lat: Latitude
+        location_lon: Longitude  
+        description: Optional description
+        user_id: ID of the user creating the crag
+        images: List of uploaded image files
+        
+    Returns:
+        Crag object with images uploaded to Firebase Storage
+        
+    Raises:
+        ValueError: If validation fails or image upload fails
+        ObjectDoesNotExist: If user not found
+    """
+    from MyApp.Firebase.helpers import upload_multiple_images_to_storage
+    from MyApp.Entity.user import User
+    from MyApp.Utils.helper import PrefixedIDConverter
+    
+    # Validate basic data
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("Invalid name")
+
+    try:
+        lat = float(location_lat)
+        lon = float(location_lon)
+    except (TypeError, ValueError):
+        raise ValueError("Invalid coordinates")
+    
+    # Validate and get user
+    if not user_id:
+        raise ValueError("User ID is required")
+    
+    try:
+        # Convert formatted user ID to raw ID if needed
+        raw_user_id = PrefixedIDConverter.to_raw_id(user_id) if isinstance(user_id, str) and user_id.startswith('USER-') else user_id
+        user = User.objects.get(user_id=raw_user_id)
+    except User.DoesNotExist:
+        raise ObjectDoesNotExist(f"User with ID {user_id} does not exist")
+
+    # Create the crag first
+    crag = Crag.objects.create(
+        name=name.strip(),
+        location_lat=lat,
+        location_lon=lon,
+        description=description or "",
+        user=user,
+    )
+    
+    # Upload images if provided
+    if images and len(images) > 0:
+        try:
+            # Create folder path for this crag's images using formatted_id
+            folder_path = f"crags/{crag.formatted_id}/images"
+            
+            print(f"Uploading {len(images)} images to folder: {folder_path}")
+            
+            # Upload images to Firebase Storage
+            uploaded_filenames = upload_multiple_images_to_storage(
+                files=images,
+                folder_path=folder_path,
+                user_id=user.user_id,  # Use the actual user ID
+                purpose="crag_image"
+            )
+            
+            print(f"Successfully uploaded {len(uploaded_filenames)} images: {uploaded_filenames}")
+            
+            # The images are now stored in Firebase Storage
+            # The CragSerializer will automatically fetch them via images_download_urls property
+                
+        except Exception as e:
+            # If image upload fails, delete the crag and raise error
+            print(f"Image upload failed: {str(e)}")
+            crag.delete()
+            raise ValueError(f"Failed to upload images: {str(e)}")
+    else:
+        print("No images provided for upload")
+    
+    return crag
+
 # ------------------
 # CREATING_01 (end)
 # ------------------

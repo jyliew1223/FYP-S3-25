@@ -308,14 +308,25 @@ def get_all_crag_ids_view(request: Request) -> Response:
 @api_view(["POST"])
 def create_crag_view(request):
     """
-    INPUT (JSON, minimal set to match current CragSerializer/model):
-    {
-      "name": "Bukit Takun",
-      "location_lat": 3.288,
-      "location_lon": 101.650,
-      "description": "optional"
+    Boundary: Handle HTTP request to create a crag with image uploads.
+    
+    INPUT (FormData):
+    - name: string (required)
+    - location_lat: number (required) 
+    - location_lon: number (required)
+    - description: string (optional)
+    - images: files (optional) - Multiple image files
+    
+    OUTPUT: {
+        "success": bool,
+        "message": str,
+        "data": Crag object with images_urls populated,
+        "errors": dict
     }
     """
+    # Import here to avoid circular imports
+    from MyApp.Utils.helper import extract_files_and_clean_data
+    
     # 1) App Check
     auth = authenticate_app_check_token(request)
     if not auth.get("success"):
@@ -324,9 +335,12 @@ def create_crag_view(request):
             status=status.HTTP_401_UNAUTHORIZED,
         )
 
-    body = request.data or {}
-    required = ["name", "location_lat", "location_lon"]
-    missing = [k for k in required if k not in body or body.get(k) in ("", None)]
+    # 2) Extract images and clean form data
+    images, clean_data = extract_files_and_clean_data(request, "images")
+    
+    # 3) Validate required fields
+    required = ["name", "location_lat", "location_lon", "user_id"]
+    missing = [k for k in required if k not in clean_data or clean_data.get(k) in ("", None)]
 
     if missing:
         return Response(
@@ -339,12 +353,29 @@ def create_crag_view(request):
         )
 
     try:
-        crag_obj = crag_controller.create_crag(
-            name=body.get("name"),
-            location_lat=body.get("location_lat"),
-            location_lon=body.get("location_lon"),
-            description=body.get("description", ""),
+        # 4) Create crag with images
+        crag_obj = crag_controller.create_crag_with_images(
+            name=clean_data.get("name"),
+            location_lat=clean_data.get("location_lat"),
+            location_lon=clean_data.get("location_lon"),
+            description=clean_data.get("description", ""),
+            user_id=clean_data.get("user_id"),
+            images=images
         )
+        
+        # 5) Serialize response
+        data = CragSerializer(crag_obj).data
+        
+        return Response(
+            {
+                "success": True,
+                "message": "Crag created successfully",
+                "data": data,
+                "errors": [],
+            },
+            status=status.HTTP_200_OK,
+        )
+        
     except ValueError as e:
         return Response(
             {"success": False, "message": str(e), "errors": {"ValueError": str(e)}},
@@ -359,14 +390,3 @@ def create_crag_view(request):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-    data = CragSerializer(crag_obj).data
-    return Response(
-        {
-            "success": True,
-            "message": "Crag created successfully",
-            "data": data,
-            "errors": [],
-        },
-        status=status.HTTP_200_OK,
-    )

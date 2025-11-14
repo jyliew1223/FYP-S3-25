@@ -16,6 +16,7 @@ class Route(models.Model):
     route_name = models.CharField(max_length=255)
     route_grade = models.IntegerField()
     crag = models.ForeignKey(Crag, on_delete=models.CASCADE, related_name="routes")
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='routes', null=True, blank=True)
 
     def __str__(self):
         return f"{self.route_name}"

@@ -44,6 +44,10 @@ class CragSerializer(serializers.ModelSerializer):
     crag_id = serializers.SerializerMethodField()
     images_urls = serializers.SerializerMethodField()
     location_details = serializers.JSONField()
+    user = UserSerializer(read_only=True)
+    user_id = FormattedPKRelatedField(
+        source="user", queryset=User.objects.all(), write_only=True
+    )
 
     class Meta:
         model = Crag
@@ -55,8 +59,10 @@ class CragSerializer(serializers.ModelSerializer):
             "location_details",
             "description",
             "images_urls",
+            "user",
+            "user_id",
         ]
-        read_only_fields = ["crag_id", "images_urls"]
+        read_only_fields = ["crag_id", "images_urls", "user"]
 
     def get_crag_id(self, obj):
 
@@ -76,10 +82,14 @@ class RouteSerializer(serializers.ModelSerializer):
     crag_id = FormattedPKRelatedField(
         source="crag", queryset=Crag.objects.all(), write_only=True
     )
+    user_id = FormattedPKRelatedField(
+        source="user", queryset=User.objects.all(), write_only=True
+    )
 
     route_id = serializers.SerializerMethodField()
     images_urls = serializers.SerializerMethodField()
     crag = CragSerializer(read_only=True)
+    user = UserSerializer(read_only=True)
 
     class Meta:
         model = Route
@@ -89,9 +99,11 @@ class RouteSerializer(serializers.ModelSerializer):
             "route_grade",
             "crag",
             "images_urls",
+            "user",
             "crag_id",
+            "user_id",
         ]
-        read_only_fields = ["route_id", "images_urls", "crag"]
+        read_only_fields = ["route_id", "images_urls", "crag", "user"]
 
     def get_route_id(self, obj):
         return obj.formatted_id

@@ -18,6 +18,7 @@ class Crag(models.Model):
     location_lat = models.FloatField()
     location_lon = models.FloatField()
     description = models.TextField(blank=True, null=True)
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='crags', null=True, blank=True)
 
     def __str__(self) -> str:
         return f"{self.name} | {self.crag_id}"
