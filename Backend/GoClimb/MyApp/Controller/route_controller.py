@@ -20,8 +20,8 @@ def create_route(route_data: dict, images: Optional[List[InMemoryUploadedFile]] 
     if images:
         try:
             folder_path = route.images_bucket_path
-            # Use the crag's first user or a system user for uploaded_by
-            user_id = "system"  # You might want to pass this from the request
+            # Use the route creator's user_id for image uploads
+            user_id = route.user.user_id if route.user else "system"
             upload_multiple_images_to_storage(
                 images, 
                 folder_path, 

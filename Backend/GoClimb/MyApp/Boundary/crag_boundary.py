@@ -315,12 +315,13 @@ def create_crag_view(request):
     - location_lat: number (required) 
     - location_lon: number (required)
     - description: string (optional)
+    - user_id: string (required) - ID of the user creating the crag
     - images: files (optional) - Multiple image files
     
     OUTPUT: {
         "success": bool,
         "message": str,
-        "data": Crag object with images_urls populated,
+        "data": Crag object with user info and images_urls populated,
         "errors": dict
     }
     """
