@@ -17,12 +17,13 @@ import {
   View,
   Image,
   ScrollView,
+  Modal,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useTheme} from '../context/ThemeContext';
 import {useRoute, useFocusEffect} from '@react-navigation/native';
-import auth from '@react-native-firebase/auth';
+import { getAuth } from '@react-native-firebase/auth';
 
 import {
   fetchRandomPosts,
@@ -33,6 +34,7 @@ import {
   checkIfUserLikedPost,
   getLikeCount,
 } from '../services/api/PostsService';
+import { searchPosts, searchPostsByTags } from '../services/api/SearchService';
 
 export default function Forum({navigation}) {
   const route = useRoute();
@@ -45,6 +47,9 @@ export default function Forum({navigation}) {
   const [likedPosts, setLikedPosts] = useState(new Set());
   const [menuVisible, setMenuVisible] = useState(null);
   const [sortBy, setSortBy] = useState('newest'); // newest, oldest, mostLiked, leastLiked
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showPostSearch, setShowPostSearch] = useState(false);
 
   // toast banner
   const [toast, setToast] = useState('');
@@ -67,35 +72,75 @@ export default function Forum({navigation}) {
 
         console.log('[DEBUG Forum] Fetched posts:', res.data.length);
 
-        // Check like status for each post
+        // Check if backend provides complete data, otherwise fetch missing data
         const likedSet = new Set();
-        const postsWithData = await Promise.all(
-          res.data.map(async post => {
+        
+        // First, use whatever data the backend provides
+        let postsWithData = res.data.map(post => ({
+          ...post,
+          comments: post.comments || 0,
+          likes: post.likes || 0,
+        }));
+
+        console.log('[DEBUG Forum] Initial post data:', postsWithData.map(p => ({ id: p.id, likes: p.likes, comments: p.comments })));
+
+        // Check if we need to fetch missing data
+        const needsLikeCounts = postsWithData.some(post => post.likes === 0);
+        const needsCommentCounts = postsWithData.some(post => post.comments === 0);
+        const currentUser = getAuth().currentUser;
+
+        if (needsLikeCounts || needsCommentCounts || currentUser) {
+          console.log('[DEBUG Forum] Fetching missing data...', { needsLikeCounts, needsCommentCounts, hasUser: !!currentUser });
+          
+          // Fetch missing data in parallel
+          const dataPromises = postsWithData.map(async post => {
+            const promises = [];
+            
+            // Get like count if needed
+            if (needsLikeCounts) {
+              promises.push(getLikeCount(post.id));
+            } else {
+              promises.push(Promise.resolve({ success: true, count: post.likes }));
+            }
+            
+            // Get comment count if needed
+            if (needsCommentCounts) {
+              promises.push(fetchCommentCountForPost(post.id));
+            } else {
+              promises.push(Promise.resolve(post.comments));
+            }
+            
+            // Get like status if user is logged in
+            if (currentUser) {
+              promises.push(checkIfUserLikedPost(post.id));
+            } else {
+              promises.push(Promise.resolve(false));
+            }
+
             try {
-              // Check if user liked this post
-              const isLiked = await checkIfUserLikedPost(post.id);
+              const [likeCountRes, commentCount, isLiked] = await Promise.all(promises);
+              
+              const likes = likeCountRes.success ? likeCountRes.count : (post.likes || 0);
+              const comments = typeof commentCount === 'number' ? commentCount : (post.comments || 0);
+              
               if (isLiked) {
                 likedSet.add(post.id);
               }
 
-              // Get comment count
-              const commentCount = await fetchCommentCountForPost(post.id);
-
-              // Get current like count
-              const likeCountRes = await getLikeCount(post.id);
-              const currentLikes = likeCountRes.success ? likeCountRes.count : post.likes || 0;
-
               return {
                 ...post,
-                comments: commentCount || 0,
-                likes: currentLikes,
+                likes,
+                comments,
               };
             } catch (error) {
               console.log(`[DEBUG] Error processing post ${post.id}:`, error);
               return post;
             }
-          }),
-        );
+          });
+
+          postsWithData = await Promise.all(dataPromises);
+          console.log('[DEBUG Forum] Final post data:', postsWithData.map(p => ({ id: p.id, likes: p.likes, comments: p.comments })));
+        }
 
         console.log('[DEBUG Forum] Liked posts:', Array.from(likedSet));
         setLikedPosts(likedSet);
@@ -139,20 +184,83 @@ export default function Forum({navigation}) {
     setRefreshing(false);
   }, [loadPosts]);
 
-  // Local search and sorting
-  const filtered = useMemo(() => {
-    let result = posts;
-
-    // Apply search filter
-    if (query.trim()) {
-      const q = query.trim().toLowerCase();
-      result = posts.filter(
-        p =>
-          p.title.toLowerCase().includes(q) ||
-          p.body.toLowerCase().includes(q) ||
-          (p.tags || []).some(t => String(t).toLowerCase().includes(q)),
-      );
+  // Search posts function
+  const handlePostSearch = async (searchQuery) => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      return;
     }
+
+    setSearchLoading(true);
+    try {
+      let result;
+      
+      // Check if query starts with # for tag search
+      if (searchQuery.trim().startsWith('#')) {
+        // Extract tags from the query (remove # and split by spaces/commas)
+        const tagQuery = searchQuery.trim().substring(1); // Remove the #
+        const tags = tagQuery.split(/[,\s]+/).filter(tag => tag.trim().length > 0);
+        
+        if (tags.length > 0) {
+          console.log('[Forum] Searching by tags:', tags);
+          result = await searchPostsByTags({ tags, limit: 20 });
+        } else {
+          // Empty tag query
+          setSearchResults([]);
+          setSearchLoading(false);
+          return;
+        }
+      } else {
+        // Regular text search
+        console.log('[Forum] Searching by text:', searchQuery.trim());
+        result = await searchPosts({ query: searchQuery.trim(), limit: 20 });
+      }
+
+      if (result.success) {
+        // Map search results to match the expected format
+        const mappedResults = result.data.map(post => ({
+          id: post.post_id,
+          author: { 
+            id: post.user?.user_id || '', 
+            name: post.user?.username || 'User' 
+          },
+          title: post.title || '',
+          body: post.content || '',
+          tags: post.tags || [],
+          createdAt: Date.parse(post.created_at) || Date.now(),
+          likes: 0, // Will be loaded separately if needed
+          comments: 0, // Will be loaded separately if needed
+          images: post.images_urls || [],
+        }));
+        setSearchResults(mappedResults);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.log('Error searching posts:', error);
+      setSearchResults([]);
+    }
+    setSearchLoading(false);
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query.trim()) {
+        handlePostSearch(query);
+      } else {
+        setSearchResults([]);
+        setSearchLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [query]);
+
+  // Determine which posts to display and sort them
+  const filtered = useMemo(() => {
+    let result = query.trim() ? searchResults : posts;
 
     // Apply sorting
     return result.sort((a, b) => {
@@ -181,20 +289,18 @@ export default function Forum({navigation}) {
           return (b.createdAt || 0) - (a.createdAt || 0);
       }
     });
-  }, [posts, query, sortBy]);
+  }, [posts, searchResults, query, sortBy]);
 
   const openPost = post => navigation.navigate('PostDetail', {postId: post.id});
 
   const goToComments = post =>
     navigation.navigate('PostDetail', {postId: post.id});
 
-  const sharePost = () => {
-    showToast('Feature under construction');
-  };
+
 
   // Toggle like
   const toggleLike = async post => {
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     if (!currentUser) {
       navigation.navigate('PreSignUp');
       return;
@@ -257,7 +363,7 @@ export default function Forum({navigation}) {
   const handleDeletePost = async postId => {
     console.log('[Forum handleDeletePost] Starting deletion for postId:', postId);
     
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     if (!currentUser) {
       showToast('You must be logged in to delete posts');
       return;
@@ -283,7 +389,7 @@ export default function Forum({navigation}) {
   };
 
   const handleProfilePress = (userId) => {
-    const currentUser = auth().currentUser;
+    const currentUser = getAuth().currentUser;
     if (!currentUser) {
       navigation.navigate('PreSignUp');
       return;
@@ -294,7 +400,14 @@ export default function Forum({navigation}) {
     }
   };
 
-  const currentUser = auth().currentUser;
+  const handlePostPress = (postId) => {
+    setShowPostSearch(false);
+    setQuery('');
+    setSearchResults([]);
+    navigation.navigate('PostDetail', { postId });
+  };
+
+  const currentUser = getAuth().currentUser;
 
   const renderItem = ({item}) => (
     <PostCard
@@ -304,7 +417,6 @@ export default function Forum({navigation}) {
       onPress={() => openPost(item)}
       onLike={() => toggleLike(item)}
       onComment={() => goToComments(item)}
-      onShare={sharePost}
       onProfilePress={handleProfilePress}
       isOwnPost={currentUser && item.author?.id === currentUser.uid}
       menuVisible={menuVisible === item.id}
@@ -329,13 +441,13 @@ export default function Forum({navigation}) {
         <Text style={[styles.topTitle, {color: colors.text}]}>Forum</Text>
 
         <View style={styles.topActions}>
-          <TouchableOpacity onPress={load} style={styles.topIcon}>
-            <Ionicons name="refresh" size={20} color={colors.text} />
+          <TouchableOpacity onPress={() => setShowPostSearch(true)} style={styles.topIcon}>
+            <Ionicons name="search" size={20} color={colors.text} />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => {
-              const currentUser = auth().currentUser;
+              const currentUser = getAuth().currentUser;
               if (!currentUser) {
                 navigation.navigate('PreSignUp');
               } else {
@@ -369,110 +481,201 @@ export default function Forum({navigation}) {
         </View>
       ) : null}
 
+
+
+      {/* Sort chips - always visible */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.sortChipsContainer}
+        contentContainerStyle={styles.sortChipsContent}
+      >
+        {/* Dynamically order chips - selected one first */}
+        {[
+          { key: 'newest', label: 'Newest First' },
+          { key: 'oldest', label: 'Oldest First' },
+          { key: 'mostLiked', label: 'Most Liked' },
+          { key: 'leastLiked', label: 'Least Liked' },
+        ]
+          .sort((a, b) => {
+            // Selected chip goes first
+            if (a.key === sortBy) return -1;
+            if (b.key === sortBy) return 1;
+            return 0;
+          })
+          .map((option) => (
+            <TouchableOpacity
+              key={option.key}
+              style={[
+                styles.sortChip,
+                {
+                  backgroundColor: sortBy === option.key ? '#4CAF50' : colors.surfaceAlt,
+                  borderColor: sortBy === option.key ? '#4CAF50' : colors.divider,
+                },
+              ]}
+              onPress={() => setSortBy(option.key)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.sortChipText,
+                  {
+                    color: sortBy === option.key ? '#FFFFFF' : colors.textDim,
+                    fontWeight: sortBy === option.key ? '700' : '600',
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+      </ScrollView>
+
       {/* list */}
-      {loading ? (
+      {loading || (query.trim() && searchLoading) ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.accent} />
+          {query.trim() && searchLoading && (
+            <Text style={[styles.loadingText, { color: colors.textDim }]}>
+              Searching posts...
+            </Text>
+          )}
         </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={item => item.id}
           renderItem={renderItem}
-          ListHeaderComponent={
-            <>
-              {/* search bar */}
-              <View
-                style={[
-                  styles.searchWrap,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.surface,
-                  },
-                ]}>
-                <Ionicons name="search" size={18} color={colors.textDim} />
-                <TextInput
-                  placeholder="Search posts"
-                  placeholderTextColor={colors.textDim}
-                  value={query}
-                  onChangeText={setQuery}
-                  style={[styles.searchInput, {color: colors.text}]}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-                {query ? (
-                  <TouchableOpacity onPress={() => setQuery('')}>
-                    <Ionicons name="close-circle" size={18} color={colors.textDim} />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-
-              {/* Sort chips - horizontal scrollable */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.sortChipsContainer}
-                contentContainerStyle={styles.sortChipsContent}
-              >
-                {/* Dynamically order chips - selected one first */}
-                {[
-                  { key: 'newest', label: 'Newest First' },
-                  { key: 'oldest', label: 'Oldest First' },
-                  { key: 'mostLiked', label: 'Most Liked' },
-                  { key: 'leastLiked', label: 'Least Liked' },
-                ]
-                  .sort((a, b) => {
-                    // Selected chip goes first
-                    if (a.key === sortBy) return -1;
-                    if (b.key === sortBy) return 1;
-                    return 0;
-                  })
-                  .map((option) => (
-                    <TouchableOpacity
-                      key={option.key}
-                      style={[
-                        styles.sortChip,
-                        {
-                          backgroundColor: sortBy === option.key ? '#4CAF50' : colors.surfaceAlt,
-                          borderColor: sortBy === option.key ? '#4CAF50' : colors.divider,
-                        },
-                      ]}
-                      onPress={() => setSortBy(option.key)}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.sortChipText,
-                          {
-                            color: sortBy === option.key ? '#FFFFFF' : colors.textDim,
-                            fontWeight: sortBy === option.key ? '700' : '600',
-                          },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {option.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-              </ScrollView>
-            </>
-          }
           ItemSeparatorComponent={() => <View style={{height: 10}} />}
           contentContainerStyle={{
             paddingHorizontal: 16,
+            paddingTop: 8,
             paddingBottom: 24,
           }}
           refreshing={refreshing}
           onRefresh={onRefresh}
         />
       )}
+
+      {/* Post Search Modal */}
+      <Modal
+        visible={showPostSearch}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <SafeAreaView style={[styles.searchModalContainer, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
+          {/* Search Header */}
+          <View style={[styles.searchHeader, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
+            <TouchableOpacity onPress={() => setShowPostSearch(false)} style={styles.searchButton}>
+              <Text style={[styles.searchButtonText, { color: colors.text }]}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={[styles.searchTitle, { color: colors.text }]}>Search Posts</Text>
+            <View style={{ width: 60 }} />
+          </View>
+
+          {/* Search Input */}
+          <View style={[styles.searchInputContainer, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
+            <View style={[styles.searchInputWrapper, { backgroundColor: colors.bg, borderColor: colors.divider }]}>
+              <Ionicons name="search" size={20} color={colors.textDim} />
+              <TextInput
+                style={[styles.searchInput, { color: colors.text }]}
+                placeholder="Search posts or use #tag for tags..."
+                placeholderTextColor={colors.textDim}
+                value={query}
+                onChangeText={setQuery}
+                autoFocus={true}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {query ? (
+                <TouchableOpacity onPress={() => setQuery('')}>
+                  <Ionicons name="close-circle" size={20} color={colors.textDim} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Search Results */}
+          <View style={styles.searchResults}>
+            {/* Search Type Indicator */}
+            {query.trim() && !searchLoading && (
+              <View style={[styles.searchTypeIndicator, { backgroundColor: colors.surfaceAlt, borderBottomColor: colors.divider }]}>
+                <Ionicons 
+                  name={query.trim().startsWith('#') ? "pricetag" : "search"} 
+                  size={16} 
+                  color={colors.accent} 
+                />
+                <Text style={[styles.searchTypeText, { color: colors.textDim }]}>
+                  {query.trim().startsWith('#') 
+                    ? `Searching by tags: ${query.trim().substring(1)}` 
+                    : `Searching posts: "${query.trim()}"`
+                  }
+                </Text>
+              </View>
+            )}
+
+            {searchLoading ? (
+              <View style={styles.searchLoadingContainer}>
+                <ActivityIndicator size="large" color={colors.accent} />
+                <Text style={[styles.searchLoadingText, { color: colors.textDim }]}>
+                  {query.trim().startsWith('#') ? 'Searching by tags...' : 'Searching posts...'}
+                </Text>
+              </View>
+            ) : query && searchResults.length === 0 ? (
+              <View style={styles.searchEmptyContainer}>
+                <Ionicons name="document-text-outline" size={48} color={colors.textDim} />
+                <Text style={[styles.searchEmptyText, { color: colors.textDim }]}>
+                  No posts found {query.trim().startsWith('#') ? 'with those tags' : 'for that search'}
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={searchResults}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[styles.postResultItem, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}
+                    onPress={() => handlePostPress(item.id)}
+                  >
+                    <View style={styles.postResultContent}>
+                      <Text style={[styles.postResultTitle, { color: colors.text }]} numberOfLines={2}>
+                        {item.title || 'Untitled'}
+                      </Text>
+                      <Text style={[styles.postResultBody, { color: colors.textDim }]} numberOfLines={3}>
+                        {item.body}
+                      </Text>
+                      <View style={styles.postResultMeta}>
+                        <Text style={[styles.postResultAuthor, { color: colors.textDim }]}>
+                          by {item.author?.name || 'User'}
+                        </Text>
+                        {item.tags && item.tags.length > 0 && (
+                          <View style={styles.postResultTags}>
+                            {item.tags.slice(0, 2).map((tag, index) => (
+                              <Text key={index} style={[styles.postResultTag, { color: colors.accent }]}>
+                                #{tag}
+                              </Text>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
+                  </TouchableOpacity>
+                )}
+                contentContainerStyle={styles.searchResultsList}
+              />
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 /* ----------------------------- card ----------------------------- */
 
-function PostCard({post, colors, liked, onPress, onLike, onComment, onShare, isOwnPost, menuVisible, onMenuToggle, onDelete, onProfilePress}) {
+function PostCard({post, colors, liked, onPress, onLike, onComment, isOwnPost, menuVisible, onMenuToggle, onDelete, onProfilePress}) {
   const time = timeAgo(post.createdAt);
 
   const displayTitle =
@@ -604,12 +807,6 @@ function PostCard({post, colors, liked, onPress, onLike, onComment, onShare, isO
           text={String(post.comments ?? 0)}
           colors={colors}
           onPress={onComment}
-        />
-        <RowAction
-          icon="share-social-outline"
-          text="Share"
-          colors={colors}
-          onPress={onShare}
         />
       </View>
     </TouchableOpacity>
@@ -753,6 +950,7 @@ const styles = StyleSheet.create({
   sortChipsContainer: {
     marginTop: 8,
     marginBottom: 16,
+    paddingBottom: 8,
   },
   sortChipsContent: {
     gap: 10,
@@ -777,6 +975,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
   },
 
   card: {
@@ -887,6 +1089,119 @@ const styles = StyleSheet.create({
   },
   menuText: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Search modal styles
+  searchModalContainer: {
+    flex: 1,
+  },
+  searchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    minWidth: 60,
+  },
+  searchButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  searchTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  searchInputContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  searchResults: {
+    flex: 1,
+  },
+  searchTypeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 8,
+  },
+  searchTypeText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  searchLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchLoadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  searchEmptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchEmptyText: {
+    fontSize: 16,
+  },
+  searchResultsList: {
+    padding: 16,
+  },
+  postResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  postResultContent: {
+    flex: 1,
+  },
+  postResultTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  postResultBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  postResultMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  postResultAuthor: {
+    fontSize: 12,
+  },
+  postResultTags: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  postResultTag: {
+    fontSize: 12,
     fontWeight: '600',
   },
 });

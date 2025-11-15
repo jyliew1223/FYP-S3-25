@@ -11,11 +11,9 @@ import {
   StyleSheet,
   Easing,
   Platform,
-  Image,
   ScrollView,
-  TextInput,
   FlatList,
-  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -25,12 +23,23 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { BlurView } from '@react-native-community/blur';
 import { fetchCurrentUserFromDjango } from '../services/api/AuthApi';
-import { fetchTrendingCrags, searchRoutes } from '../services/api/CragService';
+import { fetchTrendingCrags } from '../services/api/CragService';
 import { fetchMonthlyUserRankings } from '../services/api/RankingsService';
+import { searchUsers } from '../services/api/SearchService';
+import { UI_CONSTANTS, SCREEN_CONSTANTS, STYLE_MIXINS } from '../constants';
+import { 
+  LoadingSpinner, 
+  EmptyState, 
+  SearchModal, 
+  RankingCard, 
+  TrendingCragCard, 
+  DrawerItem, 
+  ProfileAvatar 
+} from '../components';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const { colors } = useTheme();
   
   // Profile picture from backend
@@ -47,13 +56,15 @@ export default function HomeScreen() {
   const [monthlyRankings, setMonthlyRankings] = useState([]);
   const [loadingRankings, setLoadingRankings] = useState(true);
 
-  // Route search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const { width, height } = Dimensions.get('window');
-  const MENU_W = useMemo(() => Math.min(320, width * 0.82), [width]);
+  // Refresh state
+  const [refreshing, setRefreshing] = useState(false);
+
+  // User search state
+  const [showUserSearch, setShowUserSearch] = useState(false);
+
+
+  const { width } = Dimensions.get('window');
+  const MENU_W = useMemo(() => Math.min(UI_CONSTANTS.MENU_WIDTH.DEFAULT, width * UI_CONSTANTS.MENU_WIDTH.PERCENTAGE), [width]);
 
   // Animations
   const fade = useRef(new Animated.Value(0)).current;
@@ -73,25 +84,37 @@ export default function HomeScreen() {
         const resp = await fetchCurrentUserFromDjango();
         if (resp.ok && resp.user?.profile_picture_url) {
           setProfilePicture(resp.user.profile_picture_url);
+          setProfilePictureCached(true);
         }
       } catch (err) {
         console.log('Failed to fetch profile picture:', err);
       }
     } else {
       setProfilePicture(null);
+      setProfilePictureCached(false);
     }
   };
 
-  // Fetch user profile picture on mount and when screen comes into focus
-  useEffect(() => {
-    fetchProfilePicture();
-  }, [user]);
+  // Cache profile picture to avoid redundant fetches
+  const [profilePictureCached, setProfilePictureCached] = useState(false);
 
-  // Refresh profile picture when screen comes into focus
+  // Fetch user profile picture on mount and when user changes
+  useEffect(() => {
+    if (user && !profilePictureCached) {
+      fetchProfilePicture();
+    } else if (!user) {
+      setProfilePicture(null);
+      setProfilePictureCached(false);
+    }
+  }, [user, profilePictureCached]);
+
+  // Only refresh profile picture on focus if it hasn't been cached
   useFocusEffect(
     React.useCallback(() => {
-      fetchProfilePicture();
-    }, [user])
+      if (user && !profilePictureCached) {
+        fetchProfilePicture();
+      }
+    }, [user, profilePictureCached])
   );
 
   // Fetch trending crags
@@ -128,40 +151,29 @@ export default function HomeScreen() {
     loadMonthlyRankings();
   }, []);
 
-  // Search routes
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    
-    if (!query.trim()) {
-      setShowSearchResults(false);
-      setSearchResults([]);
-      return;
-    }
-
-    setSearching(true);
-    setShowSearchResults(true);
-    
-    try {
-      const result = await searchRoutes(query);
-      if (result.success) {
-        setSearchResults(result.routes);
-      }
-    } catch (error) {
-      console.log('Error searching routes:', error);
-    }
-    
-    setSearching(false);
+  // Refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      loadTrendingCrags(),
+      loadMonthlyRankings(),
+      user ? fetchProfilePicture() : Promise.resolve()
+    ]);
+    setRefreshing(false);
   };
 
-  const handleRoutePress = (route) => {
-    setShowSearchResults(false);
-    setSearchQuery('');
-    navigation.navigate('RouteDetails', {
-      route_id: route.route_id,
-      previewName: route.name,
-      previewGrade: route.gradeFont,
-    });
+  // User search function
+  const handleUserSearch = async (query) => {
+    const result = await searchUsers({ query: query.trim(), limit: 10 });
+    return result;
   };
+
+  const handleUserPress = (userId) => {
+    setShowUserSearch(false);
+    navigation.navigate('Profile', { userId });
+  };
+
+
 
   const handleCragPress = (crag) => {
     navigation.navigate('MainTabs', {
@@ -238,169 +250,61 @@ export default function HomeScreen() {
         {/* Center: title */}
         <Text style={[styles.appTitle, { color: colors.text }]}>GoClimb</Text>
 
-        {/* Right: profile */}
-        <TouchableOpacity
-          onPress={goToProfile}
-          style={[styles.circleBtn, { backgroundColor: colors.surfaceAlt }]}
-        >
-          {profilePicture ? (
-            <Image 
-              source={{ uri: profilePicture }} 
-              style={styles.profileImage}
+        {/* Right: search and profile */}
+        <View style={styles.topRightActions}>
+          <TouchableOpacity onPress={() => setShowUserSearch(true)} style={styles.iconBtn}>
+            <Ionicons name="search" size={22} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={goToProfile}
+            style={styles.circleBtn}
+          >
+            <ProfileAvatar
+              imageUrl={profilePicture}
+              username={user?.displayName || user?.email}
+              size={SCREEN_CONSTANTS.HOME_SCREEN.PROFILE_AVATAR_SIZE}
             />
-          ) : (
-            <Ionicons name="person" size={18} color={colors.text} />
-          )}
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main content (subtle scale when drawer is open, for depth) */}
       <Animated.View style={{ flex: 1, transform: [{ scale: scaleDown }] }}>
-        <ScrollView style={[styles.body, { backgroundColor: colors.bg }]}>
-          {/* Search Bar */}
-          <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-            <Ionicons name="search" size={20} color={colors.textDim} />
-            <TextInput
-              placeholder="Search routes..."
-              placeholderTextColor={colors.textDim}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              style={[styles.searchInput, { color: colors.text }]}
-              autoCapitalize="none"
-              autoCorrect={false}
+        <ScrollView 
+          style={[styles.body, { backgroundColor: colors.bg }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.accent]}
+              tintColor={colors.accent}
             />
-            {searchQuery ? (
-              <TouchableOpacity onPress={() => {
-                setSearchQuery('');
-                setShowSearchResults(false);
-                setSearchResults([]);
-              }}>
-                <Ionicons name="close-circle" size={20} color={colors.textDim} />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {/* Search Results */}
-          {showSearchResults && (
-            <View style={[styles.searchResults, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-              {searching ? (
-                <View style={styles.searchLoading}>
-                  <ActivityIndicator size="small" color={colors.accent} />
-                  <Text style={[styles.searchLoadingText, { color: colors.textDim }]}>Searching...</Text>
-                </View>
-              ) : searchResults.length === 0 ? (
-                <View style={styles.searchEmpty}>
-                  <Ionicons name="search-outline" size={32} color={colors.textDim} />
-                  <Text style={[styles.searchEmptyText, { color: colors.textDim }]}>No routes found</Text>
-                </View>
-              ) : (
-                searchResults.map((route) => (
-                  <TouchableOpacity
-                    key={route.route_id}
-                    style={[styles.searchResultItem, { borderBottomColor: colors.divider }]}
-                    onPress={() => handleRoutePress(route)}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.searchResultName, { color: colors.text }]}>
-                        {route.name}
-                      </Text>
-                      <Text style={[styles.searchResultCrag, { color: colors.textDim }]}>
-                        {route.cragData?.name || 'Unknown Crag'}
-                      </Text>
-                    </View>
-                    <Text style={[styles.searchResultGrade, { color: colors.accent }]}>
-                      {route.gradeFont}
-                    </Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          )}
+          }
+        >
 
           {/* Monthly Rankings Section */}
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Monthly Top Climbers</Text>
             
             {loadingRankings ? (
-              <View style={styles.rankingLoading}>
-                <ActivityIndicator size="large" color={colors.accent} />
-              </View>
+              <LoadingSpinner />
             ) : monthlyRankings.length === 0 ? (
-              <View style={styles.rankingEmpty}>
-                <Ionicons name="trophy-outline" size={48} color={colors.textDim} />
-                <Text style={[styles.rankingEmptyText, { color: colors.textDim }]}>
-                  No rankings available
-                </Text>
-              </View>
+              <EmptyState
+                icon="trophy-outline"
+                title="No rankings available"
+                subtitle="Check back later for updated rankings"
+              />
             ) : (
-              <View style={[styles.rankingCard, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-                {monthlyRankings.map((item, index) => (
-                  <View
-                    key={item.user.user_id}
-                    style={[
-                      styles.rankingItem,
-                      index < monthlyRankings.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider }
-                    ]}
-                  >
-                    <View style={styles.rankingLeft}>
-                      <View style={[
-                        styles.rankBadge,
-                        {
-                          backgroundColor:
-                            index === 0 ? '#FFD700' :
-                            index === 1 ? '#C0C0C0' :
-                            index === 2 ? '#CD7F32' :
-                            colors.surfaceAlt
-                        }
-                      ]}>
-                        <Text style={[
-                          styles.rankNumber,
-                          {
-                            color: index < 3 ? '#FFFFFF' : colors.text,
-                            fontWeight: index < 3 ? '800' : '600'
-                          }
-                        ]}>
-                          {item.rank}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.rankingUsername, { color: colors.text }]} numberOfLines={1}>
-                          {item.user.username}
-                        </Text>
-                        <Text style={[styles.rankingClimbs, { color: colors.textDim }]}>
-                          {item.total_routes} {item.total_routes === 1 ? 'climb' : 'climbs'}
-                        </Text>
-                      </View>
-                    </View>
-                    {index < 3 && (
-                      <Ionicons
-                        name="trophy"
-                        size={20}
-                        color={
-                          index === 0 ? '#FFD700' :
-                          index === 1 ? '#C0C0C0' :
-                          '#CD7F32'
-                        }
-                      />
-                    )}
-                  </View>
-                ))}
-                
-                <TouchableOpacity
-                  style={styles.seeMoreButton}
-                  onPress={() => {
-                    navigation.navigate('RankingList', {
-                      type: 'mostClimbs',
-                      timeframe: 'monthly'
-                    });
-                  }}
-                >
-                  <Text style={[styles.seeMoreText, { color: colors.accent }]}>
-                    ...tap to see more
-                  </Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.accent} />
-                </TouchableOpacity>
-              </View>
+              <RankingCard
+                rankings={monthlyRankings}
+                onSeeMore={() => {
+                  navigation.navigate('RankingList', {
+                    type: 'mostClimbs',
+                    timeframe: 'monthly'
+                  });
+                }}
+                onUserPress={(userId) => navigation.navigate('Profile', { userId })}
+              />
             )}
           </View>
 
@@ -409,16 +313,13 @@ export default function HomeScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Trending Crags</Text>
             
             {loadingTrending ? (
-              <View style={styles.trendingLoading}>
-                <ActivityIndicator size="large" color={colors.accent} />
-              </View>
+              <LoadingSpinner />
             ) : trendingCrags.length === 0 ? (
-              <View style={styles.trendingEmpty}>
-                <Ionicons name="trending-up-outline" size={48} color={colors.textDim} />
-                <Text style={[styles.trendingEmptyText, { color: colors.textDim }]}>
-                  No trending crags available
-                </Text>
-              </View>
+              <EmptyState
+                icon="trending-up-outline"
+                title="No trending crags available"
+                subtitle="Check back later for trending crags"
+              />
             ) : (
               <FlatList
                 horizontal
@@ -427,33 +328,10 @@ export default function HomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.trendingList}
                 renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[styles.trendingCard, { backgroundColor: colors.surface, borderColor: colors.divider }]}
-                    onPress={() => handleCragPress(item)}
-                  >
-                    {item.images && item.images.length > 0 ? (
-                      <Image
-                        source={{ uri: item.images[0] }}
-                        style={styles.trendingImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={[styles.trendingImagePlaceholder, { backgroundColor: colors.surfaceAlt }]}>
-                        <Ionicons name="image-outline" size={32} color={colors.textDim} />
-                      </View>
-                    )}
-                    <View style={styles.trendingInfo}>
-                      <Text style={[styles.trendingName, { color: colors.text }]} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <View style={styles.trendingStats}>
-                        <Ionicons name="trending-up" size={14} color="#4CAF50" />
-                        <Text style={[styles.trendingGrowth, { color: '#4CAF50' }]}>
-                          +{item.growth} climbs
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
+                  <TrendingCragCard
+                    crag={item}
+                    onPress={handleCragPress}
+                  />
                 )}
               />
             )}
@@ -521,16 +399,12 @@ export default function HomeScreen() {
             ]}
           >
             <View style={styles.drawerHeader}>
-              <View style={[styles.avatar, { backgroundColor: colors.surfaceAlt }]}>
-                {profilePicture ? (
-                  <Image 
-                    source={{ uri: profilePicture }} 
-                    style={styles.drawerProfileImage}
-                  />
-                ) : (
-                  <Ionicons name="person" size={22} color={colors.text} />
-                )}
-              </View>
+              <ProfileAvatar
+                imageUrl={profilePicture}
+                username={user?.displayName || user?.email}
+                size={SCREEN_CONSTANTS.HOME_SCREEN.DRAWER_AVATAR_SIZE}
+                style={{ marginRight: UI_CONSTANTS.SPACING.MD }}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.drawerTitle, { color: colors.text }]}>
                   {user ? user.displayName || user.email : 'Guest'}
@@ -544,7 +418,7 @@ export default function HomeScreen() {
             <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
             <View style={{ flex: 1 }}>
-              <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} colors={colors} />
+              <DrawerItem icon="settings-outline" label="Settings" onPress={handleSettings} />
               
               <DrawerItem 
                 icon="help-circle-outline" 
@@ -553,12 +427,20 @@ export default function HomeScreen() {
                   setMenuOpen(false);
                   navigation.navigate('FAQ');
                 }} 
-                colors={colors} 
               />
               
               {/* Only show these options if user is logged in */}
               {user && (
                 <>
+                  <DrawerItem 
+                    icon="list-outline" 
+                    label="My Crags & Routes" 
+                    onPress={() => {
+                      setMenuOpen(false);
+                      navigation.navigate('MyCragsRoutes');
+                    }} 
+                  />
+
                   <DrawerItem 
                     icon="camera-outline" 
                     label="AR Experience" 
@@ -566,7 +448,6 @@ export default function HomeScreen() {
                       setMenuOpen(false);
                       navigation.navigate('ARCragList');
                     }} 
-                    colors={colors} 
                   />
 
                   <DrawerItem 
@@ -576,7 +457,6 @@ export default function HomeScreen() {
                       setMenuOpen(false);
                       navigation.navigate('RouteDataManager');
                     }} 
-                    colors={colors} 
                   />
                   
                   <DrawerItem 
@@ -586,7 +466,6 @@ export default function HomeScreen() {
                       setMenuOpen(false);
                       navigation.navigate('ModelManagement');
                     }} 
-                    colors={colors} 
                   />
                 </>
               )}
@@ -599,126 +478,86 @@ export default function HomeScreen() {
                 icon={user ? 'log-out-outline' : 'log-in-outline'}
                 label={user ? 'Logout' : 'Login / Sign Up'}
                 onPress={handleLoginLogout}
-                colors={colors}
               />
             </View>
           </Animated.View>
         </>
       )}
+
+      {/* User Search Modal */}
+      <SearchModal
+        visible={showUserSearch}
+        onClose={() => setShowUserSearch(false)}
+        title="Search Users"
+        placeholder="Search for users..."
+        searchFunction={handleUserSearch}
+        keyExtractor={(item) => item.user_id}
+        emptyIcon="person-outline"
+        emptyTitle="No users found"
+        emptySubtitle="Try a different search term"
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.userResultItem, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}
+            onPress={() => handleUserPress(item.user_id)}
+          >
+            <ProfileAvatar
+              imageUrl={item.profile_picture_url}
+              username={item.username}
+              size={40}
+              style={styles.userAvatar}
+            />
+            <View style={styles.userInfo}>
+              <Text style={[styles.userName, { color: colors.text }]}>{item.username}</Text>
+              <Text style={[styles.userEmail, { color: colors.textDim }]}>{item.email}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={UI_CONSTANTS.ICON_SIZES.MEDIUM} color={colors.textDim} />
+          </TouchableOpacity>
+        )}
+      />
     </SafeAreaView>
   );
 }
 
-function DrawerItem({ icon, label, onPress, colors }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={styles.drawerItem}>
-      <Ionicons name={icon} size={20} color={colors.text} style={{ marginRight: 12 }} />
-      <Text style={{ color: colors.text, fontSize: 15 }}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
+
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
   topBar: {
-    height: 56,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: SCREEN_CONSTANTS.HOME_SCREEN.TOP_BAR_HEIGHT,
+    paddingHorizontal: UI_CONSTANTS.SPACING.MD,
+    ...STYLE_MIXINS.flexRowCenter,
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  iconBtn: { padding: 6, borderRadius: 8 },
+  iconBtn: { 
+    padding: UI_CONSTANTS.SPACING.XS, 
+    borderRadius: UI_CONSTANTS.BORDER_RADIUS.SMALL 
+  },
   circleBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...STYLE_MIXINS.flexCenter,
     overflow: 'hidden',
   },
-  profileImage: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+  appTitle: { 
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG, 
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.BOLD, 
+    letterSpacing: 0.3 
   },
-  appTitle: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  topRightActions: {
+    ...STYLE_MIXINS.flexRowCenter,
+    gap: UI_CONSTANTS.SPACING.SM,
+  },
 
   body: { flex: 1 },
 
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    paddingVertical: 0,
-  },
-  searchResults: {
-    marginHorizontal: 16,
-    marginTop: -8,
-    marginBottom: 16,
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxHeight: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  searchLoading: {
-    padding: 20,
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchLoadingText: {
-    fontSize: 14,
-  },
-  searchEmpty: {
-    padding: 32,
-    alignItems: 'center',
-    gap: 8,
-  },
-  searchEmptyText: {
-    fontSize: 14,
-  },
-  searchResultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  searchResultName: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  searchResultCrag: {
-    fontSize: 12,
-  },
-  searchResultGrade: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-
   section: {
-    marginTop: 8,
-    marginBottom: 24,
+    marginTop: UI_CONSTANTS.SPACING.SM,
+    marginBottom: UI_CONSTANTS.SPACING.XXL,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginHorizontal: 16,
-    marginBottom: 12,
+    fontSize: UI_CONSTANTS.FONT_SIZES.XXL,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.EXTRABOLD,
+    marginHorizontal: UI_CONSTANTS.SPACING.LG,
+    marginBottom: UI_CONSTANTS.SPACING.MD,
   },
   trendingLoading: {
     padding: 40,
@@ -733,8 +572,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   trendingList: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: UI_CONSTANTS.SPACING.LG,
+    gap: UI_CONSTANTS.SPACING.MD,
   },
   trendingCard: {
     width: 160,
@@ -848,21 +687,42 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     borderRightWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 20,
+    paddingHorizontal: UI_CONSTANTS.SPACING.XL,
   },
-  drawerHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 8 },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 12, overflow: 'hidden' },
-  drawerProfileImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  drawerHeader: { 
+    ...STYLE_MIXINS.flexRowCenter, 
+    marginBottom: UI_CONSTANTS.SPACING.MD, 
+    marginTop: UI_CONSTANTS.SPACING.SM 
   },
-  drawerTitle: { fontSize: 16, fontWeight: '700' },
-  divider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
-  drawerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
+  drawerTitle: { 
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG, 
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.BOLD 
+  },
+  divider: { 
+    height: StyleSheet.hairlineWidth, 
+    marginVertical: UI_CONSTANTS.SPACING.MD 
+  },
+
+  // User search result styles
+  userResultItem: {
+    ...STYLE_MIXINS.flexRowCenter,
+    padding: UI_CONSTANTS.SPACING.MD,
+    borderRadius: UI_CONSTANTS.BORDER_RADIUS.MEDIUM,
+    marginBottom: UI_CONSTANTS.SPACING.SM,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  userAvatar: {
+    marginRight: UI_CONSTANTS.SPACING.MD,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.SEMIBOLD,
+    marginBottom: 2,
+  },
+  userEmail: {
+    fontSize: UI_CONSTANTS.FONT_SIZES.MD,
   },
 });

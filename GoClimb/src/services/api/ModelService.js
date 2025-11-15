@@ -25,6 +25,13 @@ export async function UploadModel(crag_id, modelData = {}, uploadSource = null) 
       formData.append('crag_id', crag_id);
       formData.append('name', modelData.name || 'Untitled Model');
       formData.append('status', modelData.status || 'active');
+      
+      // Add normalization data if provided
+      if (modelData.normalization_data) {
+        console.log('Adding normalization data to FormData:', modelData.normalization_data);
+        formData.append('normalization_data', JSON.stringify(modelData.normalization_data));
+      }
+      
       formData.append('model_files', {
         uri: uploadSource.uri,
         type: uploadSource.type || 'application/zip',
@@ -41,18 +48,6 @@ export async function UploadModel(crag_id, modelData = {}, uploadSource = null) 
         ...modelData
       };
     }
-
-    const formData = new FormData();
-    formData.append('user_id', user_id);
-    formData.append('crag_id', crag_id);
-    formData.append('name', modelData.name || 'Untitled Model');
-    formData.append('status', modelData.status || 'active');
-    formData.append('model_files', {
-      uri: uploadSource.uri,
-      type: uploadSource.type || 'application/zip',
-      name: uploadSource.name,
-    });
-    requestPayload = formData;
 
     const req = new CustomApiRequest(
       RequestMethod.POST,

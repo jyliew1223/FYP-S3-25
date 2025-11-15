@@ -1,15 +1,9 @@
-// GoClimb/src/services/api/PostsService.js
-
 import { getAuth } from '@react-native-firebase/auth';
 import {
   RequestMethod,
-  BaseApiPayload,
-  BaseApiResponse,
   CustomApiRequest,
 } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
-
-/* ----------------------------- helpers ----------------------------- */
 function toTs(value) {
   try {
     return value ? Date.parse(value) : Date.now();
@@ -18,7 +12,7 @@ function toTs(value) {
   }
 }
 
-/* -------------------------- model mapping -------------------------- */
+
 
 function getAuthorName(rawUser) {
   // backend may send user as UID string OR object { user_id, username, email }
@@ -31,8 +25,6 @@ function getAuthorName(rawUser) {
 
 function mapPostJsonToUi(raw) {
   if (!raw) return null;
-
-  console.log('[DEBUG mapPostJsonToUi raw]', raw);
 
   const postId = String(raw.post_id ?? '');
   const authorName = getAuthorName(raw.user);
@@ -78,8 +70,6 @@ function mapPostJsonToUi(raw) {
 function mapCommentJsonToUi(raw) {
   if (!raw) return null;
 
-  console.log('[DEBUG mapCommentJsonToUi raw]', raw);
-
   const authorName = getAuthorName(raw.user);
   return {
     id: String(raw.comment_id ?? raw.id ?? ''),
@@ -89,131 +79,87 @@ function mapCommentJsonToUi(raw) {
   };
 }
 
-/* ------------------------ payload/response ------------------------- */
+export async function fetchPostsByUserId(userId, { count = 20, blacklist = [] } = {}) {
+  const payload = {
+    user_id: userId,
+    count,
+    blacklist: Array.isArray(blacklist) ? blacklist : []
+  };
 
-class GetRandomPostsPayload extends BaseApiPayload {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, count: 'count', blacklist: 'blacklist' };
-  }
-  constructor({ count, blacklist }) {
-    super();
-    this.count = count;
-    this.blacklist = Array.isArray(blacklist) ? blacklist : [];
-  }
-}
+  const request = new CustomApiRequest(
+    RequestMethod.POST,
+    API_ENDPOINTS.BASE_URL,
+    API_ENDPOINTS.POST.GET_POSTS_BY_USER_ID,
+    payload,
+    true,
+  );
 
-class GetRandomPostsResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, data: 'data' };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    const arr = Array.isArray(data) ? data : [];
-    this.data = arr.map(mapPostJsonToUi).filter(Boolean);
-  }
-}
+  await request.sendRequest();
+  const response = request.JsonObject;
 
-class GetPostResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, data: 'data' };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    this.data = mapPostJsonToUi(data);
-  }
-}
-
-class GetCommentsResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, data: 'data' };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    const arr = Array.isArray(data) ? data : [];
-    this.data = arr.map(mapCommentJsonToUi).filter(Boolean);
-  }
-}
-
-class CreateCommentPayload extends BaseApiPayload {
-  static get fieldMapping() {
+  if (!response?.success) {
     return {
-      ...super.fieldMapping,
-      post_id: 'post_id',
-      user_id: 'user_id',
-      content: 'content',
+      success: false,
+      message: response?.message || 'Failed to load user posts',
+      errors: response?.errors || {},
+      data: []
     };
   }
-  constructor({ post_id, user_id, content }) {
-    super();
-    this.post_id = post_id;
-    this.user_id = user_id;
-    this.content = content;
-  }
+
+  // Map the posts to UI format
+  const mappedPosts = Array.isArray(response.data) 
+    ? response.data.map(mapPostJsonToUi).filter(Boolean)
+    : [];
+
+
+
+  return {
+    success: true,
+    message: response.message || 'User posts loaded successfully',
+    data: mappedPosts,
+    errors: null
+  };
 }
-
-class CreateCommentResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, data: 'data' };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    this.data = mapCommentJsonToUi(data);
-  }
-}
-
-/* -- CreatePost payload/response ----------------------------------- */
-
-class CreatePostPayload extends BaseApiPayload {
-  static get fieldMapping() {
-    return {
-      ...super.fieldMapping,
-      user_id: 'user_id',
-      title: 'title',
-      content: 'content',
-      tags: 'tags',
-    };
-  }
-  constructor({ user_id, title, content, tags }) {
-    super();
-    this.user_id = user_id;
-    this.title = title;
-    this.content = content;
-    this.tags = tags;
-  }
-}
-
-class CreatePostResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, data: 'data' };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    this.data = mapPostJsonToUi(data);
-  }
-}
-
-/* --------------------------- service calls -------------------------- */
 
 // FEED POSTS
 export async function fetchRandomPosts({ count = 12, blacklist = [] } = {}) {
-  const req = new CustomApiRequest(
+  const payload = {
+    count,
+    blacklist: Array.isArray(blacklist) ? blacklist : []
+  };
+
+  const request = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST.GET_RANDOM_POSTS,
-    new GetRandomPostsPayload({ count, blacklist }),
+    payload,
     true,
   );
-  const ok = await req.sendRequest(GetRandomPostsResponse);
-  const res = req.Response;
 
-  console.log('[DEBUG fetchRandomPosts mapped]', res?.data);
+  await request.sendRequest();
+  const response = request.JsonObject;
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to load posts',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
+
+  // Map the posts to UI format
+  const mappedPosts = Array.isArray(response.data) 
+    ? response.data.map(mapPostJsonToUi).filter(Boolean)
+    : [];
+
+
 
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? [],
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Posts loaded successfully',
+    data: mappedPosts,
+    errors: null
   };
 }
 
@@ -229,17 +175,25 @@ export async function fetchPostById(postId) {
     payload,
     true,
   );
-  let ok = await req.sendRequest(GetPostResponse);
-  let res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[DEBUG fetchPostById mapped]', res?.data);
+
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch post',
+      errors: response?.errors || {},
+      data: null
+    };
+  }
 
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? null,
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Post fetched successfully',
+    data: response.data ? mapPostJsonToUi(response.data) : null,
+    errors: null
   };
 }
 
@@ -255,15 +209,23 @@ export async function fetchCommentsByPostId(postId) {
     payload,
     true,
   );
-  let ok = await req.sendRequest(GetCommentsResponse);
-  let res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch comments',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
 
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? [],
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Comments fetched successfully',
+    data: Array.isArray(response.data) ? response.data.map(mapCommentJsonToUi).filter(Boolean) : [],
+    errors: null,
   };
 }
 
@@ -285,44 +247,41 @@ export async function createComment({ postId, content }) {
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.COMMENT.CREATE_COMMENT,
-    new CreateCommentPayload({
+    {
       post_id: postId,
       user_id: user.uid,
       content,
-    }),
+    },
     true,
   );
-  const ok = await req.sendRequest(CreateCommentResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to create comment',
+      errors: response?.errors || {},
+      data: null
+    };
+  }
 
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? null,
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Comment created successfully',
+    data: response.data ? mapCommentJsonToUi(response.data) : null,
+    errors: null,
   };
 }
 
 // DELETE COMMENT
 export async function deleteComment(commentId) {
-  console.log('[deleteComment] === START ===');
-  console.log('[deleteComment] Input commentId:', commentId);
-  console.log('[deleteComment] commentId type:', typeof commentId);
-
   const user = getAuth().currentUser;
   if (!user) {
-    console.log('[deleteComment] ERROR: No Firebase session found');
     throw new Error('No Firebase session found.');
   }
 
-  console.log('[deleteComment] Current user UID:', user.uid);
-
   const payload = { comment_id: commentId };
-
-  console.log('[deleteComment] Payload:', JSON.stringify(payload));
-  console.log('[deleteComment] Endpoint:', API_ENDPOINTS.COMMENT.DELETE_COMMENT);
-  console.log('[deleteComment] Full URL:', API_ENDPOINTS.BASE_URL + '/' + API_ENDPOINTS.COMMENT.DELETE_COMMENT);
 
   const req = new CustomApiRequest(
     RequestMethod.DELETE,
@@ -332,22 +291,23 @@ export async function deleteComment(commentId) {
     true,
   );
 
-  console.log('[deleteComment] Sending request...');
-  const ok = await req.sendRequest(BaseApiResponse);
-  const res = req.Response;
-  const jsonObj = req.JsonObject;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[deleteComment] Request OK:', ok);
-  console.log('[deleteComment] Response object:', res);
-  console.log('[deleteComment] Raw JSON:', jsonObj);
-  console.log('[deleteComment] === END ===');
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to delete comment',
+      errors: response?.errors || {},
+      data: null
+    };
+  }
 
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? null,
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Comment deleted successfully',
+    data: response.data || null,
+    errors: null
   };
 }
 
@@ -400,20 +360,18 @@ export async function getLikeCount(postId) {
     payload,
     true,
   );
-  const ok = await req.sendRequest(BaseApiResponse);
-  const res = req.Response;
-  const jsonData = req.JsonObject;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
   console.log('[DEBUG getLikeCount]', {
     postId,
-    ok,
-    success: res?.success,
-    jsonData,
+    success: response?.success,
+    response,
   });
 
-  if (ok && res?.success && jsonData?.data) {
+  if (response?.success && response?.data) {
     // Get count from the raw JSON data
-    const count = jsonData.data.count ?? jsonData.data.likes_count ?? jsonData.data.like_count ?? 0;
+    const count = response.data.count ?? response.data.likes_count ?? response.data.like_count ?? 0;
     console.log('[DEBUG getLikeCount] Extracted count:', count);
     return { success: true, count };
   }
@@ -429,19 +387,29 @@ export async function likePost(postId) {
 
   const payload = { post_id: postId, user_id: user.uid };
 
-  const req = new CustomApiRequest(
+  const request = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST_LIKE.LIKE,
     payload,
     true,
   );
-  const ok = await req.sendRequest(BaseApiResponse);
-  const res = req.Response;
+
+  await request.sendRequest();
+  const response = request.JsonObject;
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to like post',
+      errors: response?.errors || {}
+    };
+  }
+
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
+    success: true,
+    message: response.message || 'Post liked successfully',
+    errors: null
   };
 }
 
@@ -451,19 +419,29 @@ export async function unlikePost(postId) {
 
   const payload = { post_id: postId, user_id: user.uid };
 
-  const req = new CustomApiRequest(
+  const request = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST_LIKE.UNLIKE,
     payload,
     true,
   );
-  const ok = await req.sendRequest(BaseApiResponse);
-  const res = req.Response;
+
+  await request.sendRequest();
+  const response = request.JsonObject;
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to unlike post',
+      errors: response?.errors || {}
+    };
+  }
+
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
+    success: true,
+    message: response.message || 'Post unliked successfully',
+    errors: null
   };
 }
 
@@ -500,15 +478,15 @@ export async function createPost({ title, content, tags, images = [] }) {
     payload = formData;
   } else {
     // No images, use regular JSON payload
-    payload = new CreatePostPayload({
+    payload = {
       user_id: user.uid,
       title,
       content,
       tags,
-    });
+    };
   }
 
-  const req = new CustomApiRequest(
+  const request = new CustomApiRequest(
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.POST.CREATE_POST,
@@ -516,17 +494,25 @@ export async function createPost({ title, content, tags, images = [] }) {
     true,
   );
 
-  const ok = await req.sendRequest(CreatePostResponse);
-  const res = req.Response;
+  await request.sendRequest();
+  const response = request.JsonObject;
 
-  console.log('[DEBUG createPost response]', res);
+  console.log('[DEBUG createPost response]', response);
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to create post',
+      errors: response?.errors || {},
+      data: null
+    };
+  }
 
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? null,
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Post created successfully',
+    data: mapPostJsonToUi(response.data),
+    errors: null
   };
 }
 
@@ -557,17 +543,23 @@ export async function deletePost(postId) {
   );
   
   console.log('[deletePost] Sending request...');
-  const ok = await req.sendRequest(BaseApiResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[deletePost] Request OK:', ok);
-  console.log('[deletePost] Response:', res);
+  console.log('[deletePost] Response:', response);
   console.log('[deletePost] === END ===');
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to delete post',
+      errors: response?.errors || {}
+    };
+  }
+
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Post deleted successfully',
+    errors: null
   };
 }

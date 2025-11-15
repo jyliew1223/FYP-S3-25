@@ -69,7 +69,11 @@ export default function SignUpScreen({ route }) {
 
       // Verify payment with backend
       try {
-        const response = await fetch(API_ENDPOINTS.PAYMENT.VERIFY_PAYMENT, {
+        const verifyUrl = `${API_ENDPOINTS.BASE_URL}/${API_ENDPOINTS.PAYMENT.VERIFY_PAYMENT}`;
+        console.log('[SignUpScreen] Verifying payment at:', verifyUrl);
+        console.log('[SignUpScreen] Payment ID:', paymentId);
+        
+        const response = await fetch(verifyUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -79,12 +83,16 @@ export default function SignUpScreen({ route }) {
           }),
         });
 
+        console.log('[SignUpScreen] Verify response status:', response.status);
+        
         const data = await response.json();
+        console.log('[SignUpScreen] Verify response data:', data);
 
-        if (!data.verified) {
+        if (!response.ok || !data.verified || !data.success) {
+          console.log('[SignUpScreen] Payment verification failed:', data);
           Alert.alert(
             'Payment Verification Failed',
-            'Your payment could not be verified. Please try again.',
+            data.error || 'Your payment could not be verified. Please try again.',
             [
               {
                 text: 'OK',
@@ -94,12 +102,14 @@ export default function SignUpScreen({ route }) {
             { cancelable: false }
           );
         } else {
+          console.log('[SignUpScreen] Payment verified successfully!');
           // Store payment verification
           await AsyncStorage.setItem('hasPaid', 'true');
           await AsyncStorage.setItem('paymentId', paymentId);
         }
       } catch (error) {
         console.error('[SignUpScreen] Payment verification error:', error);
+        console.error('[SignUpScreen] Error details:', error.message, error.stack);
         Alert.alert(
           'Verification Error',
           'Could not verify payment. Please contact support.',

@@ -10,6 +10,8 @@ import {
   View,
   Image,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -60,55 +62,56 @@ export default function PostDetail() {
     return sub;
   }, []);
 
+  // Load post data function
+  const loadPostData = async () => {
+    setLoading(true);
+
+    // fetch all data in parallel for better performance
+    const [pRes, cRes, likeCountRes, userLikedRes] = await Promise.all([
+      fetchPostById(postId),
+      fetchCommentsByPostId(postId),
+      getLikeCount(postId),
+      checkIfUserLikedPost(postId)
+    ]);
+
+    const pData = pRes?.success ? pRes.data : null;
+    const cData = cRes?.success ? cRes.data : [];
+
+    console.log('[DEBUG PostDetail post mapped]', pData);
+    console.log('[DEBUG PostDetail comments count]', cData.length);
+
+    if (pData) {
+      const currentLikes = likeCountRes.success ? likeCountRes.count : pData.likes || 0;
+      
+      const updatedPost = {
+        ...pData,
+        likes: currentLikes,
+      };
+
+      setPost(updatedPost);
+      setLiked(userLikedRes);
+    } else {
+      setPost(null);
+      setLiked(false);
+    }
+
+    // Sort comments chronologically: oldest first (ascending order)
+    const sortedComments = cData.sort((a, b) => {
+      const timeA = a.createdAt || 0;
+      const timeB = b.createdAt || 0;
+      return timeA - timeB; // Ascending order (oldest first)
+    });
+    setComments(sortedComments);
+    setLoading(false);
+  };
+
   // initial load
   useEffect(() => {
     let alive = true;
     (async () => {
-      setLoading(true);
-
-      // fetch post + comments + like status + like count
-      const [pRes, cRes] = await Promise.all([
-        fetchPostById(postId),
-        fetchCommentsByPostId(postId)
-      ]);
-
-      const pData = pRes?.success ? pRes.data : null;
-      const cData = cRes?.success ? cRes.data : [];
-
-      console.log('[DEBUG PostDetail post mapped]', pData);
-      console.log('[DEBUG PostDetail comments count]', cData.length);
-
-      if (!alive) return;
-
-      if (pData) {
-        // Get current like count and user like status
-        const [likeCountRes, userLikedRes] = await Promise.all([
-          getLikeCount(pData.id),
-          checkIfUserLikedPost(pData.id)
-        ]);
-
-        const currentLikes = likeCountRes.success ? likeCountRes.count : pData.likes || 0;
-        
-        const updatedPost = {
-          ...pData,
-          likes: currentLikes,
-        };
-
-        setPost(updatedPost);
-        setLiked(userLikedRes);
-      } else {
-        setPost(null);
-        setLiked(false);
+      if (alive) {
+        await loadPostData();
       }
-
-      // Sort comments chronologically: oldest first (ascending order)
-      const sortedComments = cData.sort((a, b) => {
-        const timeA = a.createdAt || 0;
-        const timeB = b.createdAt || 0;
-        return timeA - timeB; // Ascending order (oldest first)
-      });
-      setComments(sortedComments);
-      setLoading(false);
     })();
 
     return () => {
@@ -116,10 +119,19 @@ export default function PostDetail() {
     };
   }, [postId]);
 
-  const goBack = () =>
-    navigation.canGoBack()
-      ? navigation.goBack()
-      : navigation.navigate('MainTabs', { screen: 'Home' });
+  const goBack = () => {
+    console.log('[PostDetail goBack] Attempting to go back');
+    
+    // Always try to go back first
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Simple fallback - navigate to Forum tab
+      navigation.navigate('MainTabs', { 
+        screen: 'ForumMain'
+      });
+    }
+  };
 
   // optimistic like toggle
   async function toggleLike() {
@@ -358,7 +370,7 @@ export default function PostDetail() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         edges={['top', 'bottom']}
       >
-        <TopBar colors={colors} onBack={goBack} />
+        <TopBar colors={colors} onBack={goBack} onRefresh={loadPostData} />
         {toast ? <ToastBanner colors={colors} text={toast} /> : null}
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.accent} />
@@ -373,7 +385,7 @@ export default function PostDetail() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         edges={['top', 'bottom']}
       >
-        <TopBar colors={colors} onBack={goBack} />
+        <TopBar colors={colors} onBack={goBack} onRefresh={loadPostData} />
         {toast ? <ToastBanner colors={colors} text={toast} /> : null}
         <View style={styles.center}>
           <Text style={{ color: colors.textDim }}>Post not found.</Text>
@@ -547,12 +559,6 @@ export default function PostDetail() {
           colors={colors}
           onPress={() => { }}
         />
-        <RowAction
-          icon="share-social-outline"
-          text="Share"
-          colors={colors}
-          onPress={() => showToast('Feature under construction')}
-        />
       </View>
 
       <Text
@@ -572,85 +578,94 @@ export default function PostDetail() {
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: colors.bg }}
-      edges={['top', 'bottom', 'left', 'right']}
+      edges={['top', 'left', 'right']}
     >
-      <TopBar colors={colors} onBack={goBack} />
+      <TopBar colors={colors} onBack={goBack} onRefresh={loadPostData} />
       {toast ? <ToastBanner colors={colors} text={toast} /> : null}
 
-      <FlatList
-        data={comments}
-        keyExtractor={(i) => i.id}
-        renderItem={renderComment}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        ListHeaderComponent={header}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-          paddingBottom: 100,
-        }}
-      />
-
-      {/* comment composer */}
-      <View
-        style={[
-          styles.composer,
-          {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.divider,
-            bottom: insets.bottom,
-          },
-        ]}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        <TextInput
-          placeholder={
-            isLoggedIn ? 'Write a comment…' : 'Sign up to comment…'
-          }
-          placeholderTextColor={colors.textDim}
-          value={draft}
-          onChangeText={setDraft}
-          style={[
-            styles.input,
-            {
-              color: colors.text,
-              backgroundColor: colors.surfaceAlt,
-              borderColor: colors.divider,
-            },
-          ]}
-          autoCapitalize="sentences"
-          autoCorrect
-          editable={isLoggedIn && !sending}
+        <FlatList
+          data={comments}
+          keyExtractor={(i) => i.id}
+          renderItem={renderComment}
+          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          ListHeaderComponent={header}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            paddingBottom: 16,
+          }}
+          style={{ flex: 1 }}
         />
-        <TouchableOpacity
-          onPress={sendComment}
-          disabled={
-            sending ||
-            (!isLoggedIn && true) ||
-            (isLoggedIn && !draft.trim())
-          }
+
+        {/* comment composer */}
+        <View
           style={[
-            styles.sendBtn,
+            styles.composer,
             {
-              backgroundColor:
-                !isLoggedIn ||
-                  sending ||
-                  (isLoggedIn && !draft.trim())
-                  ? colors.surfaceAlt
-                  : colors.accent,
+              backgroundColor: colors.surface,
+              borderTopColor: colors.divider,
+              paddingBottom: insets.bottom,
             },
           ]}
         >
-          <Ionicons
-            name={isLoggedIn ? 'send' : 'log-in-outline'}
-            size={18}
-            color={
-              !isLoggedIn ||
-                sending ||
-                (isLoggedIn && !draft.trim())
-                ? colors.textDim
-                : 'white'
+          <TextInput
+            placeholder={
+              isLoggedIn ? 'Write a comment…' : 'Sign up to comment…'
             }
+            placeholderTextColor={colors.textDim}
+            value={draft}
+            onChangeText={setDraft}
+            style={[
+              styles.input,
+              {
+                color: colors.text,
+                backgroundColor: colors.surfaceAlt,
+                borderColor: colors.divider,
+              },
+            ]}
+            autoCapitalize="sentences"
+            autoCorrect
+            editable={isLoggedIn && !sending}
+            multiline={true}
+            maxLength={500}
           />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            onPress={sendComment}
+            disabled={
+              sending ||
+              (!isLoggedIn && true) ||
+              (isLoggedIn && !draft.trim())
+            }
+            style={[
+              styles.sendBtn,
+              {
+                backgroundColor:
+                  !isLoggedIn ||
+                    sending ||
+                    (isLoggedIn && !draft.trim())
+                    ? colors.surfaceAlt
+                    : colors.accent,
+              },
+            ]}
+          >
+            <Ionicons
+              name={isLoggedIn ? 'send' : 'log-in-outline'}
+              size={18}
+              color={
+                !isLoggedIn ||
+                  sending ||
+                  (isLoggedIn && !draft.trim())
+                  ? colors.textDim
+                  : 'white'
+              }
+            />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -701,7 +716,7 @@ function RowAction({ icon, text, colors, onPress, active }) {
   );
 }
 
-function TopBar({ colors, onBack }) {
+function TopBar({ colors, onBack, onRefresh }) {
   return (
     <View
       style={[
@@ -724,7 +739,13 @@ function TopBar({ colors, onBack }) {
         Post
       </Text>
 
-      <View style={{ width: 22 }} />
+      <TouchableOpacity onPress={onRefresh} style={{ paddingLeft: 8 }}>
+        <Ionicons
+          name="refresh"
+          size={20}
+          color={colors.text}
+        />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -929,23 +950,22 @@ const styles = StyleSheet.create({
   },
 
   composer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     padding: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 8,
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   input: {
     flex: 1,
-    height: 40,
+    minHeight: 40,
+    maxHeight: 100,
     borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 14,
+    textAlignVertical: 'top',
   },
   sendBtn: {
     width: 42,

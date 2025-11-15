@@ -3,8 +3,6 @@
 import { getAuth } from '@react-native-firebase/auth';
 import {
   RequestMethod,
-  BaseApiPayload,
-  BaseApiResponse,
   CustomApiRequest,
 } from './ApiHelper';
 import { API_ENDPOINTS } from '../../constants/api';
@@ -54,69 +52,19 @@ function mapClimbLogJsonToUi(raw) {
 
 /* ------------------------ payload/response ------------------------- */
 
-class GetUserClimbLogsPayload extends BaseApiPayload {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, user_id: 'user_id' };
-  }
-  constructor({ user_id }) {
-    super();
-    this.user_id = user_id;
-  }
-}
+// Removed GetUserClimbLogsPayload class - using plain object instead
 
-class GetUserClimbLogsResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, data: 'data' };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    const arr = Array.isArray(data) ? data : [];
-    this.data = arr.map(mapClimbLogJsonToUi).filter(Boolean);
-  }
-}
+// Removed GetUserClimbLogsResponse class - using direct JSON parsing instead
 
-class CreateClimbLogPayload extends BaseApiPayload {
-  static get fieldMapping() {
-    return {
-      ...super.fieldMapping,
-      user_id: 'user_id',
-      route_id: 'route_id',
-      crag_id: 'crag_id',
-      date_climbed: 'date_climbed',
-      title: 'title',
-      notes: 'notes',
-      status: 'status',
-      attempt: 'attempt',
-    };
-  }
-  constructor({ user_id, route_id, crag_id, date_climbed, title, notes, status, attempt }) {
-    super();
-    this.user_id = user_id;
-    this.route_id = route_id;
-    this.crag_id = crag_id;
-    this.date_climbed = date_climbed;
-    this.title = title;
-    this.notes = notes;
-    this.status = status;
-    this.attempt = attempt;
-  }
-}
+// Removed CreateClimbLogPayload class - using plain object instead
 
-class CreateClimbLogResponse extends BaseApiResponse {
-  static get fieldMapping() {
-    return { ...super.fieldMapping, data: 'data' };
-  }
-  constructor({ status, success, message, errors, data }) {
-    super({ status, success, message, errors });
-    this.data = mapClimbLogJsonToUi(data);
-  }
-}
+// Removed CreateClimbLogResponse class - using direct JSON parsing instead
 
 /* --------------------------- service calls -------------------------- */
 
 // GET USER CLIMB LOGS
 export async function getUserClimbLogs(userId) {
-  const payload = new GetUserClimbLogsPayload({ user_id: userId });
+  const payload = { user_id: userId };
 
   const req = new CustomApiRequest(
     RequestMethod.POST,
@@ -125,17 +73,25 @@ export async function getUserClimbLogs(userId) {
     payload,
     true,
   );
-  const ok = await req.sendRequest(GetUserClimbLogsResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[DEBUG getUserClimbLogs]', res?.data);
+  console.log('[DEBUG getUserClimbLogs]', response?.data);
+
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to fetch climb logs',
+      errors: response?.errors || {},
+      data: []
+    };
+  }
 
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? [],
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Climb logs fetched successfully',
+    data: Array.isArray(response.data) ? response.data.map(mapClimbLogJsonToUi).filter(Boolean) : [],
+    errors: null,
   };
 }
 
@@ -168,22 +124,30 @@ export async function createClimbLog({ routeId, cragId, dateClimbed, title, note
     RequestMethod.POST,
     API_ENDPOINTS.BASE_URL,
     API_ENDPOINTS.CLIMB_LOG.CREATE,
-    new CreateClimbLogPayload(payload),
+    payload,
     true,
   );
 
-  const ok = await req.sendRequest(CreateClimbLogResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[createClimbLog] Response:', res);
+  console.log('[createClimbLog] Response:', response);
   console.log('[createClimbLog] === END ===');
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to create climb log',
+      errors: response?.errors || {},
+      data: null
+    };
+  }
+
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    data: res?.data ?? null,
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Climb log created successfully',
+    data: response.data ? mapClimbLogJsonToUi(response.data) : null,
+    errors: null,
   };
 }
 
@@ -212,16 +176,23 @@ export async function deleteClimbLog(logId) {
     true,
   );
   
-  const ok = await req.sendRequest(BaseApiResponse);
-  const res = req.Response;
+  await req.sendRequest();
+  const response = req.JsonObject;
 
-  console.log('[deleteClimbLog] Response:', res);
+  console.log('[deleteClimbLog] Response:', response);
   console.log('[deleteClimbLog] === END ===');
 
+  if (!response?.success) {
+    return {
+      success: false,
+      message: response?.message || 'Failed to delete climb log',
+      errors: response?.errors || {}
+    };
+  }
+
   return {
-    success: ok && !!res?.success,
-    status: res?.status,
-    message: res?.message ?? null,
-    errors: res?.errors ?? null,
+    success: true,
+    message: response.message || 'Climb log deleted successfully',
+    errors: null
   };
 }

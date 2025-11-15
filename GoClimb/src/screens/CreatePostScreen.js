@@ -77,14 +77,7 @@ export default function CreatePostScreen() {
           return;
         }
 
-        // Validate each file size (max 5MB per image)
-        for (const file of result) {
-          if (file.size && file.size > 5 * 1024 * 1024) {
-            console.log('[CreatePost] Image too large:', file.size);
-            showToast('Each image must be less than 5MB');
-            return;
-          }
-        }
+        // No size limit - accept all images
 
         console.log('[CreatePost] Adding images to selection');
         setSelectedImages([...selectedImages, ...result]);

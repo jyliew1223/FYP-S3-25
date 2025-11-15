@@ -7,8 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
+  RefreshControl,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -17,8 +18,11 @@ import {
   fetchAllCragsBootstrap,
   fetchRoutesByCragIdGET,
 } from '../services/api/CragService';
-import ModelPicker from '../components/ModelPicker';
+import { searchCrags } from '../services/api/SearchService';
 import { useAuth } from '../context/AuthContext';
+import { UI_CONSTANTS, SCREEN_CONSTANTS, STYLE_MIXINS } from '../constants';
+import { LoadingSpinner, EmptyState, SearchModal } from '../components';
+import ModelPicker from '../components/ModelPicker';
 
 export default function CragsScreen({ navigation, route }) {
   const { colors } = useTheme();
@@ -48,6 +52,12 @@ export default function CragsScreen({ navigation, route }) {
   const [selectedCragForAR, setSelectedCragForAR] = useState(null);
   const [showModelPicker, setShowModelPicker] = useState(false);
 
+  // Search state
+  const [showCragSearch, setShowCragSearch] = useState(false);
+
+  // Pull-to-refresh state
+  const [refreshing, setRefreshing] = useState(false);
+
   // load crags function
   const loadCrags = async () => {
     setLoadingCrags(true);
@@ -65,6 +75,15 @@ export default function CragsScreen({ navigation, route }) {
       setCrags([]);
     }
     setLoadingCrags(false);
+  };
+
+  // Pull-to-refresh function
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Clear route cache to force refetch
+    routesCacheRef.current.clear();
+    await loadCrags();
+    setRefreshing(false);
   };
 
   // initial load of crags from backend using bootstrap
@@ -118,19 +137,29 @@ export default function CragsScreen({ navigation, route }) {
       setLoadingCragRoutes((prev) => ({ ...prev, [pk]: true }));
 
       console.log('[onToggleCrag] Fetching routes for crag_pk:', pk);
-      console.log('[onToggleCrag] Trying pretty_id instead:', crag.crag_pretty_id);
 
-      // Try pretty ID first since API test shows "CRAG-000026" format
-      const cragIdToUse = crag.crag_pretty_id || pk;
-      const { success, routes } = await fetchRoutesByCragIdGET(cragIdToUse);
+      try {
+        // Try pretty ID first since API test shows "CRAG-000026" format
+        const cragIdToUse = crag.crag_pretty_id || pk;
+        const { success, routes } = await fetchRoutesByCragIdGET(cragIdToUse);
 
-      setLoadingCragRoutes((prev) => ({ ...prev, [pk]: false }));
-
-      if (success) {
-        routesCacheRef.current.set(pk, routes);
-      } else {
+        if (success) {
+          // Sort routes by grade for better UX
+          const sortedRoutes = routes.sort((a, b) => {
+            const gradeA = a.route_grade || 0;
+            const gradeB = b.route_grade || 0;
+            return gradeA - gradeB;
+          });
+          routesCacheRef.current.set(pk, sortedRoutes);
+        } else {
+          routesCacheRef.current.set(pk, []);
+        }
+      } catch (error) {
+        console.log('[onToggleCrag] Error fetching routes:', error);
         routesCacheRef.current.set(pk, []);
       }
+
+      setLoadingCragRoutes((prev) => ({ ...prev, [pk]: false }));
     }
 
     setExpandedCragPk(pk);
@@ -161,6 +190,38 @@ export default function CragsScreen({ navigation, route }) {
     setShowModelPicker(false);
     setSelectedCragForAR(null);
   }
+
+  const handleCragPress = (crag) => {
+    setShowCragSearch(false);
+    // Navigate to crag detail screen
+    navigation.navigate('CragDetail', {
+      cragId: crag.crag_pretty_id || crag.crag_id,
+      previewName: crag.name,
+    });
+  };
+
+  // Search crags function
+  const handleCragSearch = async (query) => {
+    const result = await searchCrags({ query: query.trim(), limit: 20 });
+    if (result.success) {
+      // Map search results to match the expected format
+      const mappedResults = result.data.map(crag => ({
+        crag_pk: crag.crag_id,
+        crag_pretty_id: crag.crag_id,
+        name: crag.name,
+        location_lat: crag.location_lat,
+        location_lon: crag.location_lon,
+        location_details: crag.location_details,
+        description: crag.description,
+        images: crag.images_urls || [],
+      }));
+      return { success: true, data: mappedResults };
+    }
+    return { success: false, data: [] };
+  };
+
+  // Use crags for main display
+  const displayCrags = crags;
 
   function renderCragCard(crag) {
     const pk = crag.crag_pk;
@@ -198,6 +259,19 @@ export default function CragsScreen({ navigation, route }) {
             >
               {crag.name || 'Unknown Crag'}
             </Text>
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                navigation.navigate('CragDetail', {
+                  cragId: crag.crag_pretty_id || crag.crag_id,
+                  previewName: crag.name,
+                });
+              }}
+              style={styles.cragDetailButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.cragHeaderRight}>
@@ -319,33 +393,44 @@ export default function CragsScreen({ navigation, route }) {
         >
           Crags & Routes
         </Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('CreateCragRoute')}
-          style={styles.addButton}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={colors.accent} style={{ marginRight: 4 }} />
-          <Text style={[styles.addButtonText, { color: colors.accent }]}>Add</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => setShowCragSearch(true)} style={styles.searchButton}>
+            <Ionicons name="search" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CreateCragRoute')}
+            style={styles.addButton}
+          >
+            <Ionicons name="add-circle-outline" size={20} color={colors.accent} style={{ marginRight: 4 }} />
+            <Text style={[styles.addButtonText, { color: colors.accent }]}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
+
+
       {loadingCrags ? (
-        <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text
-            style={[
-              styles.loadingText,
-              { color: colors.textDim, marginTop: 8 },
-            ]}
-          >
-            Loading crags…
-          </Text>
-        </View>
+        <LoadingSpinner text="Loading crags…" />
+      ) : displayCrags.length === 0 ? (
+        <EmptyState
+          icon="location-outline"
+          title="No crags available"
+          subtitle="Check back later or add a new crag"
+        />
       ) : (
         <ScrollView
           style={{ flex: 1, backgroundColor: colors.bg }}
           contentContainerStyle={{ padding: 16, paddingBottom: 24 }}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.accent]}
+              tintColor={colors.accent}
+            />
+          }
         >
-          {crags.map(renderCragCard)}
+          {displayCrags.map(renderCragCard)}
         </ScrollView>
       )}
 
@@ -389,115 +474,155 @@ export default function CragsScreen({ navigation, route }) {
           </View>
         </Modal>
       )}
+
+      {/* Crag Search Modal */}
+      <SearchModal
+        visible={showCragSearch}
+        onClose={() => setShowCragSearch(false)}
+        title="Search Crags"
+        placeholder="Search for crags..."
+        searchFunction={handleCragSearch}
+        keyExtractor={(item) => item.crag_pk || item.crag_pretty_id}
+        emptyIcon="location-outline"
+        emptyTitle="No crags found"
+        emptySubtitle="Try a different search term"
+        renderItem={({ item }) => (
+          <TouchableOpacity
+            style={[styles.cragResultItem, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}
+            onPress={() => handleCragPress(item)}
+          >
+            <View style={styles.cragResultContent}>
+              <Text style={[styles.cragResultName, { color: colors.text }]} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={[styles.cragResultLocation, { color: colors.textDim }]} numberOfLines={1}>
+                📍 {item.location_details?.city || item.location_details?.country || 'Unknown Location'}
+              </Text>
+              {item.description && (
+                <Text style={[styles.cragResultDescription, { color: colors.textDim }]} numberOfLines={2}>
+                  {item.description}
+                </Text>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={UI_CONSTANTS.ICON_SIZES.MEDIUM} color={colors.textDim} />
+          </TouchableOpacity>
+        )}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   headerBar: {
-    height: 56,
+    height: SCREEN_CONSTANTS.CRAGS_SCREEN.CRAG_ITEM_HEIGHT + 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: UI_CONSTANTS.SPACING.LG,
+    ...STYLE_MIXINS.flexRowCenter,
     justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: UI_CONSTANTS.FONT_SIZES.XL,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.BOLD,
+  },
+
+  headerActions: {
+    ...STYLE_MIXINS.flexRowCenter,
+    gap: UI_CONSTANTS.SPACING.SM,
+  },
+  searchButton: {
+    padding: UI_CONSTANTS.SPACING.XS,
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    ...STYLE_MIXINS.flexRowCenter,
+    paddingVertical: UI_CONSTANTS.SPACING.XS,
+    paddingHorizontal: UI_CONSTANTS.SPACING.SM,
   },
   addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.SEMIBOLD,
   },
 
   centerBox: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    ...STYLE_MIXINS.flexCenter,
+  },
+  emptyText: {
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG,
+    textAlign: 'center',
   },
 
   cragCard: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    marginBottom: 16,
+    borderRadius: UI_CONSTANTS.BORDER_RADIUS.MEDIUM,
+    marginBottom: UI_CONSTANTS.SPACING.LG,
     overflow: 'hidden',
   },
 
   cragHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    ...STYLE_MIXINS.flexRowCenter,
+    paddingHorizontal: UI_CONSTANTS.SPACING.MD,
+    paddingVertical: UI_CONSTANTS.SPACING.MD,
   },
   cragHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...STYLE_MIXINS.flexRowCenter,
     flexShrink: 1,
   },
   cragHeaderRight: {
     marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...STYLE_MIXINS.flexRowCenter,
   },
   cragName: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.BOLD,
+  },
+  cragDetailButton: {
+    marginLeft: 8,
+    padding: 4,
   },
 
   routesListWrapper: {
-    paddingHorizontal: 14,
-    paddingBottom: 10,
+    paddingHorizontal: UI_CONSTANTS.SPACING.MD,
+    paddingBottom: UI_CONSTANTS.SPACING.SM,
   },
   routesLoadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
+    ...STYLE_MIXINS.flexRowCenter,
+    paddingVertical: UI_CONSTANTS.SPACING.SM,
   },
   loadingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginLeft: 6,
+    fontSize: UI_CONSTANTS.FONT_SIZES.SM + 1,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.SEMIBOLD,
+    marginLeft: UI_CONSTANTS.SPACING.XS,
   },
 
   routesEmptyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
+    ...STYLE_MIXINS.flexRowCenter,
+    paddingVertical: UI_CONSTANTS.SPACING.SM,
   },
   emptyText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: UI_CONSTANTS.FONT_SIZES.SM + 1,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.SEMIBOLD,
     fontStyle: 'italic',
   },
 
   routeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
+    ...STYLE_MIXINS.flexRowCenter,
+    paddingVertical: UI_CONSTANTS.SPACING.SM,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255,255,255,0.07)',
   },
   routeRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    ...STYLE_MIXINS.flexRowCenter,
     flexShrink: 1,
     flex: 1,
   },
   routeName: {
-    fontSize: 15,
-    fontWeight: '700',
-    marginRight: 6,
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.BOLD,
+    marginRight: UI_CONSTANTS.SPACING.XS,
   },
   routeGrade: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: UI_CONSTANTS.FONT_SIZES.MD,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.EXTRABOLD,
   },
 
   arButton: {
@@ -559,5 +684,31 @@ const styles = StyleSheet.create({
   modelPickerContent: {
     flex: 1,
     padding: 16,
+  },
+
+  // Search modal styles
+
+  cragResultItem: {
+    ...STYLE_MIXINS.flexRowCenter,
+    padding: UI_CONSTANTS.SPACING.LG,
+    borderRadius: UI_CONSTANTS.BORDER_RADIUS.MEDIUM,
+    marginBottom: UI_CONSTANTS.SPACING.MD,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  cragResultContent: {
+    flex: 1,
+  },
+  cragResultName: {
+    fontSize: UI_CONSTANTS.FONT_SIZES.LG,
+    fontWeight: UI_CONSTANTS.FONT_WEIGHTS.SEMIBOLD,
+    marginBottom: UI_CONSTANTS.SPACING.XS,
+  },
+  cragResultLocation: {
+    fontSize: UI_CONSTANTS.FONT_SIZES.MD,
+    marginBottom: UI_CONSTANTS.SPACING.XS,
+  },
+  cragResultDescription: {
+    fontSize: UI_CONSTANTS.FONT_SIZES.SM,
+    lineHeight: UI_CONSTANTS.SPACING.LG,
   },
 });

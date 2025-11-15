@@ -1,6 +1,8 @@
 import React, { useEffect, useCallback, useState } from 'react';
-import { View, StyleSheet, StatusBar, BackHandler, Alert, PermissionsAndroid, Platform } from 'react-native';
+import { View, StyleSheet, StatusBar, BackHandler, Alert, PermissionsAndroid, Platform, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import { enableFullscreen, disableFullscreen } from '../utils/FullscreenHelper';
 import UnityViewerDirect from '../components/UnityViewerDirect';
 
@@ -130,6 +132,17 @@ export default function UnityARScreen({ route, navigation }) {
         autoSaveRouteData={true}
         style={styles.unityView}
       />
+
+      {/* Floating back button */}
+      <SafeAreaView style={styles.backButtonContainer} edges={['top', 'left']}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      </SafeAreaView>
     </View>
   );
 }
@@ -141,5 +154,28 @@ const styles = StyleSheet.create({
   },
   unityView: {
     flex: 1,
+  },
+  backButtonContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 1000,
+  },
+  backButton: {
+    margin: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
