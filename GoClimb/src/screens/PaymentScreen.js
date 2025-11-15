@@ -23,7 +23,6 @@ export default function PaymentScreen() {
   const { confirmPayment } = useStripe();
   
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' or 'paynow'
   const [cardComplete, setCardComplete] = useState(false);
   const [toast, setToast] = useState('');
   const toastRef = useRef(null);
@@ -46,6 +45,11 @@ export default function PaymentScreen() {
       // Step 1: Create payment intent on backend
       const url = `${API_ENDPOINTS.BASE_URL}/${API_ENDPOINTS.PAYMENT.CREATE_PAYMENT_INTENT}`;
       console.log('[PaymentScreen] Calling:', url);
+      console.log('[PaymentScreen] Request body:', {
+        amount: STRIPE_CONFIG.MEMBERSHIP_AMOUNT_SGD,
+        currency: STRIPE_CONFIG.CURRENCY_SGD,
+        paymentMethodTypes: ['card'],
+      });
       
       const response = await fetch(url, {
         method: 'POST',
@@ -59,6 +63,8 @@ export default function PaymentScreen() {
         }),
       });
 
+      console.log('[PaymentScreen] Response status:', response.status);
+
       if (!response.ok) {
         const errorText = await response.text();
         console.log('[PaymentScreen] Backend error:', response.status, errorText);
@@ -68,119 +74,64 @@ export default function PaymentScreen() {
       }
 
       const data = await response.json();
+      console.log('[PaymentScreen] Backend response:', data);
 
-      if (data.error || !data.clientSecret) {
+      if (!data.success || data.error || !data.clientSecret) {
+        console.log('[PaymentScreen] Invalid response from backend:', data);
         showToast(data.error || 'Failed to initialize payment');
         setLoading(false);
         return;
       }
 
+      console.log('[PaymentScreen] Client secret received:', data.clientSecret);
+      console.log('[PaymentScreen] Confirming payment with Stripe...');
+
       // Step 2: Confirm payment with Stripe
+      // The CardField component automatically attaches the card details
       const { paymentIntent, error: confirmError } = await confirmPayment(data.clientSecret, {
         paymentMethodType: 'Card',
       });
 
+      console.log('[PaymentScreen] Stripe confirmPayment result:', { paymentIntent, confirmError });
+
       if (confirmError) {
-        showToast(confirmError.message);
+        console.log('[PaymentScreen] Payment confirmation error:', confirmError);
+        showToast(confirmError.message || 'Payment failed');
         setLoading(false);
         return;
       }
 
-      if (paymentIntent && paymentIntent.status === 'Succeeded') {
-        // Payment successful!
-        showToast('Payment successful!', 1500);
-        setTimeout(() => {
-          navigation.replace('SignUp', { paid: true, paymentId: paymentIntent.id });
-        }, 1500);
+      if (paymentIntent) {
+        console.log('[PaymentScreen] Payment intent status:', paymentIntent.status);
+        
+        if (paymentIntent.status === 'Succeeded') {
+          // Payment successful!
+          showToast('Payment successful!', 1500);
+          setTimeout(() => {
+            navigation.replace('SignUp', { paid: true, paymentId: paymentIntent.id });
+          }, 1500);
+        } else {
+          showToast(`Payment status: ${paymentIntent.status}`);
+          setLoading(false);
+        }
+      } else {
+        console.log('[PaymentScreen] No payment intent returned');
+        showToast('Payment processing failed');
+        setLoading(false);
       }
     } catch (error) {
       console.log('[PaymentScreen] Card payment error:', error);
+      console.log('[PaymentScreen] Error details:', error.message, error.stack);
       if (error.message === 'Network request failed') {
         showToast('Backend not available. Payment endpoint not implemented yet.');
       } else {
-        showToast('An error occurred during payment');
+        showToast(error.message || 'An error occurred during payment');
       }
-    }
-
-    setLoading(false);
-  };
-
-  const handlePayNowPayment = async () => {
-    setLoading(true);
-
-    try {
-      // Step 1: Create payment intent for PayNow
-      const url = `${API_ENDPOINTS.BASE_URL}/${API_ENDPOINTS.PAYMENT.CREATE_PAYMENT_INTENT}`;
-      console.log('[PaymentScreen] Calling:', url);
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: STRIPE_CONFIG.MEMBERSHIP_AMOUNT_SGD,
-          currency: STRIPE_CONFIG.CURRENCY_SGD, // PayNow requires SGD
-          paymentMethodTypes: ['paynow'],
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('[PaymentScreen] Backend error:', response.status, errorText);
-        showToast(`Backend error: ${response.status}. Check backend logs.`);
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.error || !data.clientSecret) {
-        showToast(data.error || 'Failed to initialize PayNow');
-        setLoading(false);
-        return;
-      }
-
-      // Step 2: Confirm PayNow payment
-      const { paymentIntent, error: confirmError } = await confirmPayment(data.clientSecret, {
-        paymentMethodType: 'PayNow',
-      });
-
-      if (confirmError) {
-        showToast(confirmError.message);
-        setLoading(false);
-        return;
-      }
-
-      // PayNow requires user to scan QR code, so status might be 'requires_action'
-      if (paymentIntent && (paymentIntent.status === 'Succeeded' || paymentIntent.status === 'processing')) {
-        showToast('Payment initiated! Redirecting...', 1500);
-        setTimeout(() => {
-          navigation.replace('SignUp', { paid: true, paymentId: paymentIntent.id });
-        }, 1500);
-      } else if (paymentIntent && paymentIntent.status === 'requires_action') {
-        showToast('Please complete payment via PayNow QR code');
-        // The Stripe SDK should handle showing the QR code
-      }
-    } catch (error) {
-      console.log('[PaymentScreen] PayNow error:', error);
-      if (error.message === 'Network request failed') {
-        showToast('Backend not available. Payment endpoint not implemented yet.');
-      } else {
-        showToast('An error occurred with PayNow');
-      }
-    }
-
-    setLoading(false);
-  };
-
-  const handlePayment = () => {
-    if (paymentMethod === 'card') {
-      handleCardPayment();
-    } else if (paymentMethod === 'paynow') {
-      handlePayNowPayment();
+      setLoading(false);
     }
   };
+
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]} edges={['top', 'bottom']}>
@@ -215,105 +166,48 @@ export default function PaymentScreen() {
           </View>
         </View>
 
-        {/* Payment Method Selector */}
-        <View style={styles.methodSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Payment Method</Text>
-          <View style={styles.methodButtons}>
-            <TouchableOpacity
-              style={[
-                styles.methodButton,
-                {
-                  backgroundColor: paymentMethod === 'card' ? colors.accent : colors.surface,
-                  borderColor: paymentMethod === 'card' ? colors.accent : colors.divider,
-                }
-              ]}
-              onPress={() => setPaymentMethod('card')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="card" size={18} color={paymentMethod === 'card' ? '#FFFFFF' : colors.text} />
-              <Text style={[styles.methodButtonText, { color: paymentMethod === 'card' ? '#FFFFFF' : colors.text }]}>
-                Card
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.methodButton,
-                {
-                  backgroundColor: paymentMethod === 'paynow' ? colors.accent : colors.surface,
-                  borderColor: paymentMethod === 'paynow' ? colors.accent : colors.divider,
-                }
-              ]}
-              onPress={() => setPaymentMethod('paynow')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="qr-code" size={18} color={paymentMethod === 'paynow' ? '#FFFFFF' : colors.text} />
-              <Text style={[styles.methodButtonText, { color: paymentMethod === 'paynow' ? '#FFFFFF' : colors.text }]}>
-                PayNow
-              </Text>
-            </TouchableOpacity>
+        {/* Card Input */}
+        <View style={styles.cardSection}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Card Details</Text>
+          <View style={[styles.cardFieldContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
+            <CardField
+              postalCodeEnabled={false}
+              placeholders={{
+                number: '4242 4242 4242 4242',
+              }}
+              cardStyle={{
+                backgroundColor: colors.surface,
+                textColor: colors.text,
+                placeholderColor: colors.textDim,
+              }}
+              style={styles.cardField}
+              onCardChange={(cardDetails) => {
+                setCardComplete(cardDetails.complete);
+              }}
+            />
           </View>
+          <Text style={[styles.secureNote, { color: colors.textDim }]}>
+            <Ionicons name="lock-closed" size={12} color={colors.textDim} /> Secure payment powered by Stripe
+          </Text>
         </View>
-
-        {/* Card Input - Only show if card is selected */}
-        {paymentMethod === 'card' && (
-          <View style={styles.cardSection}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Card Details</Text>
-            <View style={[styles.cardFieldContainer, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-              <CardField
-                postalCodeEnabled={false}
-                placeholders={{
-                  number: '4242 4242 4242 4242',
-                }}
-                cardStyle={{
-                  backgroundColor: colors.surface,
-                  textColor: colors.text,
-                  placeholderColor: colors.textDim,
-                }}
-                style={styles.cardField}
-                onCardChange={(cardDetails) => {
-                  setCardComplete(cardDetails.complete);
-                }}
-              />
-            </View>
-            <Text style={[styles.secureNote, { color: colors.textDim }]}>
-              <Ionicons name="lock-closed" size={12} color={colors.textDim} /> Secure payment powered by Stripe
-            </Text>
-          </View>
-        )}
-
-        {/* PayNow Info - Only show if PayNow is selected */}
-        {paymentMethod === 'paynow' && (
-          <View style={[styles.payNowInfo, { backgroundColor: colors.surface, borderColor: colors.divider }]}>
-            <Ionicons name="qr-code-outline" size={36} color={colors.accent} />
-            <Text style={[styles.payNowTitle, { color: colors.text }]}>PayNow QR Payment</Text>
-            <Text style={[styles.payNowText, { color: colors.textDim }]}>
-              Scan QR code with your banking app
-            </Text>
-          </View>
-        )}
 
         {/* Pay Button */}
         <TouchableOpacity
           style={[
             styles.payButton,
             { 
-              backgroundColor: (paymentMethod === 'card' ? cardComplete : true) && !loading ? colors.accent : colors.surfaceAlt 
+              backgroundColor: cardComplete && !loading ? colors.accent : colors.surfaceAlt 
             }
           ]}
-          onPress={handlePayment}
-          disabled={(paymentMethod === 'card' && !cardComplete) || loading}
+          onPress={handleCardPayment}
+          disabled={!cardComplete || loading}
           activeOpacity={0.8}
         >
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <>
-              <Ionicons 
-                name={paymentMethod === 'card' ? 'card' : 'qr-code'} 
-                size={20} 
-                color="#FFFFFF" 
-              />
+              <Ionicons name="card" size={20} color="#FFFFFF" />
               <Text style={styles.payButtonText}>Pay S$0.60</Text>
             </>
           )}
@@ -431,45 +325,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700',
-  },
-
-  methodSection: {
-    marginBottom: 24,
-  },
-  methodButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  methodButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    gap: 8,
-  },
-  methodButtonText: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  payNowInfo: {
-    padding: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    marginBottom: 24,
-    gap: 12,
-  },
-  payNowTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  payNowText: {
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 18,
   },
 });

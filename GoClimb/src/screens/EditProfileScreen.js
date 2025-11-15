@@ -74,13 +74,7 @@ export default function EditProfileScreen() {
           uri: file.uri,
         });
         
-        // Validate file size (max 5MB)
-        if (file.size && file.size > 5 * 1024 * 1024) {
-          console.log('[EditProfile] Image too large:', file.size);
-          showToast('Image must be less than 5MB', 'error');
-          return;
-        }
-
+        // No size limit - accept all images
         console.log('[EditProfile] Setting selected image');
         setSelectedImage(file);
         showToast('Image selected successfully', 'success');
