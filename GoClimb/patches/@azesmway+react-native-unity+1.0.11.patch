@@ -1,0 +1,13 @@
+diff --git a/node_modules/@azesmway/react-native-unity/android/src/main/java/com/azesmwayreactnativeunity/UPlayer.java b/node_modules/@azesmway/react-native-unity/android/src/main/java/com/azesmwayreactnativeunity/UPlayer.java
+index b944779..d4a1cdd 100644
+--- a/node_modules/@azesmway/react-native-unity/android/src/main/java/com/azesmwayreactnativeunity/UPlayer.java
++++ b/node_modules/@azesmway/react-native-unity/android/src/main/java/com/azesmwayreactnativeunity/UPlayer.java
+@@ -97,7 +97,7 @@ public class UPlayer {
+ 
+             return (FrameLayout) getFrameLayout.invoke(unityPlayer);
+         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+-            return unityPlayer;
++            return null;
+         }
+     }
+ 
