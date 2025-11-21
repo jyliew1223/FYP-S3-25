@@ -55,8 +55,9 @@ public class MockModelSender : MonoBehaviour
 
     void LoadIndoor()
     {
-        string path = System.IO.Path.Combine(Application.streamingAssetsPath, modelFileName);
+        // string path = System.IO.Path.Combine(Application.streamingAssetsPath, modelFileName);
         //string path = " C:/Users/PC/Desktop/SIM Documents/CSIT321 Project/FYP/Github/Unity_Project/Unity_Project/Assets/StreamingAssets/TestModel/test.glb";
+        string path = modelFileName;
         Debug.Log("Mock sending path: " + path);
 
         string routeJson = @"[
@@ -69,7 +70,15 @@ public class MockModelSender : MonoBehaviour
                                         ""x"": 0.487378329,
                                         ""y"": 0.185744524,
                                         ""z"": 0.175995618
-                                      }
+                                      },
+                                    }                         ,
+{
+                                      ""order"": 1,
+                                      ""pos"": {
+                                        ""x"": 0.487378329,
+                                        ""y"": 0.285744524,
+                                        ""z"": 0.175995618
+                                      },
                                     }
                                   ]
                                 },                                
@@ -79,10 +88,39 @@ public class MockModelSender : MonoBehaviour
                                     {
                                       ""order"": 1,
                                       ""pos"": {
-                                        ""x"": 0.487378329,
+                                        ""x"": 0.557378329,
                                         ""y"": 0.185744524,
                                         ""z"": 0.175995618
                                       }
+                                    }              ,
+{
+                                      ""order"": 1,
+                                      ""pos"": {
+                                        ""x"": 0.487378329,
+                                        ""y"": 0.385744524,
+                                        ""z"": 0.175995618
+                                      },
+                                    }
+                                  ]
+                                },                           
+                                {
+                                  ""route_name"": ""New1"",
+                                  ""points"": [
+                                    {
+                                      ""order"": 1,
+                                      ""pos"": {
+                                        ""x"": 0.687378329,
+                                        ""y"": 0.185744524,
+                                        ""z"": 0.175995618
+                                      }
+                                    }              ,
+{
+                                      ""order"": 1,
+                                      ""pos"": {
+                                        ""x"": 0.487378329,
+                                        ""y"": 0.485744524,
+                                        ""z"": 0.175995618
+                                      },
                                     }
                                   ]
                                 },
@@ -96,7 +134,7 @@ public class MockModelSender : MonoBehaviour
             {
                 normalizedScale = 0.001f,
                 positionOffset = Vector3.zero,
-                rotationOffset = new Vector3(90, 0, 0)
+                rotationOffset = new Vector3(0, 0, 0)
             },
             routeDatas = JsonConvert.DeserializeObject<RouteData[]>(routeJson),
             //routeData = new RouteData

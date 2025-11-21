@@ -46,9 +46,8 @@ public class RaycastControllerBehaviour : MonoBehaviour
     [SerializeField] private bool isOn = true;
     [SerializeField] private UnityReceiverManager unityReceiverManager;
 
-    private MeshCollider hitbox;
+    private MeshCollider[] hitboxes;
     private GameObject visualInstance;
-    private bool isTargetHitThisFrame = false;
     private Transform savedPin = null;
     private List<ButtonAnchorPair> anchorButtonMapList = new();
 
@@ -59,9 +58,10 @@ public class RaycastControllerBehaviour : MonoBehaviour
         visualInstance = Instantiate(raycastPinPrefab, Vector3.zero, Quaternion.identity, transform);
         visualInstance.SetActive(false);
     }
+
     void Update()
     {
-        if (hitbox == null)
+        if (hitboxes == null || hitboxes.Length == 0)
         {
             pinButton.interactable = false;
             return;
@@ -69,29 +69,38 @@ public class RaycastControllerBehaviour : MonoBehaviour
 
         if (isOn)
         {
-            float xAxis = Screen.safeArea.width / 2;
-            float yAxis = Screen.safeArea.height / 2;
+            float xAxis = Screen.safeArea.width * 0.5f;
+            float yAxis = Screen.safeArea.height * 0.5f;
             Vector3 screenCenter = new(xAxis, yAxis, 0);
+
             Ray ray = Camera.main.ScreenPointToRay(screenCenter);
 
             Debug.DrawRay(ray.origin, ray.direction * 100, Color.red);
 
             RaycastHit[] hits = Physics.RaycastAll(ray);
 
-            isTargetHitThisFrame = hits.Any(h => h.collider == hitbox);
+            RaycastHit? matchedHit = hits
+                .Where(h => hitboxes.Contains(h.collider))
+                .Cast<RaycastHit?>()
+                .FirstOrDefault();
 
-            pinButton.interactable = isTargetHitThisFrame;
+            bool hasHit = matchedHit.HasValue;
+            pinButton.interactable = hasHit;
 
-            if (isTargetHitThisFrame)
+            if (hasHit)
             {
-                RaycastHit hit = hits.First(h => h.collider == hitbox);
+                RaycastHit hit = matchedHit.Value;
 
                 Debug.DrawRay(hit.point, hit.normal.normalized * 10, Color.green);
 
                 visualInstance.SetActive(true);
                 visualInstance.transform.SetPositionAndRotation(
                     Vector3.Lerp(visualInstance.transform.position, hit.point, 0.5f),
-                    Quaternion.Slerp(visualInstance.transform.rotation, Quaternion.LookRotation(hit.normal), 0.5f)
+                    Quaternion.Slerp(
+                        visualInstance.transform.rotation,
+                        Quaternion.LookRotation(hit.normal),
+                        0.5f
+                    )
                 );
             }
         }
@@ -112,13 +121,10 @@ public class RaycastControllerBehaviour : MonoBehaviour
             Debug.LogError($"{this.GetType().Name}: Placed object is null");
             return;
         }
-        this.hitbox = obj.GetComponentInChildren<MeshCollider>();
+        hitboxes = obj.GetComponentsInChildren<MeshCollider>();
     }
     public void PinAnchor()
     {
-        if (!isTargetHitThisFrame)
-            return;
-
         if (savedPin == null)
         {
             savedPin = Instantiate(routeRendererPrefab, visualInstance.transform.position, visualInstance.transform.rotation, transform).transform;
@@ -188,7 +194,7 @@ public class RaycastControllerBehaviour : MonoBehaviour
         {
             pinnedAnchors.Add(pair.anchor);
         }
-        unityReceiverManager.ExtractRouteData(pinnedAnchors, hitbox.bounds);
+        unityReceiverManager.ExtractRouteData(pinnedAnchors, hitboxes[0].bounds);
     }
     private void EnableAnchor(ToggleButton clickedButton)
     {

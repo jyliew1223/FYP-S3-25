@@ -11,7 +11,7 @@ public class GroundPlaneStageBehaviour : MonoBehaviour
     [SerializeField] private float offset = 0.05f;
     [SerializeField] private UnityEvent onModelTap = new();
 
-    private MeshCollider hitbox;
+    private MeshCollider[] hitboxes;
 
     private void Awake()
     {
@@ -36,28 +36,25 @@ public class GroundPlaneStageBehaviour : MonoBehaviour
 
                 if (hits.Length > 0)
                 {
-                    RaycastHit hit = hits.OrderBy(h => h.distance).First();
-                    if (hit.collider == hitbox)
+                    RaycastHit? matchedHit = hits
+                        .Where(h => hitboxes.Contains(h.collider))
+                        .OrderBy(h => h.distance)
+                        .Cast<RaycastHit?>()
+                        .FirstOrDefault();
+
+                    if (matchedHit.HasValue)
                     {
-                        Debug.Log("Tapped on " + hitbox.gameObject.name);
+                        Collider c = matchedHit.Value.collider;
+                        Debug.Log("Tapped on " + c.gameObject.name);
                         HandleOnTap();
                     }
                 }
             }
         }
     }
-
     private bool IsPointerOverUI(UnityEngine.InputSystem.EnhancedTouch.Touch touch)
     {
         return EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(touch.touchId);
-    }
-    private void OnDrawGizmos()
-    {
-        if (hitbox != null)
-        {
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawWireCube(hitbox.bounds.center, hitbox.bounds.size + Vector3.one * offset);
-        }
     }
     private void HandleOnTap()
     {
@@ -65,6 +62,6 @@ public class GroundPlaneStageBehaviour : MonoBehaviour
     }
     public void SetModelBound(GameObject obj)
     {
-        hitbox = obj.GetComponentInChildren<MeshCollider>();
+        hitboxes = obj.GetComponentsInChildren<MeshCollider>();
     }
 }

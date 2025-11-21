@@ -54,7 +54,7 @@ public class RouteSelector : MonoBehaviour
             ToggleGroup toggleGroup = itemParent.GetComponent<ToggleGroup>();
             TextMeshProUGUI label = togglebutton.GetComponentInChildren<TextMeshProUGUI>();
             togglebutton.group = toggleGroup;
-            label.text = item.Key;
+            label.text = item.Key.routeName;
             togglebutton.onValueChanged.AddListener((isOn) =>
             {
                 item.Value.SetActive(isOn);

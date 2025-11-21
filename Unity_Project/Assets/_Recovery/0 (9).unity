@@ -155,7 +155,7 @@ MonoBehaviour:
   routeSelector: 
   planeDetector: 
   gameManager: {fileID: 1868306561}
-  modelFileName: C:\Users\PC\Downloads\1211\climbing_route_test.glb
+  modelFileName: TestModel/test.glb
 --- !u!4 &997190056
 Transform:
   m_ObjectHideFlags: 0

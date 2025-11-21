@@ -64,7 +64,7 @@ public class UnityReceiverManager : MonoBehaviour
 
     public static UnityReceiverManager Instance { get; private set; }
     public bool IsModelLoaded { get; private set; } = false;
-    public Dictionary<string, GameObject> routes { get; private set; } = new();
+    public Dictionary<RouteData, GameObject> routes { get; private set; } = new();
 
     private Transform routesParent;
     private void Awake()
@@ -200,16 +200,18 @@ public class UnityReceiverManager : MonoBehaviour
             return false;
         }
     }
-    private Collider AddMeshColliders(GameObject root)
+    private void AddMeshColliders(GameObject root)
     {
-        MeshFilter meshFilter = root.GetComponentInChildren<MeshFilter>();
-        MeshCollider collider = meshFilter.gameObject.AddComponent<MeshCollider>();
-        collider.sharedMesh = meshFilter.sharedMesh;
-        collider.convex = false;
+        MeshFilter[] meshFilters = root.GetComponentsInChildren<MeshFilter>();
 
-        Debug.Log(" MeshColliders added", this);
+        foreach (MeshFilter meshFilter in meshFilters)
+        {
+            MeshCollider collider = meshFilter.gameObject.AddComponent<MeshCollider>();
+            collider.sharedMesh = meshFilter.sharedMesh;
+            collider.convex = false;
 
-        return collider;
+            Debug.Log(" MeshColliders added", this);
+        }
     }
     private float GetMeshHeight(GameObject root)
     {
@@ -284,7 +286,7 @@ public class UnityReceiverManager : MonoBehaviour
 
         routeRenderer.UpdateRouteVisual();
         parent.SetActive(false);
-        routes[routeData.routeName] = parent;
+        routes[routeData] = parent;
     }
     public void ExtractRouteData(List<Transform> routeDatas, Bounds bounds, string name = "New")
     {
